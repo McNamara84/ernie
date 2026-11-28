@@ -71,7 +71,6 @@ describe('DefaultGfzIgsnTemplate', () => {
     };
 
     beforeEach(() => {
-        vi.clearAllMocks();
         document.title = '';
     });
 
@@ -247,7 +246,7 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(logo).not.toHaveClass('h-24');
         });
 
-        it('renders the Legal Notice link', () => {
+        it('links to the legal notice and data protection policy', () => {
             mockUsePage.mockReturnValue({
                 props: {
                     resource: mockResource,
@@ -261,6 +260,10 @@ describe('DefaultGfzIgsnTemplate', () => {
             const legalNoticeLink = screen.getByText('Legal Notice');
             expect(legalNoticeLink).toBeInTheDocument();
             expect(legalNoticeLink).toHaveAttribute('href', '/legal-notice');
+            expect(screen.getByRole('link', { name: 'Data Protection' })).toHaveAttribute(
+                'href',
+                'https://gfz-data-services.gfz.de/about-us/data-protection',
+            );
         });
 
         it('renders footer with GFZ and Helmholtz logos', () => {

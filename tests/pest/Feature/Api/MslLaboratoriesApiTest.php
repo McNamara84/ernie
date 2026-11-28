@@ -101,6 +101,10 @@ it('returns the public wrapper and all seven laboratory fields to ELMO', functio
         ->and($response->json('data.1.affiliation_ror'))->toBeNull()
         ->and($response->json())->not->toHaveKey('source')
         ->and(json_encode($response->json(), JSON_THROW_ON_ERROR))->not->toContain('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+
+    setMslLaboratoriesAvailability(false, false);
+    getJson('/api/v1/vocabularies/data/msl-laboratories', ['X-API-Key' => 'test-api-key'])
+        ->assertOk()->assertExactJson($response->json());
 });
 
 it('returns a valid empty vocabulary wrapper to ELMO', function (): void {

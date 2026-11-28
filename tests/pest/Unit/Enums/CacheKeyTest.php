@@ -3,8 +3,16 @@
 declare(strict_types=1);
 
 use App\Enums\CacheKey;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 covers(CacheKey::class);
+
+it('centralizes editor format usage with one minute retention and an independent tag', function () {
+    expect(CacheKey::EDITOR_FORMAT_USAGE->key())->toBe('editor:resource-format-usage:v1')
+        ->and(CacheKey::EDITOR_FORMAT_USAGE->ttl())->toBe(60)
+        ->and(CacheKey::EDITOR_FORMAT_USAGE->tags())->toBe(['editor_format_usage']);
+});
 
 it('retains editor date type usage for seven days independently of resource caches', function () {
     expect(CacheKey::EDITOR_DATE_TYPE_USAGE->key())->toBe('editor:date_type_usage:v1')
@@ -12,15 +20,6 @@ it('retains editor date type usage for seven days independently of resource cach
         ->and(CacheKey::EDITOR_DATE_TYPE_USAGE->tags())->toBe(['vocabularies', 'editor_date_type_usage'])
         ->and(CacheKey::vocabularyKeys())->not->toContain(CacheKey::EDITOR_DATE_TYPE_USAGE);
 });
-
-it('preserves import activity namespaces and centralizes their retention', function (CacheKey $key, string $suffix, string $expected) {
-    expect($key->key($suffix))->toBe($expected)
-        ->and($key->ttl())->toBe(172800)
-        ->and($key->tags())->toBe([]);
-})->with([
-    [CacheKey::USER_ACTIVITY_IMPORT_SYNC, 'operation:42', 'activity:import-sync:operation:42'],
-    [CacheKey::USER_ACTIVITY_IMPORT_SUMMARY, 'operation', 'activity:import-summary:operation'],
-]);
 
 it('generates correct cache keys without suffix', function () {
     expect(CacheKey::RESOURCE_LIST->key())->toBe('resources:list');
@@ -53,8 +52,17 @@ it('generates correct cache keys with integer suffix', function () {
 });
 
 it('versions landing page render data cache keys', function () {
-    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v14')
-        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v14:123');
+    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v19')
+        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v19:123');
+});
+
+it('preserves the shared subject vocabulary revision key independently of vocabulary payloads', function () {
+    $key = CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION;
+
+    expect($key->key())->toBe('landing_pages:subject_vocabulary_revision')
+        ->and($key->ttl())->toBe(86400)
+        ->and($key->tags())->toBe([])
+        ->and(CacheKey::vocabularyKeys())->not->toContain($key);
 });
 
 it('returns correct TTL for resources', function () {
@@ -87,6 +95,12 @@ it('returns correct TTL for ROR and ORCID', function () {
 
     // ORCID - 24 hours (86400 seconds)
     expect(CacheKey::ORCID_PERSON->ttl())->toBe(86400);
+});
+
+it('assigns Handle resolution evidence to the cleared vocabulary group', function () {
+    expect(CacheKey::B2INST_HANDLE->key('hash'))->toBe('b2inst:handle:hash')
+        ->and(CacheKey::B2INST_HANDLE->tags())->toBe(['vocabularies'])
+        ->and(CacheKey::vocabularyKeys())->not->toContain(CacheKey::B2INST_HANDLE);
 });
 
 it('returns configurable TTLs for public page payload caches', function () {
@@ -132,6 +146,43 @@ it('returns correct tags for vocabularies', function () {
     expect(CacheKey::MSL_KEYWORDS->tags())->toBe(['vocabularies']);
     expect(CacheKey::RAID_PROJECTS->tags())->toBe(['vocabularies']);
 });
+
+it('preserves the API 1.2 snapshot key pattern and the tags of both ROR entries', function (): void {
+    $key = CacheKey::PUBLIC_VOCABULARY_SNAPSHOT;
+
+    expect($key->key('msl'))->toBe('vocabularies:public:1.2:msl')
+        ->and($key->key('ror-affiliations:file'))->toBe('vocabularies:public:1.2:ror-affiliations:file')
+        ->and($key->tags('msl'))->toBe(['vocabularies'])
+        ->and($key->tags('ror-affiliations'))->toBe(['vocabularies', 'ror'])
+        ->and($key->tags('ror-affiliations:file'))->toBe(['vocabularies', 'ror'])
+        ->and($key->ttl())->toBe(86400)
+        ->and(CacheKey::vocabularyKeys())->not->toContain($key);
+});
+
+it('forgets only the entry in the cache repository bound by a worker', function (CacheKey $key, string $driver): void {
+    $manager = Cache::getFacadeRoot();
+    $application = $key->repository('test-worker');
+    $worker = $manager->build(['driver' => $driver, 'path' => Storage::fake('worker-cache')->path('cache')]);
+    $tags = $key->tags('test-worker');
+    $workerEntries = $tags !== [] && $worker->supportsTags() ? $worker->tags($tags) : $worker;
+    $name = $key->key('test-worker');
+    $application->forever($name, 'application');
+    $workerEntries->forever($name, 'worker');
+
+    Cache::swap($worker);
+    try {
+        expect($key->forget('test-worker'))->toBeTrue()
+            ->and($workerEntries->has($name))->toBeFalse()
+            ->and($application->get($name))->toBe('application');
+    } finally {
+        Cache::swap($manager);
+        $application->forget($name);
+    }
+})->with([
+    'untagged entry on a taggable store' => [CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS, 'array'],
+    'tagged vocabulary entry' => [CacheKey::PUBLIC_VOCABULARY_SNAPSHOT, 'array'],
+    'vocabulary entry on a file store' => [CacheKey::PUBLIC_VOCABULARY_SNAPSHOT, 'file'],
+]);
 
 it('returns correct tags for ROR', function () {
     expect(CacheKey::ROR_AFFILIATION->tags())->toBe(['ror', 'affiliations']);
@@ -183,6 +234,22 @@ it('all cache keys have unique values', function () {
 it('defines successful relation correction cache lifetimes and ownership', function (CacheKey $key) {
     expect($key->ttl())->toBe(86400)->and($key->tags())->toBe(['assistance', 'relation_correction']);
 })->with([CacheKey::RELATION_CORRECTION_RAW, CacheKey::RELATION_CORRECTION_SUPPORT]);
+
+it('preserves citation cache keys and lifetimes and invalidates them with the citations tag', function (CacheKey $key, string $prefix, int $ttl): void {
+    $name = $key->key('sample');
+    expect($name)->toBe($prefix.':sample')
+        ->and($key->ttl())->toBe($ttl)
+        ->and($key->tags())->toBe(CacheKey::DOI_CITATION->tags());
+
+    $cache = $key->repository();
+    $cache->put($name, 'cached', $key->ttl());
+    Cache::tags(['citations'])->flush();
+    expect($cache->has($name))->toBeFalse();
+})->with([
+    'review snapshot' => [CacheKey::CITATION_REVIEW_SNAPSHOT, 'citations:review', 1800],
+    'native paper metadata' => [CacheKey::CITATION_NATIVE_PAPER, 'citations:native-paper', 86400],
+    'rendered APA parts' => [CacheKey::CITATION_APA_PARTS, 'citations:related-work:apa-7', 86400],
+]);
 
 it('returns all vocabulary keys', function () {
     $vocabularyKeys = CacheKey::vocabularyKeys();

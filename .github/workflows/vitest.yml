@@ -49,8 +49,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Chromium for component tests
+        run: npm run test:browser:install -- --with-deps
+
       - name: Generate Wayfinder Routes
-        run: php artisan wayfinder:generate
+        run: php -d memory_limit=2G artisan ernie:wayfinder-generate --with-form
 
       - name: TypeScript Check
         if: matrix.shard == 1
@@ -76,6 +79,18 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
+
+      - name: Upload browser failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vitest-browser-failures-${{ matrix.shard }}
+          path: |
+            .vitest/browser
+            .vitest/attachments
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 3
 
   vitest:
     name: Vitest
@@ -119,7 +134,7 @@ jobs:
           JS
 
       - name: Merge Vitest and coverage reports
-        run: npx vitest --config vitest.merge.config.ts --merge-reports --coverage
+        run: npm run test:merge
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1

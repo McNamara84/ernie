@@ -20,18 +20,23 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
-use App\Models\ResourceType;
 use App\Models\TitleType;
+use App\Models\User;
+use App\Services\ContactPersons\ContactPersonFilterService;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
-use App\Services\DataCiteRegistrationService;
+use App\Services\DataCiteModeResolverService;
+use App\Services\DataCiteRegistrationFactoryService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
 use App\Services\EmbargoService;
 use App\Services\IgsnRegistrationExclusionService;
+use App\Services\IgsnRegistrationPreviewService;
 use App\Services\IgsnRegistrationRunPresenterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\ListingCountService;
+use App\Services\Resources\IgsnListingQueryService;
+use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
@@ -103,6 +108,7 @@ class IgsnController extends Controller
 
         $this->applyFilters($query, $prefix, $status, $datacenterId, $withoutDatacenter);
         $this->applySearch($query, $search);
+        app(ContactPersonFilterService::class)->apply($query, $criteria['contact']);
         $this->applySorting($query, $sortKey, $sortDirection);
 
         $paginated = $query->simplePaginate($perPage, ['*'], 'page', $page);
@@ -121,7 +127,6 @@ class IgsnController extends Controller
         $user = $request->user();
         $canDelete = $user !== null && $user->role === UserRole::ADMIN;
         $canRegister = $user?->can('register-doi') ?? false;
-        $canImport = $user?->can('importFromDataCite', Resource::class) ?? false;
 
         $canUpdateDataCiteLandingPageUrls = $user?->can('update-datacite-landing-page-urls') ?? false;
         $urlUpdateRun = $canUpdateDataCiteLandingPageUrls
@@ -151,15 +156,15 @@ class IgsnController extends Controller
                 'direction' => $sortDirection,
             ],
             'search' => $search,
+            'contactSelection' => app(ContactPersonFilterService::class)->describe($criteria['contact']),
             'totalCount' => null,
             'canDelete' => $canDelete,
             'canRegister' => $canRegister,
-            'canImport' => $canImport,
             'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
             'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),
             'igsnRegistrationRun' => $registrationRun === null ? null : $this->igsnRegistrationRunPresenter->run($registrationRun),
-            'igsnPrefix' => (string) config('datacite.production.igsn_prefix', '10.60510'),
             'filters' => array_filter([
+                'contact' => $criteria['contact'],
                 'prefix' => $prefix,
                 'status' => $status,
                 'datacenter_id' => $datacenterId,
@@ -191,12 +196,14 @@ class IgsnController extends Controller
                     $criteria['without_datacenter'],
                 );
                 $this->applySearch($query, $criteria['search']);
+                app(ContactPersonFilterService::class)->apply($query, $criteria['contact']);
 
                 return $query->count();
             },
         );
 
         $hasFilters = $criteria['search'] !== ''
+            || $criteria['contact'] !== null
             || $criteria['prefix'] !== ''
             || $criteria['status'] !== ''
             || $criteria['datacenter_id'] !== null
@@ -276,10 +283,10 @@ class IgsnController extends Controller
             /** @var list<string> $statuses */
             $statuses = IgsnMetadata::query()
                 ->whereIn('resource_id', (clone $base)->select('id'))
-                ->select('upload_status')
+                ->selectRaw($this->listingStatusSql().' AS listing_status')
                 ->distinct()
-                ->orderBy('upload_status')
-                ->pluck('upload_status')
+                ->orderBy('listing_status')
+                ->pluck('listing_status')
                 ->all();
         } catch (\Throwable $e) {
             Log::warning('Failed to load IGSN status filter options', [
@@ -426,7 +433,8 @@ class IgsnController extends Controller
     public function registerAtDataCite(Request $request, Resource $resource): JsonResponse
     {
         // Authorization: users with DOI registration access may register IGSNs; Beginner users are forced to DataCite test mode.
-        if (! $request->user()?->can('register-doi')) {
+        $user = $request->user();
+        if (! $user?->can('register-doi')) {
             abort(403, 'You are not authorized to register IGSNs.');
         }
 
@@ -454,13 +462,13 @@ class IgsnController extends Controller
 
             $resource->refresh();
 
-            return $this->performDataCiteRegistration($resource);
+            return $this->performDataCiteRegistration($resource, $user);
         } finally {
             $registrationLock->release();
         }
     }
 
-    private function performDataCiteRegistration(Resource $resource): JsonResponse
+    private function performDataCiteRegistration(Resource $resource, User $user): JsonResponse
     {
         $metadata = $resource->igsnMetadata;
         if ($metadata === null) {
@@ -475,22 +483,21 @@ class IgsnController extends Controller
                 'message' => 'A landing page must be set up before registering at DataCite.',
             ], 422);
         }
-        $wasAlreadyRegistered = $metadata->isRegistered();
-        $previousUploadState = $metadata->only(['upload_status', 'upload_error_message']);
+        if (app(DataCiteModeResolverService::class)->shouldUseTestMode($user)) {
+            try {
+                $run = app(IgsnRegistrationPreviewService::class)->single($resource, $user);
+            } catch (\InvalidArgumentException|DataCiteVerificationException $exception) {
+                return response()->json(['message' => $exception->getMessage()], 422);
+            }
 
-        // Set publicationYear to current year only for new registrations (Issue #438).
-        // Already-registered IGSNs keep their original publicationYear.
-        // Only persisted after a successful DataCite response to avoid inconsistent local state.
-        if (! $wasAlreadyRegistered) {
-            $resource->publication_year = now(config('app.timezone'))->year;
+            return response()->json(['mode' => 'simulation', 'run' => $this->igsnRegistrationRunPresenter->run($run)]);
         }
 
+        $previousUploadState = $metadata->only(['upload_status', 'upload_error_message']);
         try {
-            // Set status to "registering"
+            $service = app(DataCiteRegistrationFactoryService::class)->forMode(false);
+            $wasAlreadyRegistered = $service->shouldUpdateIgsn($resource, $metadata->registrationOperation());
             $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERING);
-
-            /** @var DataCiteRegistrationService $service */
-            $service = app(DataCiteRegistrationService::class);
 
             if ($wasAlreadyRegistered) {
                 // Already registered → update metadata
@@ -647,16 +654,7 @@ class IgsnController extends Controller
      */
     private function baseQuery(): Builder
     {
-        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
-
-        $query = Resource::query()
-            ->whereHas('igsnMetadata');
-
-        if ($physicalObjectType !== null) {
-            $query->where('resource_type_id', $physicalObjectType->id);
-        }
-
-        return $query;
+        return app(IgsnListingQueryService::class)->baseQuery();
     }
 
     /**
@@ -670,7 +668,7 @@ class IgsnController extends Controller
         return (clone $base)
             ->with([
                 'titles',
-                'igsnMetadata',
+                'igsnMetadata' => fn ($metadata) => $metadata->select('igsn_metadata.*')->selectRaw($this->listingStatusSql().' AS listing_status'),
                 'geoLocations',
                 'creators.creatorable',
                 'dates.dateType',
@@ -715,7 +713,8 @@ class IgsnController extends Controller
             'location' => $geoLocation->place ?? $this->formatCoordinates($geoLocation),
             'latitude' => $geoLocation?->point_latitude,
             'longitude' => $geoLocation?->point_longitude,
-            'upload_status' => $metadata->upload_status ?? 'pending',
+            'upload_status' => $metadata?->getAttribute('listing_status') ?? IgsnMetadata::STATUS_PENDING,
+            'registration_operation' => $metadata?->registrationOperation(),
             'upload_error_message' => $metadata?->upload_error_message,
             'parent_resource_id' => $metadata?->parent_resource_id,
             'collector' => $this->formatCreator($firstCreator),
@@ -810,6 +809,7 @@ class IgsnController extends Controller
      *     page:int,
      *     per_page:int,
      *     search:string,
+     *     contact:?string,
      *     prefix:string,
      *     status:string,
      *     datacenter_id:int|null,
@@ -820,6 +820,7 @@ class IgsnController extends Controller
      */
     private function resolveListingCriteria(IndexIgsnsRequest $request): array
     {
+        app(ResourceListingProjectionRefreshService::class)->flushPending();
         $search = trim((string) $request->query('search', ''));
 
         if (mb_strlen($search) < self::MIN_SEARCH_LENGTH) {
@@ -836,6 +837,7 @@ class IgsnController extends Controller
 
         return [
             'page' => max(1, (int) $request->query('page', 1)),
+            'contact' => $request->validated('contact'),
             'per_page' => $request->perPage(),
             'search' => $search,
             'prefix' => trim((string) $request->query('prefix', '')),
@@ -855,8 +857,10 @@ class IgsnController extends Controller
     {
         return [
             'search' => $criteria['search'],
+            'contact' => $criteria['contact'],
             'prefix' => $criteria['prefix'],
             'status' => $criteria['status'],
+            'simulation' => $criteria['status'] !== '' && app(DataCiteModeResolverService::class)->shouldUseTestMode(request()->user()),
             'datacenter_id' => $criteria['datacenter_id'],
             'without_datacenter' => $criteria['without_datacenter'],
         ];
@@ -882,7 +886,7 @@ class IgsnController extends Controller
 
         if ($status !== '') {
             $query->whereHas('igsnMetadata', function (Builder $q) use ($status): void {
-                $q->where('upload_status', $status);
+                $q->whereRaw($this->listingStatusSql().' = ?', [$status]);
             });
         }
 
@@ -919,6 +923,14 @@ class IgsnController extends Controller
         });
     }
 
+    /** @return literal-string */
+    private function listingStatusSql(): string
+    {
+        return app(DataCiteModeResolverService::class)->shouldUseTestMode(request()->user())
+            ? "CASE WHEN simulated_registered_at IS NOT NULL THEN 'registered' ELSE upload_status END"
+            : 'upload_status';
+    }
+
     /**
      * Apply sorting to the query.
      *
@@ -949,7 +961,7 @@ class IgsnController extends Controller
             case 'material':
             case 'upload_status':
                 $query->orderBy(function ($q) use ($sortKey) {
-                    return $q->select($sortKey)
+                    return $q->selectRaw($sortKey === 'upload_status' ? $this->listingStatusSql() : $sortKey)
                         ->from('igsn_metadata')
                         ->whereColumn('igsn_metadata.resource_id', 'resources.id')
                         ->limit(1);

@@ -142,6 +142,59 @@ test('invalid asset selection fails before changing the development backend', ()
     assert.equal(calls.length, 0);
 });
 
+test('native browser validation prepares one workspace before switching PHP routing and restores development', () => {
+    for (const failBrowser of [false, true]) {
+        const calls = [];
+        const validate = () =>
+            runPlaywrightDevstack([], {
+                assets: 'build',
+                backend: 'native',
+                execute(command, args) {
+                    calls.push([command, args]);
+                    if (failBrowser && args.includes('test')) throw new Error('browser failed');
+                },
+            });
+        if (failBrowser) assert.throws(validate, /browser failed/u);
+        else validate();
+        const workspace = calls.findIndex(([, args]) => args.includes('/var/www/html/scripts/prepare-pest-workspace.sh'));
+        const switched = calls.findIndex(([, args]) => args.includes('docker-compose.playwright-test.yml'));
+        assert.ok(workspace >= 0 && workspace < switched);
+        assert.equal(calls.filter(([, args]) => args.includes('/var/www/html/scripts/prepare-pest-workspace.sh')).length, 1);
+        assert.ok(
+            calls.some(([, args]) => args.includes('--workdir') && args.includes('/var/www/pest-workspace') && args.includes('memory_limit=2G')),
+        );
+        assert.deepEqual(calls.at(-2)[1].slice(-5), ['up', '-d', '--wait', 'app', 'webserver']);
+        assert.deepEqual(calls.at(-1)[1].slice(-3), ['nginx', '-s', 'reload']);
+    }
+});
+
+test('invalid native backend configuration fails before any Docker changes', () => {
+    for (const options of [{ backend: 'invalid' }, { backend: 'native', assets: 'vite' }]) {
+        const calls = [];
+        assert.throws(() => runPlaywrightDevstack([], { ...options, execute: (...call) => calls.push(call) }), /ERNIE_PLAYWRIGHT/u);
+        assert.equal(calls.length, 0);
+    }
+});
+
+test('a failed native workspace preparation restores routing before any test backend is started', () => {
+    const calls = [];
+    assert.throws(
+        () =>
+            runPlaywrightDevstack([], {
+                assets: 'build',
+                backend: 'native',
+                execute(command, args) {
+                    calls.push([command, args]);
+                    if (args.includes('/var/www/html/scripts/prepare-pest-workspace.sh')) throw new Error('workspace failed');
+                },
+            }),
+        /workspace failed/u,
+    );
+    assert.ok(calls.every(([, args]) => !args.includes('docker-compose.playwright-test.yml')));
+    assert.deepEqual(calls.at(-2)[1].slice(-5), ['up', '-d', '--wait', 'app', 'webserver']);
+    assert.deepEqual(calls.at(-1)[1].slice(-3), ['nginx', '-s', 'reload']);
+});
+
 test('an existing routing file is preserved and prevents concurrent backend changes', () => {
     const temporaryRoot = resolve(tmpdir());
     const directory = mkdtempSync(join(temporaryRoot, 'ernie-browser-existing-routing-'));

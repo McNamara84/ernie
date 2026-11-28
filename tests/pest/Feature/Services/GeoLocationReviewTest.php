@@ -8,18 +8,19 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\User;
-use App\Services\DataCiteToResourceTransformer;
 use App\Services\Editor\EditorDataTransformer;
 use App\Services\GeoLocations\GeoLocationIdentityService;
 use App\Services\GeoLocations\GeoLocationWriterService;
 use App\Services\GeoLocations\GeoLocationWriteSessionService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\ResourceStorageService;
-use App\Support\GeoLocations\GeoLocationWriteReport;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
+    foreach (['metaworks', 'legacy_metaworks', 'igsn_legacy'] as $connection) {
+        config(["database.connections.{$connection}" => ['driver' => 'retired']]);
+    }
     $this->seed(['ResourceTypeSeeder', 'TitleTypeSeeder', 'DescriptionTypeSeeder', 'LanguageSeeder', 'PublisherSeeder']);
     $this->user = User::factory()->create();
     $this->resource = Resource::factory()->create(['created_by_user_id' => $this->user->id]);
@@ -224,29 +225,18 @@ it('loads the location collection once for a large batch of unique and duplicate
     expect($this->resource->geoLocations()->count())->toBe(128);
 });
 
-it('keeps location reads bounded in the production editor and DataCite import paths', function (string $path, int $count) {
+it('keeps location reads bounded when saving large editor payloads', function (int $count) {
     $locations = [];
     for ($index = 0; $index < $count; $index++) {
-        $location = $path === 'editor'
-            ? [...$this->coverage, 'id' => "incoming-{$index}", 'description' => "Site {$index}"]
-            : ['geoLocationPlace' => "Site {$index}", 'geoLocationPoint' => ['pointLatitude' => 52.38, 'pointLongitude' => 13.06]];
+        $location = [...$this->coverage, 'id' => "incoming-{$index}", 'description' => "Site {$index}"];
         $locations[] = $location;
-        $locations[] = $path === 'editor' ? [...$location, 'id' => "copy-{$index}"] : $location;
+        $locations[] = [...$location, 'id' => "copy-{$index}"];
     }
     DB::enableQueryLog();
     DB::flushQueryLog();
     try {
-        if ($path === 'editor') {
-            [$resource, , $changes] = app(ResourceStorageService::class)->store([...$this->payload, 'spatialTemporalCoverages' => $locations], $this->user->id);
-            expect($changes['removedCount'])->toBe($count);
-        } else {
-            $report = new GeoLocationWriteReport;
-            $resource = app(DataCiteToResourceTransformer::class)->transform(['id' => '10.5880/review.large', 'attributes' => [
-                'doi' => '10.5880/review.large', 'titles' => [['title' => 'Large import']], 'publicationYear' => 2026,
-                'types' => ['resourceTypeGeneral' => 'Dataset'], 'geoLocations' => $locations,
-            ]], $this->user->id, $report);
-            expect($report->removedCount)->toBe($count);
-        }
+        [$resource, , $changes] = app(ResourceStorageService::class)->store([...$this->payload, 'spatialTemporalCoverages' => $locations], $this->user->id);
+        expect($changes['removedCount'])->toBe($count);
         $reads = array_filter(DB::getQueryLog(), fn (array $query): bool => str_starts_with(strtolower($query['query']), 'select')
             && (str_contains($query['query'], 'from "geo_locations"') || str_contains($query['query'], 'from `geo_locations`')));
         expect(count($reads))->toBeGreaterThanOrEqual(1)->toBeLessThanOrEqual(2);
@@ -255,7 +245,7 @@ it('keeps location reads bounded in the production editor and DataCite import pa
         DB::flushQueryLog();
     }
     expect($resource->geoLocations()->count())->toBe($count);
-})->with([['editor', 4], ['editor', 64], ['datacite', 4], ['datacite', 64]]);
+})->with([4, 64]);
 
 it('updates the batch index when identities change or rows are manually deleted', function () {
     app(GeoLocationWriterService::class)->batch($this->resource, function (GeoLocationWriteSessionService $session): void {

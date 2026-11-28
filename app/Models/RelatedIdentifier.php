@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $scheme_uri
  * @property string|null $scheme_type
  * @property string|null $citation_label
+ * @property list<array{text: string, italic: bool}>|null $citation_label_parts
  * @property string|null $source
  * @property string|null $resource_type_general
  * @property int $position
@@ -47,6 +48,7 @@ use Illuminate\Support\Carbon;
     'scheme_uri',
     'scheme_type',
     'citation_label',
+    'citation_label_parts',
     'source',
     'resource_type_general',
     'position',
@@ -83,6 +85,7 @@ class RelatedIdentifier extends Model
 
     protected $casts = [
         'position' => 'integer',
+        'citation_label_parts' => 'array',
     ];
 
     /**

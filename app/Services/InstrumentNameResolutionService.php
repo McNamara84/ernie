@@ -116,7 +116,7 @@ final class InstrumentNameResolutionService
         $parts = parse_url($value);
         if ($host !== null && is_array($parts)
             && in_array(strtolower($parts['scheme'] ?? ''), ['http', 'https'], true)
-            && strtolower($parts['host'] ?? '') === $host
+            && (strtolower($parts['host'] ?? '') === $host || ($type === 'DOI' && strtolower($parts['host'] ?? '') === 'dx.doi.org'))
             && ! isset($parts['port'])
             && ! isset($parts['user']) && ! isset($parts['pass'])) {
             $value = ltrim($parts['path'] ?? '', '/');

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\OaiPmh;
 
 use App\Models\Resource;
+use App\Services\DcatAp\DcatApRecordService;
 use Illuminate\Database\Eloquent\Builder;
 
 final class OaiPmhDatestampService
@@ -17,5 +18,6 @@ final class OaiPmhDatestampService
         Resource::query()->whereKey($resourceId)
             ->where(fn (Builder $query) => $query->whereNull('updated_at')->orWhere('updated_at', '<', $datestamp))
             ->update(['updated_at' => $datestamp]);
+        app(DcatApRecordService::class)->schedule($resourceId, false);
     }
 }

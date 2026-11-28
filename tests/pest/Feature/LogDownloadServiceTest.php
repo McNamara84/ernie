@@ -6,53 +6,16 @@ use App\Enums\LogDownloadPeriod;
 use App\Services\LogDownloadService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\File;
+use Tests\Support\WithTemporaryLogStorage;
 
-uses()->group('serial');
+uses(WithTemporaryLogStorage::class)->group('serial');
 
 covers(LogDownloadService::class);
 
 beforeEach(function (): void {
     $this->logDirectory = storage_path('logs');
-    File::ensureDirectoryExists($this->logDirectory);
-    $this->logBackups = [];
-    $this->additionalPaths = [];
-
-    foreach (File::files($this->logDirectory) as $file) {
-        $filename = $file->getFilename();
-        if ($filename !== 'laravel.log' && preg_match('/^laravel-\d{4}-\d{2}-\d{2}\.log$/', $filename) !== 1) {
-            continue;
-        }
-
-        $backupPath = $file->getPathname().'.download-test-'.uniqid('', true).'.backup';
-        File::move($file->getPathname(), $backupPath);
-        $this->logBackups[$backupPath] = $file->getPathname();
-    }
-
     $this->service = new LogDownloadService;
     $this->endsAt = CarbonImmutable::parse('2026-09-02 12:00:00', 'UTC');
-});
-
-afterEach(function (): void {
-    foreach (File::files($this->logDirectory) as $file) {
-        $filename = $file->getFilename();
-        if ($filename === 'laravel.log' || preg_match('/^laravel-\d{4}-\d{2}-\d{2}\.log$/', $filename) === 1) {
-            File::delete($file->getPathname());
-        }
-    }
-
-    foreach ($this->additionalPaths as $path) {
-        if (is_link($path)) {
-            unlink($path);
-        } elseif (File::exists($path)) {
-            File::delete($path);
-        }
-    }
-
-    foreach ($this->logBackups as $backupPath => $originalPath) {
-        if (File::exists($backupPath)) {
-            File::move($backupPath, $originalPath);
-        }
-    }
 });
 
 function renderLogDownload(
@@ -205,16 +168,13 @@ it('ignores unrelated files invalid rotation dates and symlinks', function (): v
     $unrelatedPath = $this->logDirectory.'/application.log';
     $invalidDatePath = $this->logDirectory.'/laravel-2026-13-40.log';
     $symlinkPath = $this->logDirectory.'/laravel-2026-09-01.log';
-    $outsidePath = tempnam(sys_get_temp_dir(), 'ernie-log-download-');
-
-    expect($outsidePath)->toBeString();
+    $outsidePath = storage_path('symlink-target.log');
 
     File::put($unrelatedPath, "[2026-09-02 09:00:00] production.INFO: Unrelated file\n");
     File::put($invalidDatePath, "[2026-09-02 09:00:00] production.INFO: Invalid date filename\n");
     File::put($outsidePath, "[2026-09-02 09:00:00] production.INFO: Symlink target\n");
     expect(symlink($outsidePath, $symlinkPath))->toBeTrue();
 
-    $this->additionalPaths = [$unrelatedPath, $invalidDatePath, $symlinkPath, $outsidePath];
     File::put($this->logDirectory.'/laravel.log', "[2026-09-02 10:00:00] production.INFO: Supported file\n");
 
     $content = renderLogDownload(

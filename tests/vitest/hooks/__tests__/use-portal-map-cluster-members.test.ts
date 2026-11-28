@@ -1,4 +1,5 @@
 import { waitFor } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { describe, expect, it } from 'vitest';
 
 import { usePortalMapClusterMembers } from '@/hooks/use-portal-map-cluster-members';
@@ -83,3 +84,5 @@ describe('usePortalMapClusterMembers', () => {
         expect(result.current.data?.pagination.currentPage).toBe(2);
     });
 });
+
+installCsrfFixture();

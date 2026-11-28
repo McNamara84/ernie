@@ -4,7 +4,7 @@
 
 import userEvent from '@testing-library/user-event';
 import { cleanup, render, screen, waitFor } from '@tests/vitest/utils/render';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AuthorItem from '@/components/curation/fields/author/author-item';
 import type { AuthorEntry } from '@/components/curation/fields/author/types';
@@ -83,9 +83,6 @@ describe('AuthorItem Component', () => {
         affiliationSuggestions: [],
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     afterEach(async () => {
         // Use fake timers temporarily to flush Tagify's internal timeouts

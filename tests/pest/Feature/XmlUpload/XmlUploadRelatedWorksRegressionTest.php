@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\Citations\RelatedWorkCitation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -129,10 +130,10 @@ test('xml upload canonicalizes human readable related work type values', functio
     withoutVite();
 
     $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $mock->shouldReceive('resolveBestEffort')
+    $mock->shouldReceive('lookupBestEffort')
         ->once()
         ->with('10.1000/readable.1', 'DOI', Mockery::type('float'))
-        ->andReturn('Doe, J. (2026): XML imported citation. Publisher.');
+        ->andReturn(new RelatedWorkCitation('Doe, J. (2026): XML imported citation. Publisher.'));
     $mock->shouldReceive('resolveBestEffortBatchForStorage')
         ->once()
         ->with(Mockery::type('array'), Mockery::type('float'))

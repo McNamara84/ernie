@@ -443,6 +443,7 @@ describe('BatchResourceRegistrationController@register', function () {
         LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
         $mock = Mockery::mock(DataCiteRegistrationService::class);
+        $mock->shouldReceive('isTestMode')->andReturn(true);
         $mock->shouldReceive('updateMetadata')
             ->once() // important: only once even though we send the id twice
             ->andReturn([

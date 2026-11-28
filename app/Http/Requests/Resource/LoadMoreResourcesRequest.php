@@ -19,7 +19,8 @@ final class LoadMoreResourcesRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()?->can('viewAny', Resource::class) ?? false;
+        return ($this->user()?->can('viewAny', Resource::class) ?? false)
+            && (! $this->filled('contact') || $this->user()->can('access-contact-persons'));
     }
 
     /**

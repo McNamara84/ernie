@@ -58,8 +58,6 @@ vi.mock('@/layouts/app-layout', () => ({
 }));
 vi.mock('@/components/resources-filters', () => ({ ResourcesFilters: () => <div data-testid="resources-filters" /> }));
 vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({ default: () => null }));
 vi.mock('@/components/citations/CitationManagerModal', () => ({ CitationManagerModal: () => null }));
 vi.mock('@/components/ui/validation-error-modal', () => ({ ValidationErrorModal: () => null }));

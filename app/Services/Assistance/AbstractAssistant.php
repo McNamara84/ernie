@@ -76,6 +76,17 @@ abstract class AbstractAssistant implements AssistantContract
      */
     abstract protected function decline(Model $suggestion, User $user, ?string $reason): void;
 
+    /**
+     * Pass the authenticated reviewer explicitly to assistants with durable audit records.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    protected function acceptWithReviewer(Model $suggestion, array $input, ?User $reviewer): array
+    {
+        return $this->acceptWithInput($suggestion, $input);
+    }
+
     // ── AssistantContract implementation ─────────────────────────────
 
     public function getId(): string
@@ -108,9 +119,21 @@ abstract class AbstractAssistant implements AssistantContract
      */
     public function loadSuggestions(int $perPage): LengthAwarePaginator
     {
-        return $this->query($perPage)->through(
-            fn (Model $model) => $this->present($model),
-        );
+        $paginator = $this->query($perPage);
+        $items = $this->presentMany($paginator->items());
+
+        return $paginator->through(static fn (Model $model, int $key): array => $items[$key]);
+    }
+
+    /**
+     * Allow modules to load and validate preview dependencies once per page.
+     *
+     * @param  array<int, Model>  $suggestions
+     * @return array<int, array<string, mixed>>
+     */
+    protected function presentMany(array $suggestions): array
+    {
+        return array_map($this->present(...), $suggestions);
     }
 
     /**
@@ -184,10 +207,10 @@ abstract class AbstractAssistant implements AssistantContract
     {
         $suggestion = $this->findById($id);
 
-        return $suggestion === null ? null : $this->present($suggestion);
+        return $suggestion === null ? null : $this->presentMany([$suggestion])[0];
     }
 
-    public function acceptSuggestion(int $id, array $input = []): array
+    public function acceptSuggestion(int $id, array $input = [], ?User $reviewer = null): array
     {
         $suggestion = $this->findById($id);
 
@@ -195,7 +218,7 @@ abstract class AbstractAssistant implements AssistantContract
             return ['success' => false, 'message' => 'Suggestion not found.'];
         }
 
-        $result = $this->acceptWithInput($suggestion, $input);
+        $result = $this->acceptWithReviewer($suggestion, $input, $reviewer);
 
         $this->forgetTotalPendingCount();
 

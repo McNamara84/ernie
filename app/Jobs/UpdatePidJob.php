@@ -6,6 +6,8 @@ namespace App\Jobs;
 
 use App\Models\PidSetting;
 use App\Services\ElmoCacheRefreshDispatcherService;
+use App\Services\Pid4instUpdateDiagnosticsService;
+use App\Services\Pidinst\PidinstSnapshotStore;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -85,7 +87,7 @@ class UpdatePidJob implements ShouldQueue
         ]);
 
         $progressMessage = match ($this->pidType) {
-            PidSetting::TYPE_PID4INST => 'Fetching instruments from b2inst API...',
+            PidSetting::TYPE_PID4INST => 'Fetching instruments from B2INST and DataCite...',
             PidSetting::TYPE_ROR => 'Fetching organizations from ROR data dump...',
             PidSetting::TYPE_RAID => 'Fetching RAiD projects from DataCite...',
             default => 'Fetching data...',
@@ -110,7 +112,17 @@ class UpdatePidJob implements ShouldQueue
             $exitCode = Artisan::call($command);
 
             if ($exitCode === 0) {
-                app(ElmoCacheRefreshDispatcherService::class)->dispatchForDataUpdate($setting->refresh());
+                $result = [];
+                if ($this->pidType === PidSetting::TYPE_PID4INST) {
+                    $snapshot = app(PidinstSnapshotStore::class)->read();
+                    $result = [
+                        'itemCount' => $snapshot['total'] ?? 0,
+                        'lastUpdated' => $snapshot['lastUpdated'] ?? null,
+                        ...Pid4instUpdateDiagnosticsService::fromSnapshot($snapshot ?? []),
+                    ];
+                } else {
+                    app(ElmoCacheRefreshDispatcherService::class)->dispatchForDataUpdate($setting->refresh());
+                }
 
                 Log::info('PID update completed successfully', [
                     'job_id' => $this->jobId,
@@ -120,8 +132,11 @@ class UpdatePidJob implements ShouldQueue
                 Cache::put($cacheKey, [
                     'status' => 'completed',
                     'pidType' => $this->pidType,
-                    'progress' => 'Update completed successfully',
+                    'progress' => ($result['refreshPending'] ?? false)
+                        ? 'Snapshot published; cache refresh pending. Retry with get-pid4inst-instruments --refresh-caches.'
+                        : 'Update completed successfully',
                     'completedAt' => now()->toIso8601String(),
+                    ...$result,
                 ], now()->addHours(1));
             } else {
                 $output = Artisan::output();
@@ -137,7 +152,7 @@ class UpdatePidJob implements ShouldQueue
                     'status' => 'failed',
                     'pidType' => $this->pidType,
                     'progress' => 'Update failed',
-                    'error' => "Command exited with code {$exitCode}",
+                    'error' => "Command exited with code {$exitCode}".($this->pidType === PidSetting::TYPE_PID4INST ? ': '.trim($output) : ''),
                     'failedAt' => now()->toIso8601String(),
                 ], now()->addHours(1));
             }

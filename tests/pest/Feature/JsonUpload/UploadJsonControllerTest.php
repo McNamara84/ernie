@@ -6,6 +6,7 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\Citations\RelatedWorkCitation;
 use App\Services\DataCiteJsonLdContextService;
 use App\Services\ResourceStorageService;
 use Illuminate\Database\QueryException;
@@ -576,10 +577,10 @@ describe('JSON Upload - DataCite JSON format', function () {
         $this->actingAs(User::factory()->create());
 
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $mock->shouldReceive('resolveBestEffort')
+        $mock->shouldReceive('lookupBestEffort')
             ->once()
             ->with('10.1234/related', 'DOI', Mockery::type('float'))
-            ->andReturn('Doe, J. (2026): Imported citation. Publisher.');
+            ->andReturn(new RelatedWorkCitation('Doe, J. (2026): Imported citation. Publisher.'));
         $mock->shouldReceive('resolveBestEffortBatchForStorage')
             ->once()
             ->with(Mockery::type('array'), Mockery::type('float'))

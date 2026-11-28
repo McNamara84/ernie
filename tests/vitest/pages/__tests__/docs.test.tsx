@@ -8,9 +8,16 @@ import Docs from '@/pages/docs';
 import type { UserRole } from '@/types';
 import type { DataCiteDocsSettings, EditorSettings } from '@/types/docs';
 
+const pageProps = vi.hoisted(() => ({ pathPrefix: '' }));
+
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    usePage: () => ({ props: pageProps }),
 }));
+
+beforeEach(() => {
+    pageProps.pathPrefix = '';
+});
 
 vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -105,6 +112,19 @@ const openDatasetsTab = async (user: ReturnType<typeof userEvent.setup>) => {
     expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
 };
 
+describe('Homepage news documentation', () => {
+    it.each(['admin', 'group_leader', 'curator', 'beginner'] as const)('shows management instructions for the appropriate role: %s', (role) => {
+        renderDocsPage(role);
+        const heading = screen.queryByRole('heading', { name: 'Homepage News' });
+        if (role === 'admin' || role === 'group_leader') {
+            expect(heading).toBeInTheDocument();
+            expect(screen.getByText(/Overlapping schedules are rejected/)).toBeInTheDocument();
+        } else {
+            expect(heading).not.toBeInTheDocument();
+        }
+    });
+});
+
 const openPhysicalSamplesTab = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.click(screen.getByRole('tab', { name: /Physical Samples/i }));
 
@@ -113,6 +133,34 @@ const openPhysicalSamplesTab = async (user: ReturnType<typeof userEvent.setup>) 
 
 describe('Docs page', () => {
     beforeEach(() => window.history.replaceState(null, '', '/'));
+    it.each(['', '/ernie'])('keeps the IGSN guide within deployment prefix "%s"', async (prefix) => {
+        pageProps.pathPrefix = prefix;
+        const { user } = renderDocsPage('curator');
+        await openDatasetsTab(user);
+        expect(screen.getByRole('link', { name: 'IGSN Core guide' })).toHaveAttribute('href', `${prefix}/schemas/igsn/2.0/docs`);
+    });
+
+    it.each<UserRole>(['beginner', 'curator', 'group_leader', 'admin'])(
+        'restricts COUNTER guidance to the matching %s capabilities',
+        async (role) => {
+            const { user } = renderDocsPage(role);
+            const statistics = screen.queryByRole('heading', { name: 'Public Engagement Statistics' });
+            const operations = screen.queryByRole('heading', { name: 'Activate and Monitor COUNTER Collection' });
+
+            if (role === 'admin' || role === 'group_leader') {
+                expect(statistics).toBeInTheDocument();
+            } else {
+                expect(statistics).not.toBeInTheDocument();
+            }
+            if (role === 'admin') {
+                expect(operations).toBeInTheDocument();
+            } else {
+                expect(operations).not.toBeInTheDocument();
+            }
+            await openDatasetsTab(user);
+            expect(screen.getByRole('heading', { name: 'Reading Public Usage Statistics' })).toBeInTheDocument();
+        },
+    );
     it('renders documentation for beginner role', () => {
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Check for sections visible in Getting Started tab (default)
@@ -217,53 +265,6 @@ describe('Docs page', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         expect(screen.queryByText('php artisan igsn:audit-legacy-handles')).not.toBeInTheDocument();
-    });
-
-    it('documents the legacy IGSN classification repair workflow only for admins', () => {
-        const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.getByText('Repair Legacy IGSN Classifications')).toBeInTheDocument();
-        expect(screen.getByText(/igsn:backfill-classifications --report=.*igsn-classification-audit\.csv/)).toBeInTheDocument();
-        expect(screen.getByText(/igsn:backfill-classifications --apply .*igsn-classification-apply\.csv/)).toBeInTheDocument();
-        expect(screen.getByText(/The default is always a dry run and does not change database records/i)).toBeInTheDocument();
-        expect(screen.getByText(/Review the CSV before applying changes/i)).toBeInTheDocument();
-
-        unmount();
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.queryByText('Repair Legacy IGSN Classifications')).not.toBeInTheDocument();
-        expect(screen.queryByText(/igsn:backfill-classifications/)).not.toBeInTheDocument();
-    });
-
-    it('documents legacy related-identifier reconciliation only for admins', () => {
-        const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.getByRole('heading', { name: 'Reconcile Missing Legacy Related Identifiers', level: 4 })).toBeInTheDocument();
-        expect(screen.getByText(/resources:reconcile-legacy-related-identifiers --doi=.*related-work-audit\.csv/)).toBeInTheDocument();
-        expect(screen.getByText(/runs as a dry run by default/i)).toBeInTheDocument();
-        expect(screen.getByText(/does not publish metadata changes to DataCite unless/i)).toBeInTheDocument();
-
-        unmount();
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.queryByRole('heading', { name: 'Reconcile Missing Legacy Related Identifiers' })).not.toBeInTheDocument();
-        expect(screen.queryByText(/resources:reconcile-legacy-related-identifiers/)).not.toBeInTheDocument();
-    });
-
-    it('documents the legacy creator and MSL backfill workflow only for admins', () => {
-        const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.getByRole('heading', { name: 'Backfill Legacy Creator Names and EPOS WP16 Subjects', level: 4 })).toBeInTheDocument();
-        expect(screen.getByText(/resources:backfill-legacy-creator-and-msl-metadata --doi=.*creator-msl-audit\.csv/)).toBeInTheDocument();
-        expect(screen.getByText(/audits migrated SUMARIO resources for resource-specific creator spellings/i)).toBeInTheDocument();
-        expect(screen.getByText(/resources:backfill-legacy-creator-and-msl-metadata --legacy-id=12345 --after-id=0/)).toBeInTheDocument();
-        expect(screen.getByText('php artisan resources:backfill-legacy-creator-and-msl-metadata --retry-sync=<uuid>')).toBeInTheDocument();
-
-        unmount();
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        expect(screen.queryByRole('heading', { name: 'Backfill Legacy Creator Names and EPOS WP16 Subjects' })).not.toBeInTheDocument();
-        expect(screen.queryByText(/resources:backfill-legacy-creator-and-msl-metadata/)).not.toBeInTheDocument();
     });
 
     it('shows the complete DataCite landing-page URL migration workflow only to admins', async () => {
@@ -665,11 +666,15 @@ describe('Docs page', () => {
         expect(link).toHaveAttribute('href', '/api/v1/doc');
     });
 
-    it('mentions API 1.1 and OpenAPI 3.2.1', () => {
+    it('documents API 1.2 vocabulary visibility and the shared download URL', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         expect(screen.getByText(/OpenAPI 3\.2\.1/i)).toBeInTheDocument();
-        expect(screen.getByText(/API 1\.1/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Controlled vocabularies in API 1.2' })).toBeInTheDocument();
+        expect(screen.getByText('/api/v1/elmo/vocabularies/visibility')).toBeInTheDocument();
+        expect(screen.getByText('/api/v1/elmo-msl/vocabularies/visibility')).toBeInTheDocument();
+        expect(screen.getByText('/api/v1/vocabularies/data/gcmd-platforms')).toBeInTheDocument();
+        expect(screen.getByText(/marks the 1\.1 vocabulary endpoints as deprecated/i)).toBeInTheDocument();
     });
 
     it('documents personal settings through the user menu and route-specific settings pages', () => {
@@ -827,7 +832,8 @@ describe('Docs page', () => {
     it('documents the editor settings accordion and save behavior', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
-        expect(screen.getByRole('heading', { name: 'Page Layout and Saving' })).toBeInTheDocument();
+        const settings = screen.getByRole('heading', { name: 'Page Layout and Saving' }).closest('section');
+        expect(settings).toHaveTextContent('reduced motion enabled on your device, settings sections open and close immediately');
         expect(screen.getByText(/All sections start collapsed/i)).toBeInTheDocument();
         expect(screen.getByText(/All sections start collapsed/i)).toHaveTextContent('on each new visit or full page reload');
         expect(screen.getByText(/Multiple sections can stay open independently/i)).toBeInTheDocument();
@@ -844,22 +850,6 @@ describe('Docs page', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Editor Configuration is the h3 inside the Editor Settings section
         expect(screen.queryByText('Editor Configuration')).not.toBeInTheDocument();
-    });
-
-    it('documents the portal and legacy sources used by datacenter imports', async () => {
-        const user = userEvent.setup();
-        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-
-        await user.click(screen.getByRole('tab', { name: /Datasets/i }));
-
-        expect(screen.getByText('Import all Resources from a Datacenter')).toBeInTheDocument();
-        expect(screen.getByText(/uses the portal assignment for visible resources/i)).toBeInTheDocument();
-        expect(screen.getByText(/determined from the legacy databases and the established DOI rules/i)).toBeInTheDocument();
-        expect(screen.getByText(/not re-imported or overwritten/i)).toBeInTheDocument();
-        expect(screen.getByText(/current datacenter assignments are preserved/i)).toBeInTheDocument();
-        expect(
-            screen.getByText(/may still enrich them with missing legacy download links or an external landing page URL from DataCite/i),
-        ).toBeInTheDocument();
     });
 
     it('documents persistent IGSN page sizing and page controls for all physical-sample users', async () => {
@@ -885,6 +875,8 @@ describe('Docs page', () => {
         expect(screen.getByRole('heading', { name: 'Bulk Actions for up to 1000 IGSNs', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/starts a persistent background run/i)).toBeInTheDocument();
         expect(screen.getByText(/close the dialog, navigate away, or close the browser without stopping the run/i)).toBeInTheDocument();
+        expect(screen.getByText(/Closing the finished preview marks successful samples/i)).toBeInTheDocument();
+        expect(screen.getByText(/Draft landing pages stay private/i)).toBeInTheDocument();
     });
 
     it('shows landing pages documentation for beginner training', async () => {
@@ -911,6 +903,29 @@ describe('Docs page', () => {
         expect(screen.getByRole('heading', { name: 'License Display', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Creative Commons Attribution 4\.0 International \(CC BY 4\.0\)/i)).toBeInTheDocument();
     });
+
+    it.each<UserRole>(['beginner', 'curator', 'group_leader', 'admin'])(
+        'makes ISO JSON availability and preview limitations discoverable for %s users',
+        async (role) => {
+            const { user } = renderDocsPage(role);
+            await openDatasetsTab(user);
+
+            const section = screen.getByRole('heading', { name: 'Downloading Metadata', level: 4 }).closest('section');
+            expect(section).toHaveTextContent('ISO/TR 19115-4');
+            expect(section).toHaveTextContent('No separate activation is needed');
+            expect(section).toHaveTextContent('Computational Notebook');
+            expect(section).toHaveTextContent('IGSNs and Physical Objects do not offer ISO JSON');
+            expect(section).toHaveTextContent('does not claim support for the entire ISO metadata model');
+            expect(section).toHaveTextContent('IGSN Core 2.0');
+            expect(section).toHaveTextContent('without Geo or Bio extensions');
+            expect(section).toHaveTextContent('validates each file before download');
+
+            const preview = screen.getByRole('heading', { name: 'Metadata Downloads in Previews', level: 4 }).nextElementSibling;
+            expect(preview).toHaveTextContent('ISO XML and ISO JSON');
+            expect(preview).toHaveTextContent('available after registration with DataCite');
+            expect(section).not.toHaveTextContent('ISO19115_JSON_ENABLED');
+        },
+    );
 
     it('documents forthcoming publications and independent version notices for dataset users', async () => {
         const { user } = renderDocsPage('beginner');
@@ -1253,10 +1268,23 @@ describe('Docs page', () => {
         expect(screen.queryByText('Custom Landing Page Templates')).not.toBeInTheDocument();
     });
 
+    it('explains how screen readers describe editor fields to beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+        await openDatasetsTab(user);
+
+        const workflow = screen.getByRole('heading', { name: 'Curation Workflow', level: 2 }).closest('section');
+        expect(workflow).toHaveTextContent('screen reader can read the field label, any help text, and any visible validation messages');
+    });
+
     it('shows related item manager documentation for beginners', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
+
+        const manager = screen.getByRole('heading', { name: 'Related Item Manager', level: 2 }).closest('section');
+        expect(manager).toHaveTextContent('select one resource, open Actions, and choose Manage Related Items');
+        expect(manager).toHaveTextContent('Tab to move forward and Shift+Tab to move back');
+        expect(manager).toHaveTextContent('dialog title and Close button stay in view');
 
         expect(screen.getByText(/Related Items \(DataCite 4\.7/i)).toBeInTheDocument();
         expect(screen.getByText(/You can open this workflow anywhere ERNIE lets you edit a resource\./i)).toBeInTheDocument();
@@ -1326,8 +1354,8 @@ describe('Docs page', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'DOI and URL Citation Labels', level: 4 })).toBeInTheDocument();
-        expect(screen.getByText(/URL labels are available only when that exact URL already exists/i)).toBeInTheDocument();
-        expect(screen.getByText(/ERNIE never overwrites a label you entered manually/i)).toBeInTheDocument();
+        expect(screen.getByText(/preprints receive APA 7 citations/i)).toBeInTheDocument();
+        expect(screen.getByText(/a manually entered label takes precedence/i)).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'CSV Bulk Import', level: 4 })).toBeInTheDocument();
         expect(
             screen.getByText((_, element) => {
@@ -1517,6 +1545,19 @@ describe('Docs page', () => {
         expect(screen.getByText('Series Information:')).toBeInTheDocument();
     });
 
+    it('explains how to search, inspect a profile and select an ORCID for an author or contributor', async () => {
+        const { user } = renderDocsPage('beginner');
+        await openDatasetsTab(user);
+
+        const section = screen.getByRole('heading', { name: 'ORCID Integration' }).closest('section');
+        expect(section).toHaveTextContent('press Enter in the search field or select Search');
+        for (const example of ['Ehrmann', 'Holger Ehrmann', 'Ehrmann, Holger', 'Ehrmann, Holger, GFZ']) {
+            expect(section).toContainElement(screen.getByText(example, { selector: 'code' }));
+        }
+        expect(section).toHaveTextContent('profile link beside each result opens ORCID.org in a new tab');
+        expect(section).toHaveTextContent('click the result or move to it with the arrow keys and press Enter');
+    });
+
     it('keeps dataset field documentation close to the editor accordion order', async () => {
         const { user } = renderDocsPage('beginner');
 
@@ -1546,6 +1587,8 @@ describe('Docs page', () => {
 
         expect(screen.getByRole('heading', { name: 'Text Search and Free Keyword Suggestions', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Choose a suggestion to add it as an exact keyword chip/i)).toBeInTheDocument();
+        const menuHelp = screen.getByText(/the suggestions menu closes when no keywords match or you have already selected every match/i);
+        expect(menuHelp).toHaveTextContent('press Enter to search for the text you typed, even when the menu is closed');
         expect(
             screen.getByText(/normal text search also finds Authors, Contributors, and Contact Persons by person or institution name/i),
         ).toBeInTheDocument();
@@ -1611,7 +1654,10 @@ describe('Docs page', () => {
         expect(screen.getByRole('link', { name: 'Data Portal' })).toHaveAttribute('href', '/doi-search');
         expect(screen.getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
         expect(screen.getByRole('heading', { name: 'Exploring Data Centres', level: 4 })).toBeVisible();
-        expect(screen.getByRole('link', { name: 'Data Centres overview' })).toHaveAttribute('href', '/data-centres');
+        expect(screen.getByRole('link', { name: 'Find → Data Centres' })).toHaveAttribute('href', 'https://gfz-data-services.gfz.de/find/data-centres');
+        const catalogue = screen.getByRole('link', { name: 'local Data Centres catalogue' });
+        expect(catalogue).toHaveAttribute('href', '/data-centres');
+        expect(catalogue.closest('p')).toHaveTextContent('select Data Centres on the Find overview or under Services on the homepage');
         expect(screen.getByRole('link', { name: 'Data Centre Descriptions' })).toHaveAttribute('href', '/data-centres/description');
         const heading = screen.getByRole('heading', { name: 'Starting with a Science Topic', level: 4 });
         expect(screen.getByRole('link', { name: 'GFZ Data Services homepage' })).toHaveAttribute('href', '/');
@@ -1718,7 +1764,6 @@ describe('Docs page', () => {
             deleteResources: false,
             deletePublishedResources: false,
             manageLandingPages: false,
-            importFromDataCite: false,
             updateDataCiteUrls: false,
             manageUsers: false,
             accessEditorSettings: false,

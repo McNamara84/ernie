@@ -1,0 +1,61 @@
+{
+  "retrieved": "2026-11-09",
+  "dcatApVersion": "3.0.1",
+  "upstreamCommit": "4470b8ea907b7eb9ec55ab22befd1ecd2210ff32",
+  "files": {
+    "vocabularies/iana-media-types.xml.gz": {
+      "source": "https://www.iana.org/assignments/media-types/media-types.xml",
+      "sha256": "c284bc0ea22c659c60665c61f7eb84788badfabd222ed3d4722e95cd2a18279e",
+      "uncompressedSha256": "a952f50788f552c654c39ca0fbc287b1dfaf0bb251ca068780ba804c2bfa09d9"
+    },
+    "vocabularies/eu-file-types.rdf.gz": {
+      "source": "https://op.europa.eu/o/opportal-service/euvoc-download-handler?cellarURI=http://publications.europa.eu/resource/distribution/file-type/20260923-0/rdf/skos_core/filetypes-skos.rdf&fileName=filetypes-skos.rdf",
+      "sha256": "58b7bb68f9a5a0000f9d65d34d86a6a575abaf06b5460d61950ddb653aee5a51",
+      "uncompressedSha256": "6c922a21507e00925687f649ecacc6601ff112ad0fd8dec9ed93f614fb1670c0"
+    },
+    "vocabularies/eu-language.rdf.gz": {
+      "source": "https://op.europa.eu/o/opportal-service/euvoc-download-handler?cellarURI=http://publications.europa.eu/resource/distribution/language/20260923-0/rdf/skos_core/languages-skos.rdf&fileName=languages-skos.rdf",
+      "sha256": "de4d1bbd8c5c8d214d541af0e2ca68751bcb7481ef68766b0096e4c1d0fc486e",
+      "uncompressedSha256": "59d0fb7ca877dd829f63d4de1cd7725eeb7395f2a73ba4acdd3c7c29dbbb5371"
+    },
+    "vocabularies/eu-dataset-type.rdf.gz": {
+      "source": "https://op.europa.eu/o/opportal-service/euvoc-download-handler?cellarURI=http://publications.europa.eu/resource/distribution/dataset-type/20260923-0/rdf/skos_core/dataset-types-skos.rdf&fileName=dataset-types-skos.rdf",
+      "sha256": "eb6d2c5205aa4fb7d15665d8ea2cb7eed6bc6dc2ab7fe22d34755610e521f566",
+      "uncompressedSha256": "458f697820fcdc733b13f9e69a97afa6dbb96200892b5599541bd32894cedf23"
+    },
+    "vocabularies/eu-access-right.rdf.gz": {
+      "source": "https://publications.europa.eu/resource/authority/access-right",
+      "sha256": "2fad28a473c7c2780964ee029c1fa3bfddaeb1535f83e1cb9fb95ee2ebfc0b40",
+      "uncompressedSha256": "0b9699da8a52299c8b71421c157abe0935eb9fafc353e10400fea1b371b98788"
+    },
+    "vocabularies/eu-data-theme.rdf.gz": {
+      "source": "https://publications.europa.eu/resource/authority/data-theme",
+      "sha256": "fc4fc48d7ec0c8d0437ae5ad8abca651f6996455aeeea8a0efa32655c40d8406",
+      "uncompressedSha256": "113a33cce6ab92631574782d4907982c43ed7d9a38e5a8e6a5306e0821785549"
+    },
+    "vocabularies/index.json": {
+      "source": "Derived by scripts/dcat-ap/build-vocabulary-index.py",
+      "sha256": "716cb5b20f2c35ab342a166589ff899b51d0654d112423fd321a2beae1c42633"
+    },
+    "html/shacl/mdr-vocabularies.shape.ttl": {
+      "source": "https://raw.githubusercontent.com/SEMICeu/DCAT-AP/4470b8ea907b7eb9ec55ab22befd1ecd2210ff32/releases/3.0.1/html/shacl/mdr-vocabularies.shape.ttl",
+      "sha256": "373e4470841c99e7597dc63844c6544ff967c73ad4ae17572df3b9c58d0c8e06"
+    },
+    "html/shacl/range.ttl": {
+      "source": "https://raw.githubusercontent.com/SEMICeu/DCAT-AP/4470b8ea907b7eb9ec55ab22befd1ecd2210ff32/releases/3.0.1/html/shacl/range.ttl",
+      "sha256": "f8b99acb2a59c06a61ce947fe542f0673b055b18082b38466036e5211ea3f9eb"
+    },
+    "html/shacl/shapes.ttl": {
+      "source": "https://raw.githubusercontent.com/SEMICeu/DCAT-AP/4470b8ea907b7eb9ec55ab22befd1ecd2210ff32/releases/3.0.1/html/shacl/shapes.ttl",
+      "sha256": "a86b6b4f650d60d0aca5db8af16e3991213645b19f9a834e4bb1384ea3a46475"
+    },
+    "shacl/dcat-ap-SHACL.ttl": {
+      "source": "https://raw.githubusercontent.com/SEMICeu/DCAT-AP/4470b8ea907b7eb9ec55ab22befd1ecd2210ff32/releases/3.0.1/shacl/dcat-ap-SHACL.ttl",
+      "sha256": "6b666b4b6ba131f5d0104ec32eadfa495c4b338207e19fdb0580e435c897c80b"
+    },
+    "shacl/ranges.ttl": {
+      "source": "https://raw.githubusercontent.com/SEMICeu/DCAT-AP/4470b8ea907b7eb9ec55ab22befd1ecd2210ff32/releases/3.0.1/shacl/ranges.ttl",
+      "sha256": "d9ccc5030a39894be6087698448f05f03dd45160c0fd3721a3ca78549576df83"
+    }
+  }
+}

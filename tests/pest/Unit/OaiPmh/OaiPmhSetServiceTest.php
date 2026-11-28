@@ -15,7 +15,7 @@ describe('listSets', function () {
     it('advertises the project set when no published resources exist', function () {
         $service = app(OaiPmhSetService::class);
 
-        expect($service->listSets())->toBe([$service->projectSetDefinition()]);
+        expect($service->listSets())->toBe([$service->projectSetDefinition(), $service->icgemSetDefinition()]);
     });
 
     it('returns resource type sets from published resources', function () {
@@ -48,7 +48,7 @@ describe('listSets', function () {
 
         $service = app(OaiPmhSetService::class);
 
-        expect($service->listSets())->toBe([$service->projectSetDefinition()]);
+        expect($service->listSets())->toBe([$service->projectSetDefinition(), $service->icgemSetDefinition()]);
     });
 });
 

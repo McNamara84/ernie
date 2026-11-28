@@ -4,11 +4,12 @@ import { useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { gfzDataServicesUrls } from '@/data/gfz-data-services';
 import { cn } from '@/lib/utils';
 import { legalNotice } from '@/routes';
 import type { PortalKind } from '@/types/portal';
 
-export type PublicContentPage = 'home' | 'find' | 'data-centres' | 'data-centres-description';
+export type PublicContentPage = 'home' | 'find' | 'data-centres' | 'data-centres-description' | 'schemas' | 'usage-statistics';
 
 interface NavItem {
     label: string;
@@ -21,18 +22,18 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
     { label: 'Home', href: '/', external: false, icon: <Home className="h-4 w-4" /> },
-    { label: 'Publish Data', href: 'https://dataservices.gfz-potsdam.de/web/publish-data/publication-instructions', external: true },
-    { label: 'Samples (IGSN)', href: 'https://dataservices.gfz-potsdam.de/web/samples/introduction', external: true },
-    { label: 'Support', href: 'https://dataservices.gfz-potsdam.de/web/about-us', external: true },
-    { label: 'About Us', href: 'https://dataservices.gfz-potsdam.de/web/about-us', external: true },
+    { label: 'Publish Data', href: gfzDataServicesUrls.publicationInstructions, external: true },
+    { label: 'Samples (IGSN)', href: gfzDataServicesUrls.igsnService, external: true },
+    { label: 'Support', href: gfzDataServicesUrls.aboutUs, external: true },
+    { label: 'About Us', href: gfzDataServicesUrls.aboutUs, external: true },
     { label: 'Legal Notice', href: legalNotice().url, external: false },
-    { label: 'Data Protection', href: 'https://dataservices.gfz-potsdam.de/web/about-us/data-protection', external: true },
+    { label: 'Data Protection', href: gfzDataServicesUrls.dataProtection, external: true },
 ];
 
 const FIND_ITEMS: Array<NavItem & { kind: PortalKind | 'find' | 'data-centres' }> = [
     { kind: 'find', label: 'Overview', href: '/find', external: false },
     { kind: 'doi', label: 'Data Portal', href: '/doi-search', external: false },
-    { kind: 'data-centres', label: 'Data Centres', href: '/data-centres', external: false },
+    { kind: 'data-centres', label: 'Data Centres', href: gfzDataServicesUrls.dataCentres, external: true },
     { kind: 'igsn', label: 'IGSN Portal', href: '/igsn-search', external: false },
 ];
 
@@ -101,8 +102,12 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
     const isContentPage = portalKind !== 'doi' && portalKind !== 'igsn';
     const Wordmark = isContentPage && !isHome ? 'p' : 'h1';
     const homeItem = { ...NAV_ITEMS[0], active: isHome };
-    const isFindItemActive = (kind: (typeof FIND_ITEMS)[number]['kind']) =>
-        portalKind === kind || (kind === 'data-centres' && portalKind === 'data-centres-description');
+    const findItems = FIND_ITEMS.map((item) => ({
+        ...item,
+        active: portalKind === item.kind || (item.kind === 'data-centres' && portalKind === 'data-centres-description'),
+        current: !item.external && portalKind === item.kind,
+    }));
+    const isFindActive = findItems.some((item) => item.active);
 
     return (
         <header data-slot="portal-header">
@@ -149,28 +154,29 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
                                         variant="ghost"
                                         className={cn(
                                             'h-auto gap-1 rounded-sm px-3 py-2 text-sm text-portal-nav-foreground hover:bg-portal-nav-active hover:text-portal-nav-foreground dark:hover:bg-portal-nav-active',
-                                            !isHome && 'bg-portal-nav-active font-semibold',
+                                            isFindActive && 'bg-portal-nav-active font-semibold',
                                         )}
-                                        aria-current={isHome ? undefined : 'page'}
+                                        aria-current={isFindActive ? 'page' : undefined}
                                     >
                                         Find
                                         <ChevronDown className="size-3.5" aria-hidden="true" />
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent portalContainer={menuContainer} align="start" className="min-w-44">
-                                    {FIND_ITEMS.map((item) => (
-                                        <DropdownMenuItem key={item.kind} asChild>
-                                            <Link
-                                                href={item.href}
-                                                aria-current={portalKind === item.kind ? 'page' : undefined}
-                                                className={cn(
-                                                    isFindItemActive(item.kind) && 'bg-portal-nav-active font-semibold text-portal-nav-foreground',
-                                                )}
-                                            >
-                                                {item.label}
-                                            </Link>
-                                        </DropdownMenuItem>
-                                    ))}
+                                    {findItems.map((item) => {
+                                        const ItemLink = item.external ? 'a' : Link;
+                                        return (
+                                            <DropdownMenuItem key={item.kind} asChild>
+                                                <ItemLink
+                                                    href={item.href}
+                                                    aria-current={item.current ? 'page' : undefined}
+                                                    className={cn(item.active && 'bg-portal-nav-active font-semibold text-portal-nav-foreground')}
+                                                >
+                                                    {item.label}
+                                                </ItemLink>
+                                            </DropdownMenuItem>
+                                        );
+                                    })}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </li>
@@ -212,12 +218,9 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
                                     Find
                                 </span>
                                 <ul>
-                                    {FIND_ITEMS.map((item) => (
+                                    {findItems.map((item) => (
                                         <li key={item.kind}>
-                                            <MobileNavLink
-                                                item={{ ...item, active: isFindItemActive(item.kind), current: portalKind === item.kind }}
-                                                onClick={() => setMobileMenuOpen(false)}
-                                            />
+                                            <MobileNavLink item={item} onClick={() => setMobileMenuOpen(false)} />
                                         </li>
                                     ))}
                                 </ul>

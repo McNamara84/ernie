@@ -38,7 +38,7 @@ describe('statistics access', function () {
 });
 
 describe('statistics payload', function () {
-    test('returns aggregated analytics data', function () {
+    test('returns separate historical analytics data', function () {
         $mainTitleType = TitleType::firstOrCreate(
             ['slug' => 'MainTitle'],
             ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true],
@@ -115,12 +115,12 @@ describe('statistics payload', function () {
         ]);
 
         $this->actingAs($this->admin)
-            ->get('/statistics')
+            ->get('/statistics?mode=legacy')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('statistics')
                 ->where('overview.totalPageViews', 10)
-                ->where('overview.totalDownloadClicks', 4)
+                ->where('overview.totalDownloadClicks', 3)
                 ->where('overview.totalPortalSearches', 7)
                 ->where('overview.trackedLandingPages', 2)
                 ->where('topLandingPagesByViews.0.title', 'Dataset Title')

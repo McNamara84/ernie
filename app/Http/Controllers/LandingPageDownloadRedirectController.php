@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\LandingPage;
 use App\Models\LandingPageFile;
+use App\Models\LandingPageLink;
 use App\Services\BotProtection\BotClassifierService;
 use App\Services\LandingPageDownloadAvailabilityService;
 use App\Services\Statistics\LandingPageAnalyticsService;
@@ -47,6 +48,17 @@ class LandingPageDownloadRedirectController extends Controller
         $this->recordDownloadClick($request, $landingPage);
 
         return redirect()->away($targetUrl, HttpResponse::HTTP_FOUND);
+    }
+
+    public function link(Request $request, LandingPage $landingPage, LandingPageLink $landingPageLink): RedirectResponse
+    {
+        abort_if($landingPage->is_tombstone, HttpResponse::HTTP_GONE, 'This resource is no longer available.');
+        abort_if(! $landingPage->isPublished() || app(LandingPageDownloadAvailabilityService::class)->requiresActivation($landingPage), HttpResponse::HTTP_NOT_FOUND);
+        abort_if($landingPageLink->landing_page_id !== $landingPage->id || $landingPageLink->kind !== LandingPageLink::KIND_DOWNLOAD, HttpResponse::HTTP_NOT_FOUND);
+        abort_unless(app(LandingPageDownloadAvailabilityService::class)->isUsableUrl($landingPageLink->url), HttpResponse::HTTP_NOT_FOUND);
+        $this->recordDownloadClick($request, $landingPage);
+
+        return redirect()->away($landingPageLink->url, HttpResponse::HTTP_FOUND);
     }
 
     private function recordDownloadClick(Request $request, LandingPage $landingPage): void

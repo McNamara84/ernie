@@ -40,7 +40,7 @@ export default defineConfig({
   /* Shared settings for all the projects below */
   use: {
     /* Docker development URL - must match SESSION_DOMAIN in docker-compose.dev.yml */
-    baseURL: 'https://ernie.localhost:3333',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'https://ernie.localhost:3333',
 
     /* Accept self-signed certificates */
     ignoreHTTPSErrors: true,

@@ -4,19 +4,17 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { render, screen } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PortalSearchInput } from '@/components/portal/PortalSearchInput';
+import type { KeywordSuggestion, PortalBasePath } from '@/types/portal';
 
 const { axiosPostMock, suggestionsState } = vi.hoisted(() => ({
     axiosPostMock: vi.fn(),
     suggestionsState: {
-        data: [
-            { value: 'Seismology', scheme: null, count: 12 },
-            { value: 'Paleoseismology', scheme: null, count: 3 },
-        ],
+        data: undefined as KeywordSuggestion[] | undefined,
         isFetching: false,
         isError: false,
     },
@@ -33,7 +31,7 @@ function Harness({
     onKeywordSelect = vi.fn(),
     onKeywordsChange = vi.fn(),
 }: {
-    basePath?: '/doi-search' | '/igsn-search';
+    basePath?: PortalBasePath;
     initialValue?: string;
     selectedKeywords?: string[];
     onSubmit?: (query: string) => void;
@@ -56,7 +54,6 @@ function Harness({
 
 describe('PortalSearchInput', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         suggestionsState.data = [
             { value: 'Seismology', scheme: null, count: 12 },
             { value: 'Paleoseismology', scheme: null, count: 3 },
@@ -83,7 +80,7 @@ describe('PortalSearchInput', () => {
         await user.click(screen.getByRole('button', { name: 'Search' }));
 
         expect(onSubmit).toHaveBeenCalledWith('climate change');
-        expect(axiosPostMock).toHaveBeenCalledWith('/doi-search/search-analytics', { search_term: 'climate change' });
+        expect(axiosPostMock).not.toHaveBeenCalled();
     });
 
     it('records IGSN searches on the IGSN endpoint', async () => {
@@ -92,7 +89,7 @@ describe('PortalSearchInput', () => {
 
         await user.click(screen.getByRole('button', { name: 'Search' }));
 
-        expect(axiosPostMock).toHaveBeenCalledWith('/igsn-search/search-analytics', { search_term: 'basalt sample' });
+        expect(axiosPostMock).not.toHaveBeenCalled();
     });
 
     it('explains the wildcard syntax only in the IGSN portal', () => {
@@ -117,6 +114,18 @@ describe('PortalSearchInput', () => {
         expect(input).toHaveValue('');
     });
 
+    it('dismisses suggestions on blur and reopens them immediately on refocus', () => {
+        render(<Harness initialValue="seis" />);
+        const input = screen.getByRole('combobox', { name: 'Search' });
+
+        fireEvent.focus(input);
+        expect(screen.getByRole('listbox')).toBeVisible();
+        fireEvent.blur(input);
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        fireEvent.focus(input);
+        expect(screen.getByRole('listbox')).toBeVisible();
+    });
+
     it('selects only a keyboard-highlighted suggestion on Enter', async () => {
         const user = userEvent.setup();
         const onKeywordSelect = vi.fn();
@@ -125,7 +134,9 @@ describe('PortalSearchInput', () => {
 
         const input = screen.getByRole('combobox', { name: 'Search' });
         await user.click(input);
-        await user.keyboard('{ArrowDown}{Enter}');
+        await user.keyboard('{ArrowDown}{ArrowUp}');
+        expect(screen.getByRole('option', { selected: true })).toHaveTextContent('Paleoseismology');
+        await user.keyboard('{ArrowUp}{Enter}');
 
         expect(onKeywordSelect).toHaveBeenCalledWith('Seismology');
         expect(onSubmit).not.toHaveBeenCalled();
@@ -142,6 +153,121 @@ describe('PortalSearchInput', () => {
         expect(onSubmit).toHaveBeenCalledWith('custom phrase');
     });
 
+    it.each(['/doi-search', '/igsn-search'] as const)('silently accepts free text when %s returns no keyword matches', async (basePath) => {
+        const user = userEvent.setup();
+        const props = { basePath, onSubmit: vi.fn() };
+        suggestionsState.data = undefined;
+        const { rerender } = render(<Harness {...props} />);
+        const input = screen.getByRole('combobox', { name: 'Search' });
+        await user.type(input, '  unknown phrase  ');
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+
+        suggestionsState.isFetching = true;
+        rerender(<Harness {...props} />);
+        expect(screen.getByText('Loading keywords...')).toBeVisible();
+
+        suggestionsState.data = [];
+        suggestionsState.isFetching = false;
+        rerender(<Harness {...props} />);
+
+        expect(screen.queryByText(/no matching keywords/i)).not.toBeInTheDocument();
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(input).toHaveAttribute('aria-expanded', 'false');
+        expect(input).not.toHaveAttribute('aria-controls');
+        expect(input).not.toHaveAttribute('aria-activedescendant');
+        await user.keyboard('{Enter}');
+        expect(props.onSubmit).toHaveBeenCalledWith('unknown phrase');
+    });
+
+    it('closes the list when all matches are already selected as filters', async () => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+        const { rerender } = render(<Harness initialValue="seis" selectedKeywords={['Seismology']} onSubmit={onSubmit} />);
+        const input = screen.getByRole('combobox', { name: 'Search' });
+        await user.click(input);
+        await user.keyboard('{ArrowDown}');
+        const remainingOption = screen.getByRole('option');
+        expect(remainingOption).toHaveTextContent('Paleoseismology');
+        expect(input).toHaveAttribute('aria-activedescendant', remainingOption.id);
+
+        rerender(<Harness initialValue="seis" selectedKeywords={['Seismology', 'Paleoseismology']} onSubmit={onSubmit} />);
+
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(input).toHaveAttribute('aria-expanded', 'false');
+        expect(input).not.toHaveAttribute('aria-activedescendant');
+        await user.click(screen.getByRole('button', { name: 'Search' }));
+        expect(onSubmit).toHaveBeenCalledWith('seis');
+    });
+
+    it('submits text if a refresh removes the highlighted keyword but leaves another match', async () => {
+        const user = userEvent.setup();
+        const props = { initialValue: 'seis', onSubmit: vi.fn(), onKeywordSelect: vi.fn() };
+        const { rerender } = render(<Harness {...props} />);
+        const input = screen.getByRole('combobox', { name: 'Search' });
+        await user.click(input);
+        await user.keyboard('{ArrowDown}');
+        expect(screen.getByRole('option', { selected: true })).toHaveTextContent('Seismology');
+
+        suggestionsState.data = [{ value: 'Paleoseismology', scheme: null, count: 3 }];
+        rerender(<Harness {...props} />);
+
+        expect(screen.getByRole('option', { selected: false })).toHaveTextContent('Paleoseismology');
+        expect(input).not.toHaveAttribute('aria-activedescendant');
+        await user.keyboard('{Enter}');
+        expect(props.onSubmit).toHaveBeenCalledWith('seis');
+        expect(props.onKeywordSelect).not.toHaveBeenCalled();
+    });
+
+    it('displays a failed lookup and still lets Enter submit a text search', async () => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+        suggestionsState.data = [];
+        suggestionsState.isError = true;
+        render(<Harness initialValue="climate" onSubmit={onSubmit} />);
+        const input = screen.getByRole('combobox', { name: 'Search' });
+        await user.click(input);
+
+        expect(screen.getByText('Keyword suggestions are unavailable.')).toBeVisible();
+        expect(input).toHaveAttribute('aria-expanded', 'true');
+        expect(input).not.toHaveAttribute('aria-activedescendant');
+        await user.keyboard('{Enter}');
+        expect(onSubmit).toHaveBeenCalledWith('climate');
+    });
+
+    it.each([
+        { state: 'loading', message: 'Loading keywords...' },
+        { state: 'error', message: 'Keyword suggestions are unavailable.' },
+    ])('dismisses the $state popup with Escape while keeping the search field focused', async ({ state, message }) => {
+        const user = userEvent.setup();
+        suggestionsState.data = [];
+        suggestionsState.isFetching = state === 'loading';
+        suggestionsState.isError = state === 'error';
+        const onSubmit = vi.fn();
+        const { rerender } = render(<Harness initialValue="seis" onSubmit={onSubmit} />);
+        const input = screen.getByRole('combobox', { name: 'Search' });
+        await user.click(input);
+        expect(screen.getByRole('listbox')).toHaveTextContent(message);
+
+        await user.keyboard('{Escape}');
+
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(input).toHaveAttribute('aria-expanded', 'false');
+        expect(input).not.toHaveAttribute('aria-controls');
+        expect(input).toHaveFocus();
+        expect(input).toHaveValue('seis');
+        expect(onSubmit).not.toHaveBeenCalled();
+
+        suggestionsState.isFetching = false;
+        suggestionsState.isError = false;
+        suggestionsState.data = [{ value: 'Seismology', scheme: null, count: 12 }];
+        rerender(<Harness initialValue="seis" onSubmit={onSubmit} />);
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        await user.keyboard('{Enter}');
+        expect(onSubmit).toHaveBeenCalledWith('seis');
+        await user.keyboard('m');
+        expect(screen.getByRole('option')).toHaveTextContent('Seismology');
+    });
+
     it('removes exact keyword chips without changing the text query', async () => {
         const user = userEvent.setup();
         const onKeywordsChange = vi.fn();
@@ -156,7 +282,7 @@ describe('PortalSearchInput', () => {
         expect(screen.getByRole('combobox', { name: 'Search' })).toHaveValue('climate');
     });
 
-    it('does not open suggestions for fewer than two characters', async () => {
+    it('opens suggestions at two characters and closes them when the search is cleared', async () => {
         const user = userEvent.setup();
         render(<Harness initialValue="s" />);
 
@@ -166,6 +292,12 @@ describe('PortalSearchInput', () => {
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
         expect(input).not.toHaveAttribute('aria-controls');
         expect(input).not.toHaveAttribute('aria-activedescendant');
+
+        await user.type(input, 'e');
+        expect(screen.getByRole('listbox')).toBeVisible();
+        await user.click(screen.getByRole('button', { name: 'Clear search' }));
+        expect(input).toHaveValue('');
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     });
 
     it('only exposes suggestion id references while the popup is visible', async () => {

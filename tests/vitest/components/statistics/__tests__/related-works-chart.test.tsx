@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import RelatedWorksChart from '@/components/statistics/related-works-chart';
 
@@ -31,9 +31,6 @@ describe('RelatedWorksChart', () => {
         ],
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<RelatedWorksChart data={mockData} />);

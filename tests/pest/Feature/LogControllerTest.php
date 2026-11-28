@@ -5,8 +5,11 @@ declare(strict_types=1);
 use App\Models\User;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Tests\Support\WithTemporaryLogStorage;
 
 use function Pest\Laravel\withoutVite;
+
+uses(WithTemporaryLogStorage::class);
 
 describe('Log Routes Access Control', function () {
     it('requires authentication to access logs', function () {
@@ -143,14 +146,6 @@ More stack trace
 [2024-01-01 10:03:00] local.DEBUG: Test debug message
 LOG;
         File::put($logPath, $logContent);
-    });
-
-    afterEach(function () {
-        // Clean up test log file
-        $logPath = storage_path('logs/laravel.log');
-        if (File::exists($logPath)) {
-            File::put($logPath, '');
-        }
     });
 
     it('returns logs with correct structure', function () {

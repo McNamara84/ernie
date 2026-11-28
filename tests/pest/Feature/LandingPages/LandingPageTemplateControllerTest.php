@@ -752,7 +752,7 @@ describe('Update', function (): void {
             );
     });
 
-    it('rejects the IGSN-only hidden zone for Resource templates', function (): void {
+    it('accepts the hidden zone for Resource templates', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         $this->actingAs($this->admin)
@@ -761,12 +761,8 @@ describe('Update', function (): void {
                 'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
                 'hidden_sections' => [],
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('hidden_sections')
-            ->assertJsonPath(
-                'errors.hidden_sections.0',
-                'Hidden sections are only available for IGSN templates.',
-            );
+            ->assertOk()
+            ->assertJsonPath('template.hidden_sections', []);
     });
 
     it('requires hidden sections to be an array', function (mixed $value): void {
@@ -1435,12 +1431,12 @@ describe('Model', function (): void {
         expect($normalized['left'])->toBe([
             'contact',
             'general',
-        ])->and($normalized['right'])->toBe(['version_notice', 'abstract', 'location'])
+        ])->and($normalized['right'])->toBe(['version_notice', 'abstract', 'location', 'usage'])
             ->and($normalized['hidden'])->toContain('sample_image', 'citation', 'igsn_drilling')
             ->and(LandingPageTemplate::normalizeIgsnSectionOrders(
                 ['general'],
                 ['citation', 'location'],
-            )['right'])->toBe(['version_notice', 'citation', 'location']);
+            )['right'])->toBe(['version_notice', 'citation', 'location', 'usage']);
     });
 
     it('restores citation at the canonical position in legacy system defaults', function (): void {

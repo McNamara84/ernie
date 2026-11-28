@@ -5,42 +5,17 @@ declare(strict_types=1);
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\File;
+use Tests\Support\WithTemporaryLogStorage;
 
-uses()->group('serial');
+uses(WithTemporaryLogStorage::class)->group('serial');
 
 beforeEach(function (): void {
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-09-02 12:00:00', 'UTC'));
     $this->logDirectory = storage_path('logs');
-    File::ensureDirectoryExists($this->logDirectory);
-    $this->logBackups = [];
-
-    foreach (File::files($this->logDirectory) as $file) {
-        $filename = $file->getFilename();
-        if ($filename !== 'laravel.log' && preg_match('/^laravel-\d{4}-\d{2}-\d{2}\.log$/', $filename) !== 1) {
-            continue;
-        }
-
-        $backupPath = $file->getPathname().'.download-controller-test-'.uniqid('', true).'.backup';
-        File::move($file->getPathname(), $backupPath);
-        $this->logBackups[$backupPath] = $file->getPathname();
-    }
 });
 
 afterEach(function (): void {
     CarbonImmutable::setTestNow();
-
-    foreach (File::files($this->logDirectory) as $file) {
-        $filename = $file->getFilename();
-        if ($filename === 'laravel.log' || preg_match('/^laravel-\d{4}-\d{2}-\d{2}\.log$/', $filename) === 1) {
-            File::delete($file->getPathname());
-        }
-    }
-
-    foreach ($this->logBackups as $backupPath => $originalPath) {
-        if (File::exists($backupPath)) {
-            File::move($backupPath, $originalPath);
-        }
-    }
 });
 
 it('requires authentication for log downloads', function (): void {

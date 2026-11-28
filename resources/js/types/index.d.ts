@@ -53,6 +53,7 @@ export interface AssessmentAverageSummary {
 }
 
 export interface SharedData {
+    pathPrefix?: string;
     serverToday?: string;
     canReleaseData?: boolean;
     name: string;
@@ -93,6 +94,7 @@ export interface User {
     can_access_statistics?: boolean;
     can_access_users?: boolean;
     can_access_editor_settings?: boolean;
+    can_manage_news?: boolean;
     can_access_database_dumps?: boolean;
     // Landing page management permission (Issue #375)
     can_manage_landing_pages?: boolean;
@@ -101,6 +103,7 @@ export interface User {
     // Assistance page permission
     can_access_assistance?: boolean;
     can_access_assessment?: boolean;
+    can_access_contact_persons?: boolean;
     deactivated_at?: string | null;
     deactivated_by?: {
         id: number;
@@ -191,6 +194,8 @@ export interface RelatedIdentifier {
     relation_type: string;
     relation_type_information?: string | null;
     citation_label?: string | null;
+    citation_proof?: string;
+    citation_label_hash?: string;
     source?: 'relation_suggestion_assistant' | 'legacy_igsn_dif' | null;
     is_repository_curation?: boolean;
     position?: number;
@@ -204,6 +209,8 @@ export interface RelatedIdentifierFormData {
     relationType: string;
     relationTypeInformation?: string | null;
     citationLabel?: string | null;
+    citationProof?: string;
+    originalCitationLabelHash?: string;
 }
 
 export type IdentifierType =
@@ -305,7 +312,7 @@ export interface MSLLaboratoriesResponse {
 }
 
 /**
- * Instrument selection from the PID4INST / b2inst registry.
+ * Instrument selection from the combined B2INST and DataCite PIDINST vocabulary.
  * Used in the "Used Instruments" editor section.
  */
 export interface InstrumentSelection {

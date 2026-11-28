@@ -22,6 +22,8 @@ use App\Models\Right;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\InstrumentNameResolutionService;
 use App\Services\Rights\CustomRightCatalogService;
+use App\Services\SizeFormat\ResourceContentMetadataService;
+use App\Services\SizeFormat\ResourceFormatUsageService;
 use App\Support\GemetVocabularyParser;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
@@ -124,6 +126,7 @@ class EditorDataTransformer
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
             'instruments' => $instruments,
+            'contentMetadata' => app(ResourceContentMetadataService::class)->state($resource),
             'initialDatacenterId' => $resource->datacenter_id,
             'landingPage' => $resource->landingPage ? [
                 'id' => $resource->landingPage->id,
@@ -149,6 +152,7 @@ class EditorDataTransformer
             'activeRelationTypes' => RelationType::active()->orderByName()->pluck('slug')->values()->all(),
             'activeIdentifierTypes' => IdentifierType::active()->orderByName()->pluck('slug')->values()->all(),
             'availableDatacenters' => Datacenter::orderBy('name')->get(['id', 'name'])->toArray(),
+            'formatUsage' => (object) app(ResourceFormatUsageService::class)->counts(),
         ];
     }
 
@@ -772,7 +776,7 @@ class EditorDataTransformer
     /**
      * Transform related identifiers to frontend format.
      *
-     * @return array<int, array{id: int, identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null, citation_label: string|null, source: string|null, is_repository_curation: bool}>
+     * @return array<int, array{id: int, identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null, citation_label: string|null, citation_label_hash: string, source: string|null, is_repository_curation: bool}>
      */
     public function transformRelatedIdentifiers(Resource $resource): array
     {
@@ -785,6 +789,7 @@ class EditorDataTransformer
                 'relation_type' => $relatedId->relationType->slug,
                 'relation_type_information' => $relatedId->relation_type_information,
                 'citation_label' => $relatedId->citation_label,
+                'citation_label_hash' => hash('sha256', (string) $relatedId->citation_label),
                 'source' => $relatedId->source,
                 'is_repository_curation' => $relatedId->isRepositoryCuration(),
             ])

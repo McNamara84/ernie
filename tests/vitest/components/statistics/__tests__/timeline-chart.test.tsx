@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import TimelineChart from '@/components/statistics/timeline-chart';
 
@@ -30,9 +30,6 @@ describe('TimelineChart', () => {
         ],
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<TimelineChart data={mockData} />);

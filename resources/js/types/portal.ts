@@ -130,6 +130,8 @@ export interface PortalFilters {
     geologicalAges: string[];
     geologicalUnits: string[];
     datacenter: string[];
+    /** Absent from page history created before the map toggle was persisted. */
+    mapFilterEnabled?: boolean;
     bounds: GeoBounds | null;
     temporal: TemporalFilterValue | null;
 }

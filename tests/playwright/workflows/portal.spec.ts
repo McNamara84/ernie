@@ -1,5 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import type { PortalBasePath, PortalPageProps, PortalResource } from '../../../resources/js/types/portal';
+
 /**
  * Portal E2E Tests
  *
@@ -26,7 +28,7 @@ async function openPortal(page: Page, path = '/doi-search') {
     await expect(page.getByTestId('portal-workspace')).toBeVisible();
 }
 
-async function openFilterSection(page: Page, name: 'Resource Type' | 'Datacenter') {
+async function openFilterSection(page: Page, name: 'Resource Type' | 'Datacenter' | 'Location') {
     const trigger = page.getByRole('button', { name: new RegExp(`^${name}(?: \\d+)?$`) });
     await trigger.scrollIntoViewIfNeeded();
 
@@ -284,20 +286,6 @@ test.describe('Portal Page', () => {
             }).toPass();
         });
 
-        test('pagination appears when there are multiple pages', async ({ page }) => {
-            const resultsText = page.getByText(/showing \d+-\d+ of [\d,.]+ results/i).first();
-
-            if (await resultsText.isVisible()) {
-                const text = await resultsText.textContent();
-                const match = text?.match(/of ([\d,.]+) results/i);
-                const total = match ? Number.parseInt(match[1].replace(/[,.]/g, ''), 10) : 0;
-
-                if (total > 20) {
-                    await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeVisible();
-                }
-            }
-        });
-
         test('keeps pagination visible while the result cards scroll inside the workspace', async ({ page }) => {
             await page.setViewportSize({ width: 1280, height: 500 });
             await openPortal(page);
@@ -326,6 +314,7 @@ test.describe('Portal Page', () => {
 
             await nextButton.click();
             await expect(page).toHaveURL(/[?&]page=2(?:&|$)/);
+            await expect(results.getByRole('button', { name: '2', exact: true })).toBeInViewport();
         });
     });
 
@@ -352,6 +341,115 @@ test.describe('Portal Page', () => {
             await expect(input).toHaveValue('keyboard test');
         });
     });
+});
+
+test.describe('Numbered result pages', () => {
+    const query = 'pagination-fixture';
+
+    async function provideResults(page: Page, path: PortalBasePath) {
+        const isIgsn = path === '/igsn-search';
+        let perPage: number;
+        const resources: PortalResource[] = Array.from({ length: 45 }, (_, i) => ({
+            id: i + 1,
+            title: `Result ${i + 1}`,
+            creators: [],
+            searchMatches: [],
+            doi: null,
+            year: null,
+            resourceType: isIgsn ? 'Physical Object' : 'Dataset',
+            resourceTypeSlug: isIgsn ? 'physical-object' : 'dataset',
+            isIgsn,
+            geoLocations: [],
+            landingPageUrl: null,
+        }));
+        await page.route(
+            (url) => url.pathname === path && url.searchParams.get('q') === query,
+            async (route) => {
+                const response = await route.fetch();
+                const payload: { props: PortalPageProps } = await response.json();
+                const { pagination } = payload.props;
+                perPage = pagination.per_page;
+                const offset = (pagination.current_page - 1) * perPage;
+                payload.props.resources = resources.slice(offset, offset + perPage);
+                pagination.from = offset + 1;
+                pagination.to = offset + payload.props.resources.length;
+                pagination.has_more = pagination.to < resources.length;
+                await route.fulfill({ response, json: payload });
+            },
+        );
+        await page.route(
+            (url) => url.pathname === `${path}/count` && url.searchParams.get('q') === query,
+            async (route) => {
+                const response = await route.fetch();
+                await route.fulfill({
+                    response,
+                    json: { ...(await response.json()), total: resources.length, last_page: Math.max(1, Math.ceil(resources.length / perPage)) },
+                });
+            },
+        );
+        return resources;
+    }
+
+    for (const path of ['/doi-search', '/igsn-search'] as const) {
+        test(`keeps numbered pages and the result count visible when browsing ${path}`, async ({ page }) => {
+            await page.setViewportSize({ width: 1440, height: 900 });
+            await openPortal(page, path);
+            await provideResults(page, path);
+            await searchInput(page).fill(query);
+            await page.getByRole('button', { name: 'Search', exact: true }).click();
+
+            const results = page.getByTestId('portal-results-list');
+            const button = (name: string) => results.getByRole('button', { name, exact: true });
+            const expectPage = async (current: number, from: number, to: number) => {
+                await expect(results.getByText(`Showing ${from}-${to} of 45 results`)).toBeVisible();
+                await expect(results.getByTestId('portal-result-title').first()).toHaveText(`Result ${from}`);
+                for (const number of ['1', '2', '3']) {
+                    await expect(button(number)).toBeVisible();
+                }
+                await expect(button(String(current))).toHaveAttribute('aria-current', 'page');
+            };
+
+            await expectPage(1, 1, 20);
+            await expect(button('Previous')).toBeDisabled();
+            await button('Next').click();
+            await expectPage(2, 21, 40);
+            await button('3').click();
+            await expectPage(3, 41, 45);
+            await expect(button('Next')).toBeDisabled();
+            await openFilterSection(page, 'Location');
+            await page.getByRole('switch', { name: 'Filter by map area' }).click();
+            await expect(page).toHaveURL((url) => url.searchParams.get('map_filter') === '0' && url.searchParams.get('page') === '3');
+            await button('Previous').click();
+            await expectPage(2, 21, 40);
+            await expect(page).toHaveURL((url) => url.searchParams.get('map_filter') === '0' && url.searchParams.get('page') === '2');
+            await page.getByRole('switch', { name: 'Filter by map area' }).click();
+            await expect(page).toHaveURL((url) => !url.searchParams.has('map_filter') && url.searchParams.get('q') === query && url.searchParams.get('page') === '2');
+            await expectPage(2, 21, 40);
+        });
+
+        test(`updates the last page when repeating the same search on ${path}`, async ({ page }) => {
+            const countedAt = Date.now();
+            await page.clock.setFixedTime(countedAt);
+            await page.setViewportSize({ width: 1440, height: 900 });
+            await openPortal(page, path);
+            const resources = await provideResults(page, path);
+            const search = page.getByRole('button', { name: 'Search', exact: true });
+            const results = page.getByTestId('portal-results-list');
+            const thirdPage = results.getByRole('button', { name: '3', exact: true });
+            await searchInput(page).fill(query);
+            await search.click();
+            await expect(results.getByText('Showing 1-20 of 45 results')).toBeVisible();
+            await expect(thirdPage).toBeVisible();
+
+            // Only later pages change, so Inertia can reuse every result and pagination prop on page one.
+            resources.splice(25);
+            await page.clock.setFixedTime(countedAt + 30_000);
+            await search.click();
+            await expect(results.getByText('Showing 1-20 of 25 results')).toBeVisible();
+            await expect(results.getByRole('button', { name: '2', exact: true })).toBeVisible();
+            await expect(thirdPage).toHaveCount(0);
+        });
+    }
 });
 
 test.describe('IGSN Portal Page', () => {
@@ -397,6 +495,79 @@ for (const portal of [
     { path: '/doi-search', typeSlug: 'dataset', typeName: 'Dataset' },
     { path: '/igsn-search', typeSlug: 'physical-object', typeName: 'Physical Object' },
 ] as const) {
+    test(`${portal.path} follows the map from worldwide search and restores the default on reset`, async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await openPortal(page, portal.path);
+        await openFilterSection(page, 'Location');
+        const toggle = page.getByRole('switch', { name: 'Filter by map area' });
+        const north = page.getByRole('spinbutton', { name: 'North latitude' });
+        await expect(toggle).toBeChecked();
+        await expect(north).toHaveValue('90.0000');
+        await expect(page.getByRole('button', { name: 'Clear all filters' })).toHaveCount(0);
+
+        await page.locator('.leaflet-control-zoom-in').click();
+        await expect(page).toHaveURL((url) => url.searchParams.has('north'));
+        await north.fill('53');
+        await page.getByRole('spinbutton', { name: 'South latitude' }).fill('52');
+        await page.getByRole('spinbutton', { name: 'West longitude' }).fill('13');
+        await page.getByRole('spinbutton', { name: 'East longitude' }).fill('14');
+        await page.getByRole('button', { name: 'Apply', exact: true }).click();
+        await expect(page).toHaveURL((url) => url.searchParams.get('north') === '53.000000');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(north).toHaveValue('53.0000');
+        await page.getByRole('button', { name: 'Clear', exact: true }).click();
+        await expect(page).toHaveURL((url) => url.search === '?map_filter=0');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await openFilterSection(page, 'Location');
+        await expect(toggle).not.toBeChecked();
+        await page.getByRole('button', { name: 'Clear all filters' }).click();
+        await expect(page).toHaveURL((url) => url.pathname === portal.path && url.search === '');
+        await openFilterSection(page, 'Location');
+        await expect(toggle).toBeChecked();
+        await expect(north).toHaveValue('90.0000');
+    });
+
+    test(`${portal.path} dismisses keyword feedback before the mobile filter drawer`, async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await openPortal(page, portal.path);
+        await page.route(`**${portal.path}/free-keyword-suggestions?*`, (route) => route.fulfill({ status: 429, json: {} }));
+        await page.getByTestId('portal-filter-drawer-trigger').click();
+        const drawer = page.getByRole('dialog', { name: 'Search filters' });
+        const input = searchInput(page);
+        await input.fill('climate');
+        await expect(drawer.getByText('Keyword suggestions are unavailable.')).toBeVisible();
+
+        await input.press('Escape');
+        await expect(input).toHaveAttribute('aria-expanded', 'false');
+        await expect(input).toBeFocused();
+        await expect(drawer).toBeVisible();
+
+        await input.press('Escape');
+        await expect(drawer).toBeHidden();
+    });
+
+    test(`${portal.path} opens a saved regional map from the mobile results tab`, async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        const bounds = { north: '53', south: '52', east: '14', west: '13' };
+        await openPortal(page, `${portal.path}?${new URLSearchParams(bounds)}`);
+        await expect(page.getByTestId('portal-mobile-results-view')).toBeVisible();
+        const mapRequest = page.waitForRequest((request) => {
+            const url = new URL(request.url());
+            return (
+                url.pathname === `${portal.path}/map` &&
+                Number(url.searchParams.get('zoom')) > 2 &&
+                Number(url.searchParams.get('viewport[north]')) >= 53 &&
+                Number(url.searchParams.get('viewport[south]')) <= 52 &&
+                Number(url.searchParams.get('viewport[west]')) <= 13 &&
+                Number(url.searchParams.get('viewport[east]')) >= 14
+            );
+        });
+        await page.getByTestId('portal-mobile-map-tab').click();
+        await mapRequest;
+        await page.getByTestId('portal-mobile-results-tab').click();
+        await expect.poll(() => Object.fromEntries(new URL(page.url()).searchParams)).toEqual(bounds);
+    });
+
     test(`${portal.path} cluster navigation stays monotone and exposes colocated records`, async ({ page }) => {
         const requestedZooms: number[] = [];
         const delayedResponseControl: { release?: () => void } = {};
@@ -483,32 +654,27 @@ for (const portal of [
             });
         });
 
+        await page.setViewportSize({ width: 1280, height: 720 });
         await openPortal(page, portal.path);
         const map = page.locator('.leaflet-container').first();
         const mapPane = map.locator('.leaflet-map-pane');
         const cluster = () => map.locator('.portal-pie-cluster').first();
-        const zoomIn = map.locator('.leaflet-control-zoom-in');
-        const zoomOut = map.locator('.leaflet-control-zoom-out');
 
         await expect(cluster()).toBeVisible();
-        await expect(cluster()).toHaveClass(/leaflet-interactive/);
-
-        let currentZoom = requestedZooms.at(-1)!;
-        for (let adjustment = 0; currentZoom !== 4 && adjustment < 18; adjustment++) {
-            const targetZoom = currentZoom < 4 ? currentZoom + 1 : currentZoom - 1;
-            await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
-            await (currentZoom < 4 ? zoomIn : zoomOut).click();
-            await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
-            await expect.poll(() => requestedZooms.at(-1)).toBe(targetZoom);
-            currentZoom = targetZoom;
-        }
-        expect(currentZoom).toBe(4);
+        // Fit the Svalbard fixture after the map has opened at its desktop size.
+        await openFilterSection(page, 'Location');
+        await page.getByRole('spinbutton', { name: 'North latitude' }).fill('80');
+        await page.getByRole('spinbutton', { name: 'South latitude' }).fill('76');
+        await page.getByRole('spinbutton', { name: 'East longitude' }).fill('30');
+        await page.getByRole('spinbutton', { name: 'West longitude' }).fill('0');
+        await page.getByRole('button', { name: 'Apply', exact: true }).click();
+        await expect.poll(() => requestedZooms.at(-1)).toBe(4);
 
         // Recording the request does not mean its replacement clusters are ready.
         await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
         await expect(map.locator('..')).toHaveAttribute('aria-busy', 'false');
         await expect(cluster()).toHaveClass(/leaflet-interactive/);
-        await cluster().dispatchEvent('click');
+        await cluster().click();
         await expect.poll(() => requestedZooms.at(-1)).toBe(8);
         await expect(cluster()).not.toHaveClass(/leaflet-interactive/);
         const requestsWhileStale = requestedZooms.length;
@@ -523,7 +689,7 @@ for (const portal of [
         await expect(cluster()).toHaveClass(/leaflet-interactive/);
 
         const navigationZooms = [4, 8];
-        currentZoom = 8;
+        let currentZoom = 8;
         for (let click = 0; currentZoom < 18 && click < 8; click++) {
             const previousZoom = currentZoom;
             await cluster().click();

@@ -25,6 +25,7 @@ import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { ResourceHero } from './components/ResourceHero';
 import { ResourceRelationHighlightSections } from './components/ResourceRelationHighlightSections';
 import { TombstoneNotice } from './components/TombstoneNotice';
+import { type UsageData, UsageSection } from './components/UsageSection';
 import { VersionNotice } from './components/VersionNotice';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
@@ -48,6 +49,7 @@ import {
  */
 interface DefaultGfzTemplatePageProps {
     resource: LandingPageResource;
+    usage?: UsageData;
     documentTitle: string;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
@@ -55,6 +57,9 @@ interface DefaultGfzTemplatePageProps {
     embargoPending?: boolean;
     embargoDue?: boolean;
     supportsIso19115?: boolean;
+    supportsIso19115Json?: boolean;
+    supportsDcatAp?: boolean;
+    supportsEposDcatAp?: boolean;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
@@ -103,6 +108,7 @@ function composeResourceColumn(
 export default function DefaultGfzTemplate() {
     const {
         resource,
+        usage,
         documentTitle,
         landingPage,
         isPreview,
@@ -110,6 +116,9 @@ export default function DefaultGfzTemplate() {
         embargoPending = false,
         embargoDue = false,
         supportsIso19115 = false,
+        supportsIso19115Json = false,
+        supportsDcatAp = false,
+        supportsEposDcatAp = false,
         metadataLinks,
         sectionOrder,
         customLogoUrl,
@@ -130,7 +139,7 @@ export default function DefaultGfzTemplate() {
     );
 
     const orders = sectionOrder
-        ? normalizeResourceColumnOrders(sectionOrder.leftColumn, sectionOrder.rightColumn)
+        ? normalizeResourceColumnOrders(sectionOrder.leftColumn, sectionOrder.rightColumn, sectionOrder.hiddenSections)
         : {
               left: RESOURCE_LEFT_COLUMN_SECTIONS as ResourceSection[],
               right: RIGHT_COLUMN_SECTIONS as ResourceSection[],
@@ -158,6 +167,9 @@ export default function DefaultGfzTemplate() {
                     resourceId={resource.id}
                     isPreview={isPreview}
                     supportsIso19115={supportsIso19115}
+                    supportsIso19115Json={supportsIso19115Json}
+                    supportsDcatAp={supportsDcatAp}
+                    supportsEposDcatAp={supportsEposDcatAp}
                     jsonLdExportUrl={jsonLdExportUrl}
                     metadataLinks={metadataLinks}
                     sectionOrder={metadataOrder}
@@ -169,7 +181,19 @@ export default function DefaultGfzTemplate() {
             left: renderMetadataSection('left-metadata', leftMetadataOrder),
             right: renderMetadataSection('right-metadata', rightMetadataOrder),
         };
-    }, [resource, landingPage, isPreview, supportsIso19115, leftMetadataOrder, rightMetadataOrder, peopleDisplayLimits, metadataLinks]);
+    }, [
+        resource,
+        landingPage,
+        isPreview,
+        supportsIso19115,
+        supportsIso19115Json,
+        supportsDcatAp,
+        supportsEposDcatAp,
+        leftMetadataOrder,
+        rightMetadataOrder,
+        peopleDisplayLimits,
+        metadataLinks,
+    ]);
 
     const standaloneSectionRegistry = useMemo((): Partial<Record<ResourceSection, ReactNode>> => {
         return {
@@ -194,6 +218,7 @@ export default function DefaultGfzTemplate() {
                         additionalLinks={landingPage?.links}
                     />
                 ),
+            usage: usage ? <UsageSection key="usage" usage={usage} /> : null,
             licenses: (
                 <Fragment key="licenses">
                     <LicenseAndRightsSection licenses={resource.licenses || []} />
@@ -226,6 +251,7 @@ export default function DefaultGfzTemplate() {
             location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
         };
     }, [
+        usage,
         resource,
         landingPage,
         mainTitle,

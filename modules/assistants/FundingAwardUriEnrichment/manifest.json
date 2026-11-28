@@ -1,0 +1,16 @@
+{
+    "id": "funding-award-uri-enrichment",
+    "name": "Funding Award URI Enrichment",
+    "description": "Review missing award URI suggestions from Crossref Grants and CORDIS, with retained source evidence.",
+    "icon": "BadgeCheck",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\FundingAwardUriEnrichment\\Assistant",
+    "route_prefix": "funding-award-uris",
+    "lock_key": "funding_award_uri_discovery_running",
+    "cache_key_prefix": "funding_award_uri_discovery",
+    "sort_order": 46,
+    "empty_state": {
+        "title": "No pending award URI suggestions",
+        "description": "Only uniquely verified awards with an empty local Award URI can be suggested."
+    }
+}

@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { AddUserDialog } from '@/components/add-user-dialog';
 
@@ -22,9 +22,6 @@ vi.mock('sonner', () => ({
 }));
 
 describe('AddUserDialog', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     describe('trigger button', () => {
         it('renders the add user button', () => {

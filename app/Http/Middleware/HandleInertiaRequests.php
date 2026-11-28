@@ -75,6 +75,7 @@ class HandleInertiaRequests extends Middleware
                     'can_access_statistics' => $request->user()->can('access-statistics'),
                     'can_access_users' => $request->user()->can('access-users'),
                     'can_access_editor_settings' => $request->user()->can('access-editor-settings'),
+                    'can_manage_news' => $request->user()->can('manage-news'),
                     // Landing page management permission (Issue #375)
                     'can_manage_landing_pages' => $request->user()->can('manage-landing-pages'),
                     'can_delete_landing_pages' => $request->user()->can('delete-landing-pages'),
@@ -82,6 +83,7 @@ class HandleInertiaRequests extends Middleware
                     // Assistance page permission
                     'can_access_assistance' => $request->user()->can('access-assistance'),
                     'can_access_assessment' => $request->user()->can('access-assessment'),
+                    'can_access_contact_persons' => $request->user()->can('access-contact-persons'),
                     'can_access_database_dumps' => $request->user()->can('access-database-dumps'),
                 ] : null,
             ],

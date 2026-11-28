@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\CitationLabelResolutionMode;
 use App\Enums\PortalCacheArea;
 use App\Models\ContributorType;
 use App\Models\DateType;
@@ -12,6 +11,7 @@ use App\Models\DescriptionType;
 use App\Models\FunderIdentifierType;
 use App\Models\IdentifierType;
 use App\Models\Institution;
+use App\Models\LandingPage;
 use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
@@ -23,21 +23,26 @@ use App\Models\ResourceCreator;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Policies\ResourcePolicy;
+use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Citations\RelatedItemStorageService;
 use App\Services\Editor\EditorDataTransformer;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\FundingAwardUri\FundingAwardUriSuggestionLifecycleService;
 use App\Services\GeoLocations\GeoLocationIdentityService;
 use App\Services\GeoLocations\GeoLocationWriterService;
 use App\Services\GeoLocations\GeoLocationWriteSessionService;
 use App\Services\OaiPmh\OaiPmhDatestampService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
+use App\Services\SizeFormat\ResourceContentMetadataService;
+use App\Services\Subjects\SubjectEquivalenceService;
 use App\Support\OrcidNormalizer;
 use App\Support\PersonIdentityMatcher;
 use App\Support\SubjectBreadcrumbPath;
+use App\Support\Swhid;
 use App\Support\UriHelper;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
@@ -84,10 +89,9 @@ class ResourceStorageService
     public function store(
         array $data,
         ?int $userId = null,
-        CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
         ?User $doiChangeActor = null,
     ): array {
-        return $this->storePrepared($this->prepareForStorage($data, $citationLabelResolutionMode), $userId, $doiChangeActor);
+        return $this->storePrepared($this->prepareForStorage($data), $userId, $doiChangeActor);
     }
 
     /**
@@ -224,6 +228,26 @@ class ResourceStorageService
             $this->storeRelatedItems($resource, $data, $isUpdate);
             $this->storeFundingReferences($resource, $data, $isUpdate);
             $this->storeInstruments($resource, $data, $isUpdate);
+            app(ResourceContentMetadataService::class)->sync($resource, $data, $isUpdate, $userId);
+
+            if ($isUpdate) {
+                // Child-only edits can leave every parent attribute unchanged.
+                // Timestamp the completed editor save within the same transaction
+                // so incremental OAI harvests also discover those metadata edits.
+                app(OaiPmhDatestampService::class)->touchResource((int) $resource->id);
+                // A full refresh would also reload cached child collections.
+                $resource->setAttribute('updated_at', Resource::query()->whereKey($resource->id)->value('updated_at'));
+                $resource->syncOriginalAttribute('updated_at');
+
+                // Resource observers run before child rows are replaced. Evict again
+                // after commit in case another request cached the previous relations.
+                DB::afterCommit(static function () use ($resource): void {
+                    $landingPage = LandingPage::where('resource_id', $resource->id)->first();
+                    if ($landingPage !== null) {
+                        app(LandingPageRenderDataCacheService::class)->forget($landingPage);
+                    }
+                });
+            }
 
             return [
                 $resource->load([
@@ -249,21 +273,12 @@ class ResourceStorageService
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    public function prepareForStorage(
-        array $data,
-        CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
-    ): array {
+    public function prepareForStorage(array $data): array
+    {
         $relatedIdentifiers = $data['relatedIdentifiers'] ?? null;
 
         if (! is_array($relatedIdentifiers)) {
             $data['relatedIdentifiers'] = [];
-
-            return $this->ensureAuthorContactPersonContributors($data);
-        }
-
-        if ($citationLabelResolutionMode === CitationLabelResolutionMode::EXHAUSTIVE) {
-            $data['relatedIdentifiers'] = $this->relatedIdentifierCitationLabelService
-                ->resolveExhaustiveForStorage($relatedIdentifiers);
 
             return $this->ensureAuthorContactPersonContributors($data);
         }
@@ -1449,23 +1464,19 @@ class ResourceStorageService
     private function storeSubjects(Resource $resource, array $data, bool $isUpdate): void
     {
         // Save subjects (free keywords and controlled keywords combined)
-        $deletedSubjects = 0;
-        if ($isUpdate) {
-            $deletedSubjects = $resource->subjects()->delete();
-        }
-
         $freeKeywords = $data['freeKeywords'] ?? [];
+        $freeKeywordsData = [];
 
         foreach ($freeKeywords as $keyword) {
             // Only save non-empty keywords
             if (! empty(trim($keyword))) {
-                $resource->subjects()->create([
+                $freeKeywordsData[trim($keyword)] = [
                     'value' => trim($keyword),
                     'subject_scheme' => null,
                     'scheme_uri' => null,
                     'value_uri' => null,
                     'classification_code' => null,
-                ]);
+                ];
             }
         }
 
@@ -1529,9 +1540,12 @@ class ResourceStorageService
             ];
         }
 
-        // Bulk create controlled keywords using Eloquent (handles timestamps automatically)
-        if (! empty($controlledKeywordsData)) {
-            $resource->subjects()->createMany($controlledKeywordsData);
+        // Compare the final persisted values, including identities resolved while preparing them.
+        $controlledKeywordsData = app(SubjectEquivalenceService::class)->analyze($controlledKeywordsData)['rows'];
+        $deletedSubjects = $isUpdate ? $resource->subjects()->delete() : 0;
+        $subjectsData = [...array_values($freeKeywordsData), ...$controlledKeywordsData];
+        if ($subjectsData !== []) {
+            $resource->subjects()->createMany($subjectsData);
         }
 
         // Query deletes bypass Subject events, including removal of the last keyword.
@@ -1924,7 +1938,7 @@ class ResourceStorageService
         if ($isUpdate) {
             /** @var array<int, RelatedIdentifier> $existingRelatedIdentifiersById */
             $existingRelatedIdentifiersById = $resource->relatedIdentifiers()
-                ->get()
+                ->orderBy('id')->lockForUpdate()->get()
                 ->keyBy('id')
                 ->all();
         }
@@ -1946,12 +1960,32 @@ class ResourceStorageService
                     : null;
 
                 $existingRelatedIdentifier = $this->existingRelatedIdentifierForUpdate($relatedIdentifier, $existingRelatedIdentifiersById);
+                $parts = $relatedIdentifier['citationLabelParts'] ?? null;
+                $sameTarget = $existingRelatedIdentifier !== null && $existingRelatedIdentifier->identifier === trim($relatedIdentifier['identifier'])
+                    && $existingRelatedIdentifier->identifier_type_id === ($relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null);
+                if ($sameTarget) {
+                    $current = $existingRelatedIdentifier->citation_label;
+                    $original = $relatedIdentifier['originalCitationLabelHash'] ?? null;
+                    if (is_string($original) && $original !== hash('sha256', (string) $current) && $current !== $citationLabel) {
+                        if ($original !== hash('sha256', (string) $citationLabel)) {
+                            throw ValidationException::withMessages(["relatedIdentifiers.{$index}.citationLabel" => 'This citation changed after you opened the editor. Reload the resource to review it.']);
+                        }
+                        $citationLabel = $current;
+                        $parts = $existingRelatedIdentifier->citation_label_parts;
+                    }
+                    if ($current === $citationLabel) {
+                        $parts ??= $existingRelatedIdentifier->citation_label_parts;
+                    }
+                }
                 $attributes = [
-                    'identifier' => trim($relatedIdentifier['identifier']),
+                    'identifier' => $relatedIdentifier['identifierType'] === 'SWHID'
+                        ? Swhid::normalize($relatedIdentifier['identifier'])
+                        : trim($relatedIdentifier['identifier']),
                     'identifier_type_id' => $relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null,
                     'relation_type_id' => $relationTypeLookup[$relatedIdentifier['relationType']] ?? null,
                     'relation_type_information' => isset($relatedIdentifier['relationTypeInformation']) && trim($relatedIdentifier['relationTypeInformation']) !== '' ? trim($relatedIdentifier['relationTypeInformation']) : null,
                     'citation_label' => $citationLabel,
+                    'citation_label_parts' => $parts,
                     'source' => $this->preservedRelatedIdentifierSource($existingRelatedIdentifier),
                     'position' => $index,
                 ];
@@ -2067,6 +2101,7 @@ class ResourceStorageService
     {
         // Save funding references
         if ($isUpdate) {
+            app(FundingAwardUriSuggestionLifecycleService::class)->invalidateForResource($resource->id);
             $resource->fundingReferences()->delete();
         }
 

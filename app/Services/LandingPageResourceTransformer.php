@@ -34,6 +34,7 @@ use App\Models\Title;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnDescriptionNormalizerService;
 use App\Services\Rights\CustomRightCatalogService;
+use App\Services\Subjects\SubjectEquivalenceService;
 use App\Support\IgsnIdentifier;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectBreadcrumbPath;
@@ -147,6 +148,7 @@ final class LandingPageResourceTransformer
                     'identifier_type' => $identifierType !== null ? $identifierType->slug : null,
                     'relation_type' => $relationType !== null ? $relationType->slug : null,
                     'citation_label' => $relatedId->citation_label,
+                    'citation_label_parts' => $relatedId->citation_label_parts,
                     'source' => $relatedId->source,
                     'is_repository_curation' => $relatedId->isRepositoryCuration(),
                     'position' => $relatedId->position,
@@ -348,7 +350,7 @@ final class LandingPageResourceTransformer
             ])
             ->all();
 
-        $resourceData['subjects'] = $resource->subjects
+        $resourceData['subjects'] = app(SubjectEquivalenceService::class)->forDisplay($resource->subjects)
             ->map(function (Subject $subject): array {
                 $breadcrumbPath = SubjectBreadcrumbPath::preferredPath($subject->breadcrumb_path, $subject->value);
 

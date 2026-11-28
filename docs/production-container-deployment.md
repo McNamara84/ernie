@@ -37,6 +37,23 @@ and form a linear deployment history. The generated Compose file references
 the application, Nginx, and F-UJI images as `ghcr.io/...@sha256:<digest>`; it never deploys from a mutable
 `latest`, `production`, or version tag.
 
+## Persistent OAI-PMH identifiers
+
+`APP_URL` defines the current public endpoint, `https://dataservices.gfz.de`.
+`OAI_IDENTIFIER_PREFIX` defines a persistent repository namespace and remains
+`oai:ernie.rz-vm499.gfz.de` on Production. Its historical hostname is intentional:
+OAI identifiers are names, rather than endpoint URLs, and must remain stable
+after a domain change. The public OAI documentation displays this configured
+namespace independently of its Base URL.
+
+Keep the same prefix in app, queue and scheduler, including any Portainer stack
+override. Changing it renames active records, makes their previous identifiers
+unrecognizable to `GetRecord`, and leaves stored deleted-record identifiers in
+the previous namespace. A namespace change therefore needs a separate migration
+and harvester transition; do not change it when updating the public hostname.
+
+See the [OAI identifier specification](https://www.openarchives.org/OAI/2.0/guidelines-oai-identifier.htm).
+
 ## Laravel process users and log permissions
 
 The PHP entrypoint performs filesystem/FPM setup as root, then runs all startup
@@ -104,29 +121,16 @@ ERNIE handles the public `/`, `/find`, `/data-centres`, and
 `/data-centres/description` routes on `dataservices.gfz.de`. Each page has its own
 environment switch applied when the app container is deployed:
 
-| Portainer stack variable | ERNIE route | TYPO3 target when `false` |
-| --- | --- | --- |
-| `PUBLIC_HOME_ENABLED` | `/` | `https://dataservices.gfz-potsdam.de/` |
-| `PUBLIC_FIND_ENABLED` | `/find` | `https://dataservices.gfz-potsdam.de/web/find` |
-| `PUBLIC_DATA_CENTRES_ENABLED` | `/data-centres` | `https://dataservices.gfz-potsdam.de/web/find/data-centres` |
-| `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` | `/data-centres/description` | `https://dataservices.gfz-potsdam.de/web/find/data-centres/data-centre-description` |
+| Portainer stack variable | ERNIE route |
+| --- | --- |
+| `PUBLIC_HOME_ENABLED` | `/` |
+| `PUBLIC_FIND_ENABLED` | `/find` |
+| `PUBLIC_DATA_CENTRES_ENABLED` | `/data-centres` |
+| `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` | `/data-centres/description` |
 
-Set each variable to the literal `true` or `false`. `true` serves the ERNIE page
-with HTTP 200; `false` returns a temporary HTTP 302 redirect to the corresponding
-TYPO3 page. Inertia navigation uses an HTTP 409 location response to perform the
-same full browser navigation. The switches apply to guests and signed-in users
-equally and are independent: disabling the overview does not disable the
-description page, or vice versa. Other pages and both search portals remain
-available.
+All four switches default to `true` in every environment. `true` serves the local ERNIE page; `false` returns a local HTTP 404 for direct and Inertia requests. There is no fallback to the old portal. Existing explicit `false` overrides remain effective: review them before deploying the legacy-import retirement so the intended public navigation stays available.
 
-Production Compose defaults all four switches to `false`. Stage and development
-Compose default them to `true`; the image's `.env.production` template keeps
-them disabled unless the runtime environment enables them. Configure overrides
-in **Stacks → your stack → Edit stack settings → Environment variables**, save,
-and redeploy the stack. A restart of the existing container does not apply
-changed stack variables. After the feature is deployed once, switching values
-requires no image rebuild. The container entrypoint rebuilds Laravel's
-configuration and route caches during startup.
+Configure overrides in the Portainer stack environment and redeploy the stack. Restarting an existing container does not apply changed stack variables. The entrypoint rebuilds configuration and route caches. Other public pages and the two search portals remain independently available.
 
 Production Traefik labels permanently redirect GET requests for `/portal` and `/igsn-new`
 to `https://dataservices.gfz.de/doi-search` and
@@ -143,7 +147,7 @@ When releasing the homepage, deploy both the application and the updated
 `webserver` service definition so Traefik receives the new labels. Updating only
 the application image leaves the old root redirect active. Verify `/` returns
 the expected response for `PUBLIC_HOME_ENABLED`: HTTP 200 with local topic
-images when `true`, or HTTP 302 to the TYPO3 homepage when `false`. Also verify
+images when `true`, or a local HTTP 404 when `false`. Also verify
 that `/find` and each data-centre route follow their individual switches,
 `/doi-search` and `/igsn-search` remain available, and legacy URLs still redirect
 correctly.
@@ -163,8 +167,34 @@ one step, and both search pages must return HTTP 200. Use GET rather than
 and other non-GET methods. Deploy the updated `webserver` definition to apply
 the labels; changing only the application image does not apply routing changes.
 
-The initial news item lives in `resources/js/data/homepage.ts`. Administration
-through `/manage-news` is a separate future feature. Homepage topic definitions
+Homepage news are stored in `news`, with one regular selection in
+`homepage_news_state`. Deploy the migrations
+`2026_11_18_000001_create_news_tables.php` and
+`2026_11_18_000002_seed_homepage_news.php` before serving the new application and
+frontend. The data migration preserves the existing ELMO announcement as the
+active regular news on both upgrades and fresh installations. Further deployments
+do not overwrite editorial changes. Verify the singleton row (`id = 1`) references
+an existing, unarchived regular contribution before releasing traffic.
+
+Active Admins and Group Leaders manage content under `/manage-news`, reached
+through Administration → Configuration → Manage News. New contributions are
+drafts until explicitly activated or scheduled. Temporary announcements use
+Europe/Berlin time, are stored in UTC and override the regular selection only
+within their planned interval (inclusive start, exclusive end). Overlapping
+schedules are rejected. Selection happens at request time without a scheduler or
+queue worker; an already open page updates on its next request. Do not add a
+full-page cache or intermediary cache that ignores the homepage's `no-store`
+response. Preview and public display share the same server-side Markdown renderer;
+external images load directly in the browser from HTTPS URLs.
+
+Check `/` publicly, then `/manage-news` with each authorized role and a denied
+role. In a test environment, verify a temporary override and the return to the
+then selected regular news. Archive and restore preserve content without
+republishing it. Roll back application code without dropping the news tables:
+rolling back the schema migration removes editorial content. The data migration's
+rollback intentionally preserves contributions.
+
+Homepage topic definitions
 live in `App\Enums\ScienceTopic`; GCMD topics resolve against the current local
 Science Keywords vocabulary, preserving alternative matching branches. A missing
 or disabled vocabulary produces no matches rather than an unfiltered result set.
@@ -309,12 +339,24 @@ PORTAL_MAP_BASEMAP_STYLE_URL=https://maps.example.org/styles/liberty
 
 The default is `https://tiles.openfreemap.org/styles/liberty`. OpenFreeMap does not provide an SLA; keep the default for ordinary use or self-host when operational guarantees are required.
 
+### COUNTER usage collection
+
+After validating collection and aggregation on Stage, configure a separate
+`COUNTER_SESSION_SECRET` (at least 32 random characters) in the Production stack
+environment and redeploy all PHP services. Keep it independent of `APP_KEY`.
+Migrations leave collection inactive. Plan the one-time
+`php artisan counter:activate` in the app container at a UTC day boundary,
+then verify `php artisan counter:tracking status` and scheduler operation.
+Legacy counters remain frozen after activation, including during pauses.
+Follow the [activation and recovery guide](counter-usage.md) for raw-data backup
+exclusions, retention, recovery and the restriction on rolling back to old images.
+
 ### 5. Verify the first deployment
 
 Save the changes and manually select **Pull and redeploy** for the stack.
 Portainer must show:
 
-- `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
+- `app`, `queue`, `curation-queue`, `assistance-queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
   `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
 - `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`;
 - `fuji`: `ghcr.io/mcnamara84/ernie-fuji@sha256:<digest>`.
@@ -445,6 +487,17 @@ return to automatic promotion, then manually pull/redeploy once to inspect the
 registry response.
 
 
+## Curation mail worker
+
+The `curation-queue` service consumes the `curation` connection and queue from the
+application database, independently of the general worker's `DB_QUEUE_CONNECTION`.
+It inherits the pinned application image, database and mail configuration from
+`queue`. Redeploy the full stack to start it; restarting only `app` is insufficient.
+The worker has a 60-second timeout, three attempts and a 90-second reservation.
+The isolated release candidate also requires this worker to be running.
+See [curation mail queue](local-development.md#curation-mail-queue) for the atomic
+audit guarantee and draining pending jobs from earlier issue-409 builds.
+
 ## ELMO cache refresh worker
 
 The `elmo-cache-refresh` service runs from the same pinned application image as
@@ -475,3 +528,9 @@ ELMO-MSL independently, including deactivations and completed vocabulary updates
 The ELMO source must use the appropriate ERNIE editor routes. See
 [local-development.md](local-development.md#automatic-elmo-cache-refresh) for the
 configuration variables, retry policy, upstream dependencies and recovery steps.
+
+## Retiring legacy ingestion
+
+The legacy import endpoints, enrichment/backfill commands, and `imports` worker queue have been removed. Before deploying, stop new import starts and finish or explicitly resolve pending, delayed and failed import/sync jobs with the previous application version. Inspect each job's actual queue; never clear unrelated work. Deploy application and workers together and verify the regular DataCite and `database-dumps` queues.
+
+Legacy database exports under `/database` remain available for final backups. Preserve SUMARIOPMD, MetaWorks and IGSN database credentials, TLS configuration and the bundled `mysql-legacy-mysqldump` client. Remove these export dependencies in a separate change after backups are complete. Existing stored metadata, images and external content links remain intact.

@@ -12,6 +12,19 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
+// Freeze the September migration's catalog; newer modules have separate migrations.
+const IGSN_LAYOUT_MIGRATION_LEFT = [
+    'general', 'sample_family', 'repositories', 'map', 'related_work', 'metadata_download', 'dates', 'citation',
+];
+const IGSN_LAYOUT_MIGRATION_RIGHT = [
+    'version_notice', 'contributors', 'creators', 'location', 'acquisition', 'funders',
+];
+const IGSN_LAYOUT_MIGRATION_HIDDEN = [
+    'igsn_methods', 'igsn_drilling', 'licenses', 'contact', 'model_description',
+    'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'keywords', 'sample_image',
+];
+const IGSN_LAYOUT_MIGRATION_SECTIONS = [...IGSN_LAYOUT_MIGRATION_LEFT, ...IGSN_LAYOUT_MIGRATION_RIGHT, ...IGSN_LAYOUT_MIGRATION_HIDDEN];
+
 function loadLandingPageTemplateIgsnLayoutMigration(): Migration
 {
     /** @var Migration $migration */
@@ -78,11 +91,11 @@ it('migrates existing IGSN layouts into visible and hidden zones without losing 
         ->and($left)->toBe(['general', 'location', 'map'])
         ->and($right)->toBe(['version_notice', 'contributors', 'creators'])
         ->and($hidden)->toContain('igsn_drilling')
-        ->and([...$left, ...$right, ...$hidden])->toHaveCount(count(LandingPageTemplate::IGSN_SECTIONS))
-        ->and(array_unique([...$left, ...$right, ...$hidden]))->toHaveCount(count(LandingPageTemplate::IGSN_SECTIONS))
-        ->and(decodeLandingPageTemplateOrder($defaultRow->left_column_order))->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS)
-        ->and(decodeLandingPageTemplateOrder($defaultRow->right_column_order))->toBe(LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS)
-        ->and(decodeLandingPageTemplateOrder($defaultRow->hidden_sections))->toBe(LandingPageTemplate::IGSN_HIDDEN_SECTIONS)
+        ->and([...$left, ...$right, ...$hidden])->toHaveCount(count(IGSN_LAYOUT_MIGRATION_SECTIONS))
+        ->and(array_unique([...$left, ...$right, ...$hidden]))->toHaveCount(count(IGSN_LAYOUT_MIGRATION_SECTIONS))
+        ->and(decodeLandingPageTemplateOrder($defaultRow->left_column_order))->toBe(IGSN_LAYOUT_MIGRATION_LEFT)
+        ->and(decodeLandingPageTemplateOrder($defaultRow->right_column_order))->toBe(IGSN_LAYOUT_MIGRATION_RIGHT)
+        ->and(decodeLandingPageTemplateOrder($defaultRow->hidden_sections))->toBe(IGSN_LAYOUT_MIGRATION_HIDDEN)
         ->and(decodeLandingPageTemplateOrder($visibleDrillingRow->left_column_order))->toBe(['general', 'contributors'])
         ->and(decodeLandingPageTemplateOrder($visibleDrillingRow->right_column_order))->toBe([
             'version_notice', 'location', 'map', 'igsn_drilling', 'creators',
@@ -165,7 +178,7 @@ it('resumes a partially completed migration without changing converted layouts',
     $convertedLeft = ['general', 'map', 'citation'];
     $convertedRight = ['version_notice', 'creators'];
     $convertedHidden = array_values(array_diff(
-        LandingPageTemplate::IGSN_SECTIONS,
+        IGSN_LAYOUT_MIGRATION_SECTIONS,
         [...$convertedLeft, ...$convertedRight],
     ));
     $converted = LandingPageTemplate::factory()->igsn()->create([
@@ -200,6 +213,6 @@ it('resumes a partially completed migration without changing converted layouts',
         ->and($legacyLeft)->toBe(['general', 'location', 'map'])
         ->and($legacyRight)->toBe(['version_notice', 'contributors', 'creators'])
         ->and($legacyHidden)->toContain('igsn_drilling')
-        ->and([...$legacyLeft, ...$legacyRight, ...$legacyHidden])->toHaveCount(count(LandingPageTemplate::IGSN_SECTIONS))
-        ->and(array_unique([...$legacyLeft, ...$legacyRight, ...$legacyHidden]))->toHaveCount(count(LandingPageTemplate::IGSN_SECTIONS));
+        ->and([...$legacyLeft, ...$legacyRight, ...$legacyHidden])->toHaveCount(count(IGSN_LAYOUT_MIGRATION_SECTIONS))
+        ->and(array_unique([...$legacyLeft, ...$legacyRight, ...$legacyHidden]))->toHaveCount(count(IGSN_LAYOUT_MIGRATION_SECTIONS));
 });

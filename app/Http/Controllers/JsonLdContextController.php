@@ -15,7 +15,10 @@ final class JsonLdContextController extends Controller
     {
         $path = base_path(DataCiteJsonLdContextService::FILE);
         $content = (string) file_get_contents($path);
-        $response = response($content, Response::HTTP_OK, ['Content-Type' => 'application/ld+json; charset=UTF-8']);
+        $response = response($content, Response::HTTP_OK, [
+            'Content-Type' => 'application/ld+json; charset=UTF-8',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
         $response->setPublic()->setMaxAge(31536000)->setImmutable();
         $response->setEtag(hash('sha256', $content));
         $response->setLastModified(new DateTimeImmutable('@'.filemtime($path)));

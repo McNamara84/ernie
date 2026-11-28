@@ -1,6 +1,7 @@
 import { select } from 'd3-selection';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { normalizeSwhid } from '@/lib/swhid';
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
 
 import { normalizeDoiKey, resolveIdentifierUrl } from '../../lib/resolveIdentifierUrl';
@@ -75,7 +76,12 @@ function buildNodes(resource: LandingPageResource, relatedIdentifiers: LandingPa
     };
 
     const relatedNodes: GraphNode[] = relatedIdentifiers.map((rel) => {
-        const displayId = rel.identifier_type === 'DOI' ? normalizeDoiKey(rel.identifier) : rel.identifier;
+        const displayId =
+            rel.identifier_type === 'DOI'
+                ? normalizeDoiKey(rel.identifier)
+                : rel.identifier_type === 'SWHID'
+                  ? normalizeSwhid(rel.identifier)
+                  : rel.identifier;
         return {
             id: `related-${rel.id}`,
             label: displayId,

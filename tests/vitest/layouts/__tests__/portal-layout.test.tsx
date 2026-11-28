@@ -1,10 +1,17 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.unmock('@/components/page-transition');
+
+const mockPage = vi.hoisted(() => ({ url: '/doi-search', props: {} }));
+
+vi.mock('@/hooks/use-reduced-motion', () => ({ useReducedMotion: () => false }));
 
 vi.mock('@inertiajs/react', () => ({
+    usePage: () => mockPage,
     Link: ({ href, children, ...props }: { href: unknown; children?: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
         const resolvedHref = typeof href === 'string'
             ? href
@@ -26,6 +33,63 @@ vi.mock('@/components/app-footer', () => ({
 import PortalLayout from '@/layouts/portal-layout';
 
 describe('PortalLayout', () => {
+    beforeEach(() => {
+        mockPage.url = '/doi-search';
+    });
+
+    it.each([
+        { portalKind: 'doi' as const, path: '/doi-search' },
+        { portalKind: 'igsn' as const, path: '/igsn-search' },
+    ])('keeps the $portalKind workspace interactive across filter and pagination changes', async ({ portalKind, path }) => {
+        mockPage.url = path;
+        const workspace = (label: string) => (
+            <PortalLayout portalKind={portalKind}>
+                <input aria-label="Search draft" defaultValue="something" />
+                <p>{label}</p>
+            </PortalLayout>
+        );
+        const view = render(workspace('Initial results'));
+        const input = screen.getByRole('textbox', { name: 'Search draft' });
+        input.focus();
+        fireEvent.change(input, { target: { value: 'Draft to keep' } });
+
+        for (const [query, label] of [
+            ['?q=something', 'Filtered results'],
+            ['?q=something&page=2', 'Next results page'],
+        ]) {
+            mockPage.url = path + query;
+            view.rerender(workspace(label));
+
+            await waitFor(() => expect(screen.getByText(label)).toBeVisible());
+            expect(screen.getByRole('textbox', { name: 'Search draft' })).toBe(input);
+            expect(input).toHaveValue('Draft to keep');
+            expect(input).toHaveFocus();
+        }
+    });
+
+    it('starts a new workspace when switching between DOI and IGSN portals', async () => {
+        const view = render(
+            <PortalLayout portalKind="doi">
+                <input aria-label="Search draft" defaultValue="" />
+                <p>DOI results</p>
+            </PortalLayout>,
+        );
+        const input = screen.getByRole('textbox', { name: 'Search draft' });
+        fireEvent.change(input, { target: { value: 'DOI draft' } });
+
+        mockPage.url = '/igsn-search';
+        view.rerender(
+            <PortalLayout portalKind="igsn">
+                <input aria-label="Search draft" defaultValue="" />
+                <p>IGSN results</p>
+            </PortalLayout>,
+        );
+
+        await waitFor(() => expect(screen.getByText('IGSN results')).toBeVisible());
+        expect(screen.getByRole('textbox', { name: 'Search draft' })).not.toBe(input);
+        expect(screen.getByRole('textbox', { name: 'Search draft' })).toHaveValue('');
+    });
+
     describe('rendering', () => {
         it('renders children', () => {
             render(

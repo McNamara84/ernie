@@ -7,7 +7,9 @@ namespace App\Http\Controllers;
 use App\Exceptions\DataCiteVerificationException;
 use App\Http\Requests\Batch\RegisterResourcesRequest;
 use App\Models\Resource;
-use App\Services\DataCiteRegistrationService;
+use App\Services\Curation\CurationRegistrationService;
+use App\Services\DataCiteServiceInterface;
+use App\Services\FakeDataCiteRegistrationService;
 use App\Services\Orcid\OrcidPreflightResult;
 use App\Services\Orcid\OrcidPreflightValidator;
 use Illuminate\Http\Client\RequestException;
@@ -46,8 +48,8 @@ class BatchResourceRegistrationController extends Controller
         /** @var array{success: list<array<string, mixed>>, failed: list<array<string, mixed>>} $results */
         $results = ['success' => [], 'failed' => []];
 
-        /** @var DataCiteRegistrationService $service */
-        $service = app(DataCiteRegistrationService::class);
+        /** @var DataCiteServiceInterface $service */
+        $service = app(DataCiteServiceInterface::class);
 
         // Resolve the ORCID preflight validator once and reuse it for every
         // resource in the batch to avoid repeated container lookups.
@@ -121,6 +123,8 @@ class BatchResourceRegistrationController extends Controller
             try {
                 $response = $service->updateMetadata($resource);
                 $doi = $response['data']['id'] ?? $resource->doi;
+
+                app(CurationRegistrationService::class)->record($resource, $response, $service instanceof FakeDataCiteRegistrationService ? 'fake' : ($service->isTestMode() ? 'test' : 'production'), 'update');
 
                 $results['success'][] = [
                     'id' => $resourceId,

@@ -108,7 +108,6 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-    vi.clearAllMocks();
     writeText.mockReset();
     Object.defineProperty(navigator, 'clipboard', {
         configurable: true,

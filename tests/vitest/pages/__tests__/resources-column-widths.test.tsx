@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render as rawRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -50,32 +50,6 @@ vi.mock('@/components/resources-filters', () => ({
 }));
 
 vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({
-    default: ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) =>
-        isOpen ? (
-            <div data-testid="datacite-import-modal">
-                <button type="button" onClick={onSuccess}>
-                    Import all success
-                </button>
-                <button type="button" onClick={onClose}>
-                    Close all resources import
-                </button>
-            </div>
-        ) : null,
-}));
-vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({
-    default: ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) =>
-        isOpen ? (
-            <div data-testid="single-resource-import-modal">
-                <button type="button" onClick={onSuccess}>
-                    Import single success
-                </button>
-                <button type="button" onClick={onClose}>
-                    Close single resource import
-                </button>
-            </div>
-        ) : null,
-}));
 vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({ default: () => null }));
 vi.mock('@/components/citations/CitationManagerModal', () => ({
     CitationManagerModal: ({ open, onOpenChange, resourceId }: { open: boolean; onOpenChange: (open: boolean) => void; resourceId: number }) =>
@@ -102,6 +76,8 @@ vi.mock('@/utils/filter-parser', () => ({
     parseResourceFiltersFromUrl: vi.fn().mockReturnValue({}),
 }));
 
+import { settleRender } from '@tests/vitest/helpers/settled-render';
+
 import { TooltipProvider } from '@/components/ui/tooltip';
 import ResourcesPage, { OverflowTooltipText } from '@/pages/resources';
 import {
@@ -115,6 +91,8 @@ import {
     persistResourceColumnWidths,
     readStoredResourceColumnWidths,
 } from '@/pages/resources-column-widths';
+
+const render = settleRender(rawRender);
 
 const resource = {
     id: 1,
@@ -140,8 +118,8 @@ const pagination = {
     has_more: false,
 };
 
-function renderResourcesPage() {
-    return render(<ResourcesPage resources={[resource]} pagination={pagination} sort={{ key: 'id', direction: 'asc' }} />);
+async function renderResourcesPage() {
+    return await render(<ResourcesPage resources={[resource]} pagination={pagination} sort={{ key: 'id', direction: 'asc' }} />);
 }
 
 function getDoiTitleColumn() {
@@ -214,16 +192,16 @@ describe('ResourcesPage column resizing', () => {
         setViewportWidth(1280);
     });
 
-    it('renders visible resize handles and default colgroup widths', () => {
-        renderResourcesPage();
+    it('renders visible resize handles and default colgroup widths', async () => {
+        await renderResourcesPage();
 
         expect(screen.getByRole('separator', { name: /resize doi and title column/i })).toBeInTheDocument();
         expect(screen.getByRole('separator', { name: /resize author and year column/i })).toBeInTheDocument();
         expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px` });
     });
 
-    it('keeps resize handles unclipped by their header cells', () => {
-        renderResourcesPage();
+    it('keeps resize handles unclipped by their header cells', async () => {
+        await renderResourcesPage();
 
         const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
         const headerCell = handle.closest('th');
@@ -232,8 +210,8 @@ describe('ResourcesPage column resizing', () => {
         expect(headerCell).not.toHaveClass('overflow-hidden');
     });
 
-    it('resizes a column with the keyboard and persists the new width', () => {
-        renderResourcesPage();
+    it('resizes a column with the keyboard and persists the new width', async () => {
+        await renderResourcesPage();
 
         const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
         fireEvent.keyDown(handle, { key: 'ArrowRight' });
@@ -265,19 +243,19 @@ describe('ResourcesPage column resizing', () => {
     it('hydrates persisted column widths from localStorage after mount', async () => {
         window.localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify({ doi_title: 512, author_year: 999 }));
 
-        renderResourcesPage();
+        await renderResourcesPage();
 
         await waitFor(() => expect(getDoiTitleColumn()).toHaveStyle({ width: '512px' }));
         expect(screen.getByTestId('resources-column-author_year')).toHaveStyle({ width: '360px' });
     });
 
-    it('falls back to defaults when stored column widths cannot be read', () => {
+    it('falls back to defaults when stored column widths cannot be read', async () => {
         const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
             throw new Error('storage unavailable');
         });
 
         try {
-            renderResourcesPage();
+            await renderResourcesPage();
 
             expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px` });
         } finally {
@@ -285,13 +263,13 @@ describe('ResourcesPage column resizing', () => {
         }
     });
 
-    it('keeps resized widths in memory when localStorage persistence fails', () => {
+    it('keeps resized widths in memory when localStorage persistence fails', async () => {
         const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
             throw new Error('storage unavailable');
         });
 
         try {
-            renderResourcesPage();
+            await renderResourcesPage();
 
             const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
             fireEvent.keyDown(handle, { key: 'ArrowRight' });
@@ -303,8 +281,8 @@ describe('ResourcesPage column resizing', () => {
         }
     });
 
-    it('resizes a column with pointer drag and persists only after pointerup', () => {
-        renderResourcesPage();
+    it('resizes a column with pointer drag and persists only after pointerup', async () => {
+        await renderResourcesPage();
 
         const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
         fireEvent.pointerDown(handle, { button: 0, clientX: 100, pointerId: 1 });
@@ -320,8 +298,8 @@ describe('ResourcesPage column resizing', () => {
         expect(storedWidths.doi_title).toBe(720);
     });
 
-    it('ignores resize events from inactive pointers', () => {
-        renderResourcesPage();
+    it('ignores resize events from inactive pointers', async () => {
+        await renderResourcesPage();
 
         const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
         fireEvent.pointerDown(handle, { button: 0, clientX: 100, pointerId: 1 });
@@ -344,8 +322,8 @@ describe('ResourcesPage column resizing', () => {
         expect(storedWidths.doi_title).toBe(720);
     });
 
-    it('cleans up pointer listeners when unmounted during a drag', () => {
-        const { unmount } = renderResourcesPage();
+    it('cleans up pointer listeners when unmounted during a drag', async () => {
+        const { unmount } = await renderResourcesPage();
 
         const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
         fireEvent.pointerDown(handle, { button: 0, clientX: 100, pointerId: 1 });
@@ -357,8 +335,8 @@ describe('ResourcesPage column resizing', () => {
         expect(window.localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY)).toBeNull();
     });
 
-    it('ignores unsupported resize interactions and clamps keyboard home to the minimum width', () => {
-        renderResourcesPage();
+    it('ignores unsupported resize interactions and clamps keyboard home to the minimum width', async () => {
+        await renderResourcesPage();
 
         const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
 
@@ -375,8 +353,8 @@ describe('ResourcesPage column resizing', () => {
         expect(getDoiTitleColumn()).toHaveStyle({ width: '220px' });
     });
 
-    it('removes pointer listeners after pointer cancellation', () => {
-        renderResourcesPage();
+    it('removes pointer listeners after pointer cancellation', async () => {
+        await renderResourcesPage();
 
         const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
         fireEvent.pointerDown(handle, { button: 0, clientX: 100, pointerId: 1 });
@@ -386,8 +364,8 @@ describe('ResourcesPage column resizing', () => {
         expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px` });
     });
 
-    it('resets persisted column widths back to defaults', () => {
-        renderResourcesPage();
+    it('resets persisted column widths back to defaults', async () => {
+        await renderResourcesPage();
 
         const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
         fireEvent.keyDown(handle, { key: 'End' });
@@ -400,14 +378,14 @@ describe('ResourcesPage column resizing', () => {
         expect(window.localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY)).toBeNull();
     });
 
-    it('resets in-memory widths when localStorage removal fails', () => {
+    it('resets in-memory widths when localStorage removal fails', async () => {
         window.localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify({ doi_title: 720 }));
         const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
             throw new Error('storage unavailable');
         });
 
         try {
-            renderResourcesPage();
+            await renderResourcesPage();
 
             expect(getDoiTitleColumn()).toHaveStyle({ width: '720px' });
 
@@ -422,7 +400,7 @@ describe('ResourcesPage column resizing', () => {
     it('hydrates narrow viewport resizing state after mount', async () => {
         setViewportWidth(700);
 
-        renderResourcesPage();
+        await renderResourcesPage();
 
         const handle = screen.getByTestId('resources-column-resize-doi_title');
 
@@ -440,30 +418,8 @@ describe('ResourcesPage column resizing', () => {
         });
     });
 
-    it('opens and closes DataCite import modals from the import buttons', async () => {
-        render(<ResourcesPage resources={[resource]} pagination={pagination} sort={{ key: 'id', direction: 'asc' }} canImportFromDataCite />);
-
-        await userEvent.click(screen.getByRole('button', { name: /import all old resources/i }));
-        expect(screen.getByTestId('datacite-import-modal')).toBeInTheDocument();
-
-        await userEvent.click(screen.getByRole('button', { name: /import all success/i }));
-        expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
-
-        await userEvent.click(screen.getByRole('button', { name: /close all resources import/i }));
-        expect(screen.queryByTestId('datacite-import-modal')).not.toBeInTheDocument();
-
-        await userEvent.click(screen.getByRole('button', { name: /import old single resource/i }));
-        expect(screen.getByTestId('single-resource-import-modal')).toBeInTheDocument();
-
-        await userEvent.click(screen.getByRole('button', { name: /import single success/i }));
-        expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
-
-        await userEvent.click(screen.getByRole('button', { name: /close single resource import/i }));
-        expect(screen.queryByTestId('single-resource-import-modal')).not.toBeInTheDocument();
-    });
-
     it('opens and closes the citation manager from the selected resource action', async () => {
-        renderResourcesPage();
+        await renderResourcesPage();
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         await clickResourceAction('resources-action-manage-related-items');
@@ -489,7 +445,7 @@ describe('ResourcesPage column resizing', () => {
         Object.defineProperty(window, 'open', { configurable: true, writable: true, value: openMock });
 
         try {
-            render(
+            await render(
                 <ResourcesPage
                     resources={[{ ...resource, first_author: { familyName: 'Familyonly' } }]}
                     pagination={pagination}
@@ -551,7 +507,7 @@ describe('ResourcesPage column resizing', () => {
         });
 
         try {
-            render(
+            await render(
                 <ResourcesPage
                     resources={[resource]}
                     pagination={{ ...pagination, has_more: true, next_cursor: 'next-cursor', last_page: 2, total: 2 }}
@@ -569,8 +525,8 @@ describe('ResourcesPage column resizing', () => {
 });
 
 describe('OverflowTooltipText', () => {
-    const renderOverflowTooltipText = (value: string) =>
-        render(
+    const renderOverflowTooltipText = async (value: string) =>
+        await render(
             <TooltipProvider delayDuration={0}>
                 <OverflowTooltipText value={value} testId="overflow-text" />
             </TooltipProvider>,
@@ -598,7 +554,7 @@ describe('OverflowTooltipText', () => {
         Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 200 });
         Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 120 });
 
-        renderOverflowTooltipText('Short title');
+        await renderOverflowTooltipText('Short title');
 
         const text = screen.getByTestId('overflow-text');
         await waitFor(() => expect(text).toHaveAttribute('data-overflowing', 'false'));
@@ -611,7 +567,7 @@ describe('OverflowTooltipText', () => {
         Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 80 });
         Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 240 });
 
-        renderOverflowTooltipText('A long title that overflows');
+        await renderOverflowTooltipText('A long title that overflows');
 
         const text = screen.getByTestId('overflow-text');
         await waitFor(() => expect(text).toHaveAttribute('data-overflowing', 'true'));
@@ -626,7 +582,7 @@ describe('OverflowTooltipText', () => {
         Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 240 });
 
         try {
-            renderOverflowTooltipText('A long title without a resize observer');
+            await renderOverflowTooltipText('A long title without a resize observer');
 
             const text = screen.getByTestId('overflow-text');
             await waitFor(() => expect(text).toHaveAttribute('data-overflowing', 'true'));

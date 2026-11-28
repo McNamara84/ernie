@@ -17,6 +17,7 @@ it('isolates discovery with a dedicated bounded consumer in every deployment', f
         ->and($compose['services']['queue']['command'])->not->toContain('--queue=assistance');
     foreach (['app', 'queue', 'assistance-queue', 'scheduler'] as $name) {
         expect($compose['services'][$name]['environment'])
+            ->toContain('FUNDING_AWARD_URI_ENABLED=${FUNDING_AWARD_URI_ENABLED:-false}')
             ->toContain('ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}')
             ->toContain('ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}')
             ->toContain('ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}')

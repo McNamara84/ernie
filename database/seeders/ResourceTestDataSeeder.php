@@ -165,8 +165,8 @@ class ResourceTestDataSeeder extends Seeder
     private function initializeLookupTables(): void
     {
         $this->resourceType = ResourceType::firstOrCreate(
-            ['slug' => 'Dataset'],
-            ['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]
+            ['slug' => 'dataset'],
+            ['name' => 'Dataset', 'is_active' => true]
         );
 
         $this->language = Language::firstOrCreate(

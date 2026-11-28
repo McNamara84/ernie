@@ -22,13 +22,14 @@ export function pageTransitionKey(url: string, draftSaveTransition?: DraftSaveTr
 /**
  * Wraps page content with a fade transition on Inertia navigation.
  * Uses the current page URL as a key to trigger AnimatePresence transitions.
+ * A stable explicit key keeps filterable pages mounted across query changes.
  * A newly created draft keeps its original editor key when its URL is assigned.
  * Respects `prefers-reduced-motion` — renders without animation when enabled.
  */
-export function PageTransition({ children }: PropsWithChildren) {
+export function PageTransition({ children, transitionKey: explicitKey }: PropsWithChildren<{ transitionKey?: string }>) {
     const { url, props } = usePage<{ draftSaveTransition?: DraftSaveTransition }>();
     const prefersReducedMotion = useReducedMotion();
-    const transitionKey = pageTransitionKey(url, props.draftSaveTransition);
+    const transitionKey = explicitKey ?? pageTransitionKey(url, props.draftSaveTransition);
 
     if (prefersReducedMotion) {
         return (

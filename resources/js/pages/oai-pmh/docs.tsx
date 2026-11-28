@@ -14,9 +14,18 @@ interface MetadataFormat {
     namespace: string;
 }
 
+const formatDescriptions: Record<string, string> = {
+    oai_dc: 'Dublin Core (mandatory)',
+    oai_datacite: 'DataCite Kernel 4.7',
+    dcat_ap: 'DCAT-AP 3.0.1 RDF/XML (selective)',
+    epos_dcat_ap: 'EPOS-DCAT-AP 3.0 RDF/XML (selective)',
+    iso19115_3: 'ISO 19115-3:2023 (selective)',
+};
+
 interface Props {
     baseUrl: string;
     projectSet: { spec: string; name: string; description: string };
+    icgemSet: { spec: string; name: string; description: string };
     adminEmail: string;
     metadataFormats: Record<string, MetadataFormat>;
     isoEligibleResourceTypeSlugs: string[];
@@ -67,9 +76,28 @@ function ExampleUrl({ url }: { url: string }) {
     );
 }
 
+function HarvestCheckpointGuidance() {
+    return (
+        <>
+            <p>
+                Without an <code>until</code> boundary, use the first response&apos;s <code>responseDate</code> as the checkpoint. With an explicit{' '}
+                <code>until</code>, use the earlier of that boundary and the first response&apos;s <code>responseDate</code>. Never advance the
+                checkpoint beyond the requested upper boundary, even if the request runs much later.
+            </p>
+            <p>
+                For the bounded example above, a first <code>responseDate</code> of <code>2026-11-02T12:00:00Z</code> means a checkpoint of{' '}
+                <code>2026-10-05T00:00:00Z</code>. Start the next request with <code>from=2026-10-04T23:59:55Z</code> for a five-second overlap, so
+                updates after October 5 are still retrieved. Overlap by at least one datestamp increment; for day-granularity requests, use at least
+                one day.
+            </p>
+        </>
+    );
+}
+
 export default function OaiPmhDocs({
     baseUrl,
     projectSet,
+    icgemSet,
     adminEmail,
     metadataFormats,
     isoEligibleResourceTypeSlugs,
@@ -214,13 +242,7 @@ export default function OaiPmhDocs({
                                         <TableCell>
                                             <code>{prefix}</code>
                                         </TableCell>
-                                        <TableCell>
-                                            {prefix === 'oai_dc'
-                                                ? 'Dublin Core (mandatory)'
-                                                : prefix === 'oai_datacite'
-                                                  ? 'DataCite Kernel 4.7'
-                                                  : 'ISO 19115-3:2023 (selective)'}
-                                        </TableCell>
+                                        <TableCell>{formatDescriptions[prefix] ?? prefix}</TableCell>
                                         <TableCell>
                                             <a
                                                 href={format.schema}
@@ -235,6 +257,33 @@ export default function OaiPmhDocs({
                                 ))}
                             </TableBody>
                         </Table>
+                        {metadataFormats.dcat_ap && (
+                            <div className="space-y-2 rounded-md bg-muted/50 p-3 text-sm">
+                                <p>
+                                    <code>dcat_ap</code> provides DCAT-AP 3.0.1 RDF/XML for published datasets, collections, models, images and
+                                    sounds. IGSNs are excluded. A main title and abstract are required. Use <code>ListMetadataFormats</code> with an
+                                    identifier to check availability. The same RDF is available from each eligible landing page.
+                                </p>
+                                <p>
+                                    Withdrawn resources retain metadata and a withdrawal notice, without direct downloads. Records that lose required
+                                    metadata or become ineligible have a persistent deleted header for this format. Restart harvesting after a
+                                    <code> badResumptionToken</code> response. The advertised XSD validates the RDF envelope; DCAT-AP semantics
+                                    require SHACL.
+                                </p>
+                                <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=dcat_ap`} />
+                            </div>
+                        )}
+                        {metadataFormats.epos_dcat_ap && (
+                            <div className="space-y-2 rounded-md bg-muted/50 p-3 text-sm">
+                                <p>
+                                    <code>epos_dcat_ap</code> provides EPOS-DCAT-AP 3.0 RDF/XML for eligible published datasets, collections, models,
+                                    images and sounds. Titles and abstracts include every language version as a separate text value. Use
+                                    <code> set=epos-msl</code> to select the project subset. Incremental harvesting includes format-specific deleted
+                                    headers.
+                                </p>
+                                <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=epos_dcat_ap`} />
+                            </div>
+                        )}
                         {isoEligibleResourceTypeSlugs.length > 0 && (
                             <div className="space-y-2 rounded-md bg-muted/50 p-3 text-sm">
                                 <p>
@@ -280,6 +329,28 @@ export default function OaiPmhDocs({
                             <p className="text-sm text-muted-foreground">
                                 Membership is included in every record header, including unfiltered requests and <code>GetRecord</code>:{' '}
                                 <code>&lt;setSpec&gt;{projectSet.spec}&lt;/setSpec&gt;</code>
+                            </p>
+                        </div>
+                        <div className="space-y-2" aria-label="ICGEM set">
+                            <h4 className="font-medium">{icgemSet.name}</h4>
+                            <Badge variant="outline">{icgemSet.spec}</Badge>
+                            <p className="text-sm text-muted-foreground">{icgemSet.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                                A Model with DOI <code>10.5880/icgem.2026.004</code> and a Dataset with DOI <code>10.5880/ICGEM.2015.1</code> both
+                                qualify. The check uses the resource&apos;s own DOI, independently of its related identifiers, keywords and
+                                datacenter.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Records need a published landing page. Filtered lists, unfiltered lists and <code>GetRecord</code> show membership
+                                through <code>&lt;setSpec&gt;{icgemSet.spec}&lt;/setSpec&gt;</code> in the header. An empty set appears in{' '}
+                                <code>ListSets</code> and returns <code>noRecordsMatch</code> when harvested.
+                            </p>
+                            <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${icgemSet.spec}`} />
+                            <ExampleUrl url={`${baseUrl}?verb=ListIdentifiers&metadataPrefix=oai_dc&set=${icgemSet.spec}`} />
+                            <p className="text-sm text-muted-foreground">
+                                Earlier withdrawals qualify by their stored DOI even when the saved type is missing. Their deleted headers carry the
+                                original deletion datestamp. Use <code>oai_datacite</code> or <code>oai_dc</code> to harvest all resource types. ISO
+                                and DCAT-AP exports cover the records eligible for each enabled format.
                             </p>
                         </div>
                         <div>
@@ -439,7 +510,34 @@ export default function OaiPmhDocs({
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card aria-label="ICGEM harvesting guidance">
+                    <CardHeader>
+                        <CardTitle>Keeping an ICGEM Harvest in Sync</CardTitle>
+                        <CardDescription>Initial harvest and incremental updates</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                        <p>
+                            For the first harvest, request the entire set without date filters. For incremental updates, use overlapping UTC date
+                            ranges with inclusive boundaries. Follow every resumption token and save the next checkpoint only after every page
+                            succeeds. An invalid or expired token requires restarting the list request.
+                        </p>
+                        <ExampleUrl
+                            url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${icgemSet.spec}&from=2026-10-01T00:00:00Z&until=2026-10-05T00:00:00Z`}
+                        />
+                        <HarvestCheckpointGuidance />
+                        <p>
+                            Changing a Model to a Dataset keeps it in ICGEM and updates its resource-type set. A DOI replacement retires the old
+                            identifier. The replacement DOI determines membership for the new identifier. Process deleted headers as withdrawals.
+                        </p>
+                        <p>
+                            Never remove local records based on an incomplete or failed harvest. Check missing identifiers with <code>GetRecord</code>
+                            . A live header without <code>{icgemSet.spec}</code> confirms a set exit. A deleted header confirms withdrawal. Technical
+                            errors do not confirm removal.
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card aria-label="EPOS-MSL harvesting guidance">
                     <CardHeader>
                         <CardTitle>Keeping an EPOS-MSL Harvest in Sync</CardTitle>
                         <CardDescription>Incremental updates and a complete identifier reconciliation</CardDescription>
@@ -452,11 +550,11 @@ export default function OaiPmhDocs({
                         <ExampleUrl
                             url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${projectSet.spec}&from=2026-10-01T00:00:00Z&until=2026-10-05T00:00:00Z`}
                         />
+                        <HarvestCheckpointGuidance />
                         <ol className="list-inside list-decimal space-y-2 text-muted-foreground">
                             <li>
                                 Follow every resumption token. Use inclusive UTC date boundaries with overlap, update records by identifier, and save
-                                the next incremental checkpoint only after every page succeeds. The first response&apos;s <code>responseDate</code> is
-                                a useful checkpoint for the next harvest.
+                                the next incremental checkpoint only after every page succeeds.
                             </li>
                             <li>
                                 Periodically request the complete identifier list below with no <code>from</code> or <code>until</code> filter,
@@ -549,7 +647,7 @@ export default function OaiPmhDocs({
                 </Card>
 
                 {/* OAI Identifier Format */}
-                <Card>
+                <Card aria-label="OAI identifier format">
                     <CardHeader>
                         <CardTitle>OAI Identifier Format</CardTitle>
                     </CardHeader>
@@ -560,6 +658,11 @@ export default function OaiPmhDocs({
                         </div>
                         <p className="text-muted-foreground">
                             Example: <code>{identifierPrefix}:10.5880/GFZ.1.2.2024.001</code>
+                        </p>
+                        <p className="text-muted-foreground">
+                            The prefix <code>{identifierPrefix}</code> is a persistent repository namespace, independent of the endpoint&apos;s
+                            current hostname. It may retain an earlier hostname after a domain change. Keep harvested identifiers unchanged and use
+                            the current Base URL for requests, including <code>GetRecord</code>.
                         </p>
                     </CardContent>
                 </Card>

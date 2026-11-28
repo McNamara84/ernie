@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\OaiPmh;
 
+use App\Enums\DcatApFormat;
+use App\Models\OaiPmhDeletedRecord;
+use App\Models\OaiPmhFormatRecord;
 use App\Models\Resource;
 use App\Models\Subject;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,15 +20,25 @@ use Illuminate\Support\Str;
  * - resourcetype:{slug} – By resource type slug (lowercase, e.g. dataset, physical-object)
  * - year:{YYYY} – By publication year
  * - epos-msl – By the free project keywords EPOS or MSL
+ * - icgem – Resources whose own DOI starts with 10.5880/icgem
  */
 class OaiPmhSetService
 {
-    public function __construct(private readonly EposMslSetService $projectSet) {}
+    public function __construct(
+        private readonly EposMslSetService $projectSet,
+        private readonly IcgemSetService $icgemSet,
+    ) {}
 
     /** @return array{spec: string, name: string, description: string} */
     public function projectSetDefinition(): array
     {
         return $this->projectSet->definition();
+    }
+
+    /** @return array{spec: string, name: string, description: string} */
+    public function icgemSetDefinition(): array
+    {
+        return $this->icgemSet->definition();
     }
 
     /**
@@ -35,7 +48,7 @@ class OaiPmhSetService
      */
     public function listSets(): array
     {
-        $sets = [$this->projectSetDefinition()];
+        $sets = [$this->projectSetDefinition(), $this->icgemSetDefinition()];
 
         // Resource type sets via SQL join + distinct (avoids loading all models)
         $types = DB::table('resources')
@@ -77,6 +90,22 @@ class OaiPmhSetService
             ];
         }
 
+        $prefixes = array_column(DcatApFormat::enabledFormats(), 'value');
+        if ($prefixes !== []) {
+            $known = array_fill_keys(array_column($sets, 'spec'), true);
+            OaiPmhFormatRecord::whereIn('metadata_prefix', $prefixes)->where('status', 'deleted')
+                ->select(['id', 'sets'])->chunkById(200, function ($records) use (&$sets, &$known): void {
+                    foreach ($records as $record) {
+                        foreach ($record->sets as $spec) {
+                            if (! isset($known[$spec]) && $this->isValidSetSpec($spec)) {
+                                $sets[] = ['spec' => $spec, 'name' => $spec];
+                                $known[$spec] = true;
+                            }
+                        }
+                    }
+                });
+        }
+
         return $sets;
     }
 
@@ -89,6 +118,7 @@ class OaiPmhSetService
     public function applySetFilter(Builder $query, string $setSpec): Builder
     {
         return match (true) {
+            $setSpec === IcgemSetService::SPEC => $this->icgemSet->applyDoiFilter($query),
             $setSpec === EposMslSetService::SPEC => $query->whereHas(
                 'subjects',
                 fn (Builder $q) => $this->projectSet->applyToSubjects($q),
@@ -127,6 +157,35 @@ class OaiPmhSetService
             $sets[] = EposMslSetService::SPEC;
         }
 
+        if ($this->icgemSet->matches($resource->doi)) {
+            $sets[] = IcgemSetService::SPEC;
+        }
+
+        return $sets;
+    }
+
+    /**
+     * @template T of OaiPmhDeletedRecord|OaiPmhFormatRecord
+     *
+     * @param  Builder<T>  $query
+     * @return Builder<T>
+     */
+    public function applyStoredSetFilter(Builder $query, string $setSpec): Builder
+    {
+        return $setSpec === IcgemSetService::SPEC
+            ? $this->icgemSet->applyDoiFilter($query)
+            : $query->whereJsonContains('sets', $setSpec);
+    }
+
+    /** @return list<string> */
+    public function getSetsForStoredRecord(OaiPmhDeletedRecord|OaiPmhFormatRecord $record): array
+    {
+        // Snapshots created under the earlier rule can omit ICGEM or contain a substring match.
+        $sets = array_values(array_diff($record->sets ?? [], [IcgemSetService::SPEC]));
+        if ($this->icgemSet->matches($record->doi)) {
+            $sets[] = IcgemSetService::SPEC;
+        }
+
         return $sets;
     }
 
@@ -140,6 +199,7 @@ class OaiPmhSetService
     public function isValidSetSpec(string $setSpec): bool
     {
         return $setSpec === EposMslSetService::SPEC
+            || $setSpec === IcgemSetService::SPEC
             || (bool) preg_match('/^resourcetype:[a-z0-9_-]+$/', $setSpec)
             || (bool) preg_match('/^year:\d{4}$/', $setSpec);
     }

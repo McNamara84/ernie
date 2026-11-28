@@ -1,0 +1,39 @@
+{
+    "standard": "ISO/TR 19115-4 (Preview)",
+    "version": "mdj/1.0.0",
+    "repository": "https://github.com/ISO-TC211/schemas",
+    "commit": "1c70b6611d2af322d29d1343c12b1a670dca6acf",
+    "retrieved": "2026-10-26",
+    "files": [
+        {
+            "path": "json/19115/-4/mdj/1.0.0/19115-4.json",
+            "url": "https://schemas.isotc211.org/json/19115/-4/mdj/1.0.0/19115-4.json",
+            "id": "https://schemas.isotc211.org/json/19115/-4/mdj/1.0.0/19115-4.json",
+            "sha256": "734cdceefc5262802e576ca6b3cf206aae87e7248244ea0273f83ac02acf58d9"
+        },
+        {
+            "path": "json/19115/-4/mdj/1.0.0/examples/C1-19115-4-JSON-example.json",
+            "url": "https://schemas.isotc211.org/json/19115/-4/mdj/1.0.0/examples/C1-19115-4-JSON-example.json",
+            "id": null,
+            "sha256": "0532514bfb392596c9b8edd95b2b2b4e1239259bc1d3c5da49af8df3688c9332"
+        },
+        {
+            "path": "json/19115/-4/mdj/1.0.0/Feature.json",
+            "url": "https://schemas.isotc211.org/json/19115/-4/mdj/1.0.0/Feature.json",
+            "id": "https://geojson.org/schema/Feature.json",
+            "sha256": "b0c5b58e011223f76b86260cc7b7b438cbc75f19ad4b00b550e838fe17efd860"
+        },
+        {
+            "path": "json/19115/-4/mdj/1.0.0/mdj.json",
+            "url": "https://schemas.isotc211.org/json/19115/-4/mdj/1.0.0/mdj.json",
+            "id": "https://schemas.isotc211.org/json/19115/-4/mdj/1.0.0/mdj.json",
+            "sha256": "1f14ccad2a68971326fab6329bd059e84f104a39cd0bdb15f60b5112fe7fa2b9"
+        },
+        {
+            "path": "json/19157/-1/dqc/1.0.0/dqc.json",
+            "url": "https://schemas.isotc211.org/json/19157/-1/dqc/1.0.0/dqc.json",
+            "id": "https://schemas.isotc211.org/json/19157/-1/dqc/1.0.0/dqc.json",
+            "sha256": "70c1029e2c9b19d9deeffdbc454c07fba4b5a57d938ae5c31205d6c04c4760ce"
+        }
+    ]
+}

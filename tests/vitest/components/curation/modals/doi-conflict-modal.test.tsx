@@ -36,7 +36,6 @@ describe('DoiConflictModal', () => {
     };
 
     beforeEach(() => {
-        vi.clearAllMocks();
         mockWriteText.mockResolvedValue(undefined);
     });
 

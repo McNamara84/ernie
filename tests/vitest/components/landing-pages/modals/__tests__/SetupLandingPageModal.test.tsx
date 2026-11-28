@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render as rawRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
 import axios from 'axios';
 import { toast } from 'sonner';
 import type { Mock } from 'vitest';
@@ -9,6 +10,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
 import type { LandingPageConfig, LandingPageDownloadUrlSuggestions } from '@/types/landing-page';
+
+const render = settleRender(rawRender);
 
 const mockUsePage = vi.hoisted(() =>
     vi.fn(() => ({
@@ -129,13 +132,22 @@ describe('SetupLandingPageModal', () => {
         landingPage = null,
         downloadSuggestions = mockDownloadUrlSuggestions,
         downloadSuggestionsError,
+        domains = mockDomains,
+        domainsError,
+        templatesError,
+        landingPageError,
     }: {
         landingPage?: LandingPageConfig | null;
         downloadSuggestions?: LandingPageDownloadUrlSuggestions;
         downloadSuggestionsError?: unknown;
+        domains?: typeof mockDomains;
+        domainsError?: unknown;
+        templatesError?: unknown;
+        landingPageError?: unknown;
     } = {}) => {
         mockedAxiosGet.mockImplementation((url: string) => {
-            if (url.includes(`/resources/${mockResource.id}/landing-page`)) {
+            if (url === `/resources/${mockResource.id}/landing-page`) {
+                if (landingPageError) return Promise.reject(landingPageError);
                 if (landingPage === null) {
                     return Promise.reject({
                         isAxiosError: true,
@@ -147,11 +159,15 @@ describe('SetupLandingPageModal', () => {
             }
 
             if (url === '/api/landing-page-domains/list') {
-                return Promise.resolve({ data: { domains: mockDomains } });
+                return domainsError ? Promise.reject(domainsError) : Promise.resolve({ data: { domains } });
+            }
+
+            if (url === '/api/landing-page-templates') {
+                return Promise.resolve({ data: { templates: [] } });
             }
 
             if (url.includes('/landing-page/template-options')) {
-                return Promise.resolve({ data: { templates: [] } });
+                return templatesError ? Promise.reject(templatesError) : Promise.resolve({ data: { templates: [] } });
             }
 
             if (url === '/api/landing-page-download-url-suggestions') {
@@ -175,11 +191,29 @@ describe('SetupLandingPageModal', () => {
         return screen.findByLabelText(/^Download URL$/i);
     };
 
+    it('reports an unavailable custom template catalogue while retaining the modal', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const failure = new Error('Template catalogue offline');
+        mockModalGetRequests({ templatesError: failure });
+        await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+        expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to load custom templates:', failure);
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('reports an unavailable domain catalogue while retaining the modal', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const failure = new Error('Domain catalogue offline');
+        mockModalGetRequests({ domainsError: failure });
+        await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+        expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to load landing page domains:', failure);
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
     describe('editor leave protection', () => {
         it('reports edits to a new landing page and clears the signal after reverting them', async () => {
             const onDirtyChange = vi.fn();
             mockModalGetRequests();
-            render(
+            await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />,
             );
 
@@ -195,7 +229,7 @@ describe('SetupLandingPageModal', () => {
             const onDirtyChange = vi.fn();
             mockModalGetRequests({ landingPage: mockExistingConfig });
             mockedAxiosPut.mockResolvedValue({ data: { message: 'Saved', landing_page: mockExistingConfig } });
-            render(
+            await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />,
             );
 
@@ -218,7 +252,7 @@ describe('SetupLandingPageModal', () => {
                 }),
             );
             mockModalGetRequests({ landingPage: mockExistingConfig });
-            render(
+            await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />,
             );
 
@@ -257,7 +291,7 @@ describe('SetupLandingPageModal', () => {
                 }),
             );
             mockModalGetRequests({ landingPage: mockExistingConfig });
-            render(
+            await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} onDirtyChange={onDirtyChange} />,
             );
 
@@ -283,7 +317,7 @@ describe('SetupLandingPageModal', () => {
     describe('Automatic download workflow', () => {
         it('starts empty and opening the input alone does not create an unsaved configuration', async () => {
             mockModalGetRequests();
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             expect(await screen.findByRole('button', { name: 'Add Download URL' })).toBeInTheDocument();
             expect(screen.queryByRole('checkbox', { name: /no data available/i })).not.toBeInTheDocument();
             const input = await openDownloadInput();
@@ -297,7 +331,7 @@ describe('SetupLandingPageModal', () => {
             const config = { ...mockExistingConfig, primary_download_label: 'Archive', ftp_format_id: 5, ftp_size_id: 6 };
             mockModalGetRequests({ landingPage: config });
             mockedAxiosPut.mockResolvedValue({ data: { landing_page: { ...config, ftp_url: null } } });
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             await user.click(await screen.findByRole('button', { name: 'Remove download URL' }));
             await waitFor(() => expect(screen.getByRole('button', { name: 'Add Download URL' })).toHaveFocus());
             await user.click(screen.getByRole('button', { name: /Update/i }));
@@ -307,8 +341,6 @@ describe('SetupLandingPageModal', () => {
                     expect.objectContaining({
                         ftp_url: null,
                         primary_download_label: null,
-                        ftp_format_id: null,
-                        ftp_size_id: null,
                         activate_downloads: false,
                     }),
                 ),
@@ -329,7 +361,7 @@ describe('SetupLandingPageModal', () => {
                     activateDownloads: true,
                 }),
             );
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             expect(await screen.findByRole('button', { name: 'Activate downloads' })).toBeInTheDocument();
             await user.click(screen.getByRole('button', { name: /Update/i }));
             await waitFor(() =>
@@ -340,7 +372,7 @@ describe('SetupLandingPageModal', () => {
 
         it('reloads suggestion ordering after the modal is reopened', async () => {
             mockModalGetRequests();
-            const { rerender } = render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+            const { rerender } = await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             await openDownloadInput();
             await waitFor(() => expect(mockedAxiosGet).toHaveBeenCalledWith('/api/landing-page-download-url-suggestions'));
             rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
@@ -354,12 +386,9 @@ describe('SetupLandingPageModal', () => {
     describe('Rendering', () => {
         it('renders modal when open', async () => {
             // Mock 404 response (no landing page exists yet)
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -367,20 +396,17 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
-        it('does not render when closed', () => {
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
+        it('does not render when closed', async () => {
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
 
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
 
         it('displays resource information in description', async () => {
             // Mock 404 response (no landing page exists yet)
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 // Component shows title if available, otherwise "Resource #${id}".
@@ -395,12 +421,9 @@ describe('SetupLandingPageModal', () => {
     describe('Form Fields', () => {
         it('renders all form fields', async () => {
             // Mock 404 response (no landing page exists yet)
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByLabelText(/Landing Page Template/i)).toBeInTheDocument();
@@ -411,12 +434,9 @@ describe('SetupLandingPageModal', () => {
 
         it('shows default template value', async () => {
             // Mock 404 response (no landing page exists yet)
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByText(/Templates Resources/i)).toBeInTheDocument();
@@ -424,14 +444,11 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('treats the human-readable Physical Object name as an IGSN resource', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
@@ -456,7 +473,7 @@ describe('SetupLandingPageModal', () => {
         it('loads existing configuration', async () => {
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 const ftpInput = screen.getByLabelText(/^Download URL$/i) as HTMLInputElement;
@@ -464,7 +481,7 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
-        it('hydrates the exact primary download format and digital size selectors', async () => {
+        it('does not render resource format or size selectors in the landing-page modal', async () => {
             const descriptorConfig: LandingPageConfig = {
                 ...mockExistingConfig,
                 ftp_format_id: 7,
@@ -474,10 +491,11 @@ describe('SetupLandingPageModal', () => {
             };
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: descriptorConfig } });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            expect(await screen.findByTestId('primary-download-format')).toHaveTextContent('application/zip');
-            expect(screen.getByTestId('primary-download-size')).toHaveTextContent('2 MiB');
+            expect(await openDownloadInput()).toBeInTheDocument();
+            expect(screen.queryByTestId('primary-download-format')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('primary-download-size')).not.toBeInTheDocument();
         });
 
         it('offers explicit activation for protected existing downloads', async () => {
@@ -491,7 +509,7 @@ describe('SetupLandingPageModal', () => {
                 },
             });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             expect(await screen.findByRole('button', { name: 'Activate downloads' })).toBeInTheDocument();
         });
@@ -501,7 +519,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
             await user.click(screen.getByRole('button', { name: 'Activate downloads' }));
@@ -514,7 +532,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
             await user.click(ftpInput);
@@ -532,7 +550,7 @@ describe('SetupLandingPageModal', () => {
         it('exposes the download url input as a combobox for assistive technology', async () => {
             mockModalGetRequests();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
 
@@ -545,7 +563,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
 
@@ -570,7 +588,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
 
@@ -585,7 +603,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
 
@@ -608,7 +626,7 @@ describe('SetupLandingPageModal', () => {
         it('allows adding a primary URL when imported files contain only historical placeholders', async () => {
             const config = { ...mockExistingConfig, ftp_url: null, files: [{ id: 1, url: '#', position: 0 }] };
             mockModalGetRequests({ landingPage: config });
-            render(
+            await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />,
             );
             expect(await screen.findByText('Imported Download Files')).toBeInTheDocument();
@@ -630,7 +648,7 @@ describe('SetupLandingPageModal', () => {
                 },
             });
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={mockResource}
@@ -671,7 +689,7 @@ describe('SetupLandingPageModal', () => {
                 },
             });
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={mockResource}
@@ -696,13 +714,15 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('keeps the modal usable when loading download url suggestions fails', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const failure = new Error('Network error');
             mockModalGetRequests({
-                downloadSuggestionsError: new Error('Network error'),
+                downloadSuggestionsError: failure,
             });
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
             await user.click(ftpInput);
@@ -712,6 +732,7 @@ describe('SetupLandingPageModal', () => {
             });
 
             expect(mockedToastError).not.toHaveBeenCalled();
+            expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to load landing page download URL suggestions:', failure);
             expect(screen.getByText('No matching suggestions.')).toBeInTheDocument();
 
             await user.type(ftpInput, 'https://manual.example.org/file.zip');
@@ -728,7 +749,7 @@ describe('SetupLandingPageModal', () => {
             mockedAxiosDelete.mockResolvedValue({ data: {} });
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />,
             );
 
@@ -771,7 +792,7 @@ describe('SetupLandingPageModal', () => {
             mockedAxiosDelete.mockResolvedValue({ data: {} });
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />,
             );
 
@@ -788,24 +809,17 @@ describe('SetupLandingPageModal', () => {
                 {
                     id: 7,
                     label: 'Download model data',
-                    format_id: null,
-                    size_id: null,
                 },
                 {
                     id: 8,
                     label: 'Documentation',
-                    format_id: null,
-                    size_id: null,
                 },
             ]);
             expect(payload.files?.[0]).not.toHaveProperty('url');
         });
 
         it('normalizes a legacy Physical Object config passed via props to the IGSN template', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
             mockedAxiosPut.mockResolvedValue({
                 data: {
                     landing_page: {
@@ -819,7 +833,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
@@ -855,7 +869,7 @@ describe('SetupLandingPageModal', () => {
         it('fetches existing config on mount', async () => {
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(axios.get).toHaveBeenCalledWith(expect.stringContaining(`/resources/${mockResource.id}/landing-page`));
@@ -871,6 +885,9 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-domains/list') return Promise.resolve({ data: { domains: [] } });
+                if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes(`/resources/${mockResource.id}/landing-page`)) {
                     return Promise.resolve({ data: { landing_page: legacyConfig } });
                 }
@@ -893,7 +910,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
@@ -941,6 +958,8 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-domains/list') return Promise.resolve({ data: { domains: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -970,7 +989,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
@@ -998,10 +1017,7 @@ describe('SetupLandingPageModal', () => {
 
         it('creates new landing page config', async () => {
             // Mock 404 response (no landing page exists yet)
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
             mockedAxiosPost.mockResolvedValue({
                 data: {
                     landing_page: {
@@ -1013,7 +1029,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1041,10 +1057,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('selects and submits a machine-readable role for an additional link', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
             mockedAxiosPost.mockResolvedValue({
                 data: {
                     landing_page: {
@@ -1055,7 +1068,7 @@ describe('SetupLandingPageModal', () => {
             });
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await user.click(await screen.findByRole('button', { name: /Add Link/i }));
             await user.type(screen.getByPlaceholderText('Display text'), 'Download package');
@@ -1074,8 +1087,6 @@ describe('SetupLandingPageModal', () => {
                                 label: 'Download package',
                                 kind: 'download',
                                 position: 0,
-                                format_id: null,
-                                size_id: null,
                             },
                         ],
                     }),
@@ -1084,10 +1095,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('passes a preopened preview tab to onSuccess when auto-opening after save is requested', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
             const landingPage = {
                 ...mockExistingConfig,
                 status: 'draft' as const,
@@ -1105,7 +1113,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={mockResource}
@@ -1135,16 +1143,13 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('does not save when the auto-open preview tab is blocked', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
             const mockOpen = vi.fn().mockReturnValue(null);
             vi.stubGlobal('open', mockOpen);
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={mockResource}
@@ -1164,10 +1169,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('closes the preopened preview tab when auto-open save fails', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
             mockedAxiosPost.mockRejectedValue({
                 isAxiosError: true,
                 response: { status: 500, data: { message: 'Preview save failed.' } },
@@ -1179,7 +1181,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={mockResource}
@@ -1204,10 +1206,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('creates automatic downloads without an explicit activation', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
             mockedAxiosPost.mockResolvedValue({
                 data: {
                     landing_page: {
@@ -1220,7 +1219,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await openDownloadInput();
             await user.type(ftpInput, 'https://datapub.gfz-potsdam.de/download/no-data-record.zip');
@@ -1239,10 +1238,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('clears ftp_url when a Physical Object is saved through the shared modal', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
             mockedAxiosPost.mockResolvedValue({
                 data: {
                     landing_page: {
@@ -1256,7 +1252,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
@@ -1289,7 +1285,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1333,7 +1329,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /Update/i }));
@@ -1366,7 +1362,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} onSuccess={onSuccess} />,
             );
 
@@ -1392,7 +1388,7 @@ describe('SetupLandingPageModal', () => {
             // Published landing pages cannot be depublished because DOIs are persistent
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1408,7 +1404,7 @@ describe('SetupLandingPageModal', () => {
             });
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: { ...mockExistingConfig, status: 'draft' } } });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1421,7 +1417,7 @@ describe('SetupLandingPageModal', () => {
             // Published landing pages cannot be unpublished because DOIs are persistent
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1441,7 +1437,7 @@ describe('SetupLandingPageModal', () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 // Check for the label
@@ -1456,7 +1452,7 @@ describe('SetupLandingPageModal', () => {
         it('displays public URL for published configs', async () => {
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 // Check for the label
@@ -1476,7 +1472,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             // Wait for modal and config to load
             await waitFor(() => {
@@ -1511,7 +1507,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1537,7 +1533,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1577,7 +1573,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
@@ -1617,7 +1613,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
@@ -1649,7 +1645,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await user.click(await screen.findByRole('button', { name: 'Activate downloads' }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
@@ -1675,6 +1671,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: [] } });
                 }
@@ -1691,7 +1688,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
@@ -1721,6 +1718,7 @@ describe('SetupLandingPageModal', () => {
 
         it('shows the resulting external URL using the normalized previewable path', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
@@ -1734,7 +1732,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1758,6 +1756,7 @@ describe('SetupLandingPageModal', () => {
 
         it('does not fall back to the saved external URL when unsaved edits clear the external path', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
@@ -1782,7 +1781,7 @@ describe('SetupLandingPageModal', () => {
                 external_url: 'https://example.org/saved-resource',
             };
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={mockResource}
@@ -1808,15 +1807,9 @@ describe('SetupLandingPageModal', () => {
 
     describe('Error Handling', () => {
         it('shows error message when fetch fails', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: {
-                    status: 404,
-                    data: { message: 'Not found' },
-                },
-            });
+            mockModalGetRequests({ domains: [] });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             // Should still render but in create mode
             await waitFor(() => {
@@ -1826,11 +1819,9 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('shows error message when save fails', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
             // Mock 404 response (no landing page exists yet)
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
             mockedAxiosPost.mockRejectedValue({
                 isAxiosError: true,
                 response: {
@@ -1840,7 +1831,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1853,20 +1844,18 @@ describe('SetupLandingPageModal', () => {
             await waitFor(() => {
                 expect(axios.post).toHaveBeenCalled();
             });
+            expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to save landing page:', expect.objectContaining({ isAxiosError: true }));
         });
     });
 
     describe('Close Behavior', () => {
         it('calls onClose when close button clicked', async () => {
             // Mock 404 response (no landing page exists yet)
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1880,14 +1869,11 @@ describe('SetupLandingPageModal', () => {
 
         it('calls onClose when cancel button clicked', async () => {
             // Mock 404 response (no landing page exists yet)
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockModalGetRequests({ domains: [] });
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -1903,7 +1889,7 @@ describe('SetupLandingPageModal', () => {
             mockModalGetRequests({ landingPage: null });
 
             const user = userEvent.setup();
-            const { rerender } = render(
+            const { rerender } = await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
             );
 
@@ -1937,15 +1923,13 @@ describe('SetupLandingPageModal', () => {
             expect(screen.getByRole('combobox', { name: 'Link role' })).toHaveTextContent('Source repository');
         });
 
-        it('retains unsaved imported file descriptors after closing and reopening', async () => {
+        it('does not restore imported-file descriptor controls after reopening', async () => {
             const descriptorConfig: LandingPageConfig = {
                 ...mockExistingConfig,
                 files: [
                     {
                         id: 17,
                         url: 'https://downloads.example.org/imported-file.zip',
-                        format_id: null,
-                        size_id: null,
                         position: 0,
                     },
                 ],
@@ -1954,33 +1938,17 @@ describe('SetupLandingPageModal', () => {
             };
             mockModalGetRequests({ landingPage: descriptorConfig });
 
-            const user = userEvent.setup();
-            const { rerender } = render(
+            const { rerender } = await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
             );
 
-            await user.click(await screen.findByTestId('imported-file-17-format'));
-            await user.click(await screen.findByRole('option', { name: 'application/zip' }));
-            await user.click(screen.getByTestId('imported-file-17-size'));
-            await user.click(await screen.findByRole('option', { name: '2 MiB (2097152 bytes)' }));
-
-            await waitFor(() => {
-                const persistedDraft = JSON.parse(window.sessionStorage.getItem('setup-landing-page-modal:draft:123') ?? '{}');
-
-                expect(persistedDraft.files).toEqual([
-                    expect.objectContaining({
-                        id: 17,
-                        format_id: 7,
-                        size_id: 8,
-                    }),
-                ]);
-            });
-
+            expect(await screen.findByText('Imported Download Files')).toBeInTheDocument();
+            expect(screen.queryByTestId('imported-file-17-format')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('imported-file-17-size')).not.toBeInTheDocument();
             rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={false} onClose={mockOnClose} />);
             rerender(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
-
-            expect(await screen.findByTestId('imported-file-17-format')).toHaveTextContent('application/zip');
-            expect(screen.getByTestId('imported-file-17-size')).toHaveTextContent('2 MiB');
+            expect(await screen.findByText('Imported Download Files')).toBeInTheDocument();
+            expect(screen.queryByTestId('imported-file-17-format')).not.toBeInTheDocument();
         });
 
         it('keeps server imported files when restoring a legacy persisted draft without files', async () => {
@@ -2015,10 +1983,11 @@ describe('SetupLandingPageModal', () => {
             );
             mockModalGetRequests({ landingPage: descriptorConfig });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            expect(await screen.findByTestId('imported-file-17-format')).toHaveTextContent('application/zip');
-            expect(screen.getByTestId('imported-file-17-size')).toHaveTextContent('2 MiB');
+            expect(await screen.findByText('Imported Download Files')).toBeInTheDocument();
+            expect(screen.queryByTestId('imported-file-17-format')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('imported-file-17-size')).not.toBeInTheDocument();
         });
 
         it('clears persisted unsaved values after a successful save', async () => {
@@ -2042,7 +2011,7 @@ describe('SetupLandingPageModal', () => {
             mockedAxiosDelete.mockResolvedValue({});
 
             const user = userEvent.setup();
-            const { rerender } = render(
+            const { rerender } = await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
             );
 
@@ -2080,7 +2049,7 @@ describe('SetupLandingPageModal', () => {
         it('does not persist a draft when the hydrated state matches the server config', async () => {
             mockModalGetRequests({ landingPage: mockExistingConfig });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2099,7 +2068,7 @@ describe('SetupLandingPageModal', () => {
             try {
                 mockModalGetRequests({ landingPage: mockExistingConfig });
 
-                render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+                await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
                 const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2118,7 +2087,7 @@ describe('SetupLandingPageModal', () => {
                 mockModalGetRequests({ landingPage: null });
 
                 const user = userEvent.setup();
-                render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+                await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
                 const ftpInput = await openDownloadInput();
                 await user.clear(ftpInput);
@@ -2154,7 +2123,7 @@ describe('SetupLandingPageModal', () => {
                 });
 
                 const user = userEvent.setup();
-                render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+                await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
                 const ftpInput = await openDownloadInput();
                 await user.clear(ftpInput);
@@ -2175,7 +2144,7 @@ describe('SetupLandingPageModal', () => {
             window.sessionStorage.setItem('setup-landing-page-modal:draft:123', '{not-valid-json');
             mockModalGetRequests({ landingPage: mockExistingConfig });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2192,7 +2161,7 @@ describe('SetupLandingPageModal', () => {
             );
             mockModalGetRequests({ landingPage: mockExistingConfig });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2223,7 +2192,7 @@ describe('SetupLandingPageModal', () => {
             );
             mockModalGetRequests({ landingPage: null });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             expect(await screen.findByDisplayValue('Manipulated role')).toBeInTheDocument();
             expect(screen.getByRole('combobox', { name: 'Link role' })).toHaveTextContent('Related page');
@@ -2264,7 +2233,7 @@ describe('SetupLandingPageModal', () => {
             );
 
             const user = userEvent.setup();
-            const { rerender } = render(
+            const { rerender } = await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
             );
 
@@ -2298,6 +2267,7 @@ describe('SetupLandingPageModal', () => {
     describe('Custom Templates', () => {
         it('loads custom templates from API on open', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2330,7 +2300,7 @@ describe('SetupLandingPageModal', () => {
                 return Promise.reject({ isAxiosError: true, response: { status: 404 } });
             });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(mockedAxiosGet).toHaveBeenCalledWith(expect.stringContaining('/landing-page/template-options'));
@@ -2341,6 +2311,7 @@ describe('SetupLandingPageModal', () => {
             const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.reject(new Error('API error'));
                 }
@@ -2350,7 +2321,7 @@ describe('SetupLandingPageModal', () => {
                 return Promise.reject({ isAxiosError: true, response: { status: 404 } });
             });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             // Should still render without crashing
             await waitFor(() => {
@@ -2368,6 +2339,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2380,7 +2352,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={mockResource}
@@ -2409,6 +2381,7 @@ describe('SetupLandingPageModal', () => {
 
         it('renders custom templates in dropdown when loaded', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2443,7 +2416,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -2462,6 +2435,7 @@ describe('SetupLandingPageModal', () => {
 
         it('selects a custom template and sets landing_page_template_id', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2504,7 +2478,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -2536,6 +2510,7 @@ describe('SetupLandingPageModal', () => {
 
         it('keeps an igsn custom template id in the save payload for Physical Object resources', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2587,7 +2562,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
@@ -2624,6 +2599,7 @@ describe('SetupLandingPageModal', () => {
 
         it('keeps an igsn custom template id in the preview payload for Physical Object resources', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2667,7 +2643,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
@@ -2720,6 +2696,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
@@ -2755,7 +2732,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal
                     context="resource-list"
                     resource={mockResource}
@@ -2799,6 +2776,7 @@ describe('SetupLandingPageModal', () => {
             const onSuccess = vi.fn();
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2818,7 +2796,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} onSuccess={onSuccess} />,
             );
 
@@ -2838,6 +2816,7 @@ describe('SetupLandingPageModal', () => {
             const onSuccess = vi.fn();
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2856,7 +2835,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(
+            await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} onSuccess={onSuccess} />,
             );
 
@@ -2872,9 +2851,11 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('shows validation errors from server on save failure', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
             const { toast } = await import('sonner');
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2897,7 +2878,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -2909,12 +2890,15 @@ describe('SetupLandingPageModal', () => {
             await waitFor(() => {
                 expect(toast.error).toHaveBeenCalledWith('Invalid template, Invalid URL format');
             });
+            expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to save landing page:', expect.objectContaining({ isAxiosError: true }));
         });
 
         it('handles non-404 fetch error with toast', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
             const { toast } = await import('sonner');
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2928,14 +2912,17 @@ describe('SetupLandingPageModal', () => {
                 });
             });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(toast.error).toHaveBeenCalledWith('Failed to load landing page configuration');
             });
+
+            expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to load landing page config:', expect.anything());
         });
 
         it('restores a persisted draft when loading the server config fails with a non-404 error', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
             const { toast } = await import('sonner');
 
             window.sessionStorage.setItem(
@@ -2959,6 +2946,7 @@ describe('SetupLandingPageModal', () => {
             );
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -2972,7 +2960,7 @@ describe('SetupLandingPageModal', () => {
                 });
             });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = (await openDownloadInput()) as HTMLInputElement;
 
@@ -2981,9 +2969,12 @@ describe('SetupLandingPageModal', () => {
             expect(screen.getByDisplayValue('Persisted link')).toBeInTheDocument();
             expect(screen.getByDisplayValue('https://example.org/persisted')).toBeInTheDocument();
             expect(toast.error).toHaveBeenCalledWith('Failed to load landing page configuration');
+
+            expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to load landing page config:', expect.anything());
         });
 
         it('resets to clean defaults when a new resource fails to load and no persisted draft exists', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
             const firstResource = mockResource;
             const secondResource = {
                 ...mockResource,
@@ -3004,6 +2995,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -3020,7 +3012,7 @@ describe('SetupLandingPageModal', () => {
                 });
             });
 
-            const { rerender } = render(
+            const { rerender } = await render(
                 <SetupLandingPageModal context="resource-list" resource={firstResource} isOpen={true} onClose={mockOnClose} />,
             );
 
@@ -3036,11 +3028,14 @@ describe('SetupLandingPageModal', () => {
             });
             expect(screen.queryByDisplayValue('First resource link')).not.toBeInTheDocument();
             expect(mockedToastError).toHaveBeenCalledWith('Failed to load landing page configuration');
+
+            expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to load landing page config:', expect.anything());
         });
 
         it('prevents removal of published landing page with error toast', async () => {
             // Published config cannot be removed
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
@@ -3050,7 +3045,7 @@ describe('SetupLandingPageModal', () => {
                 return Promise.resolve({ data: { landing_page: mockExistingConfig } });
             });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -3102,6 +3097,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3111,7 +3107,7 @@ describe('SetupLandingPageModal', () => {
                 return Promise.resolve({ data: { landing_page: serverConfig } });
             });
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             // The select trigger should display the custom template name, not
             // the fallback "Templates Resources".
@@ -3135,6 +3131,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3144,7 +3141,7 @@ describe('SetupLandingPageModal', () => {
                 return Promise.resolve({ data: { landing_page: serverConfig } });
             });
 
-            const { rerender } = render(
+            const { rerender } = await render(
                 <SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />,
             );
 
@@ -3183,6 +3180,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3196,7 +3194,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -3233,6 +3231,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3246,7 +3245,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 const trigger = screen.getByLabelText(/Landing Page Template/i);
@@ -3287,6 +3286,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3307,7 +3307,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Templates Resources');
@@ -3328,6 +3328,7 @@ describe('SetupLandingPageModal', () => {
 
         it('resets landing_page_template_id to null on 404 (no landing page exists)', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
@@ -3354,7 +3355,7 @@ describe('SetupLandingPageModal', () => {
 
             const user = userEvent.setup();
 
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -3392,6 +3393,7 @@ describe('SetupLandingPageModal', () => {
             // noisy console.error output and mirrors real production behavior
             // when a resource has no landing page yet.
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: [] } });
                 }
@@ -3403,14 +3405,14 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('renders the full long title inside the element text content (accessible to screen readers)', async () => {
-            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             expect(titleEl).toHaveTextContent(longTitle);
         });
 
         it('exposes the title via an accessible, focusable shadcn Tooltip trigger (not the native title attribute)', async () => {
-            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
 
@@ -3428,7 +3430,7 @@ describe('SetupLandingPageModal', () => {
 
         it('shows the full long title in the shadcn tooltip content on hover', async () => {
             const user = userEvent.setup();
-            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             await user.hover(titleEl);
@@ -3440,7 +3442,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('applies line-clamp and word-wrap classes to the long title', async () => {
-            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             // Tailwind v4 emits `.wrap-break-word { overflow-wrap: break-word }`
@@ -3451,7 +3453,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('falls back to "Resource #<id>" when title is missing and still exposes it via the accessible tooltip', async () => {
-            render(<SetupLandingPageModal context="resource-list" resource={{ id: 777 }} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={{ id: 777 }} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             expect(titleEl).toHaveTextContent('Resource #777');
@@ -3460,7 +3462,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('moves overflow-y-auto from the dialog content onto the scroll body', async () => {
-            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const content = await screen.findByTestId('setup-lp-modal-content');
             const scrollArea = await screen.findByTestId('setup-lp-modal-scroll-area');
@@ -3477,7 +3479,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('renders a sticky footer with wrap + border that never shrinks', async () => {
-            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const footer = await screen.findByTestId('setup-lp-modal-footer');
             expect(footer.className).toContain('shrink-0');
@@ -3486,7 +3488,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('keeps all primary footer buttons visible even with an extremely long title', async () => {
-            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -3501,9 +3503,10 @@ describe('SetupLandingPageModal', () => {
             expect(footer).toContainElement(screen.getByRole('button', { name: /^(Create Preview|Create & Publish|Update|Publish)$/i }));
         });
 
-        it('shows the Loading state inside the scrollable zone (footer still rendered)', () => {
+        it('shows the Loading state inside the scrollable zone (footer still rendered)', async () => {
             // Keep the initial GET pending so the modal stays in its loading state.
             mockedAxiosGet.mockImplementation((url: string) => {
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: [] } });
                 }
@@ -3513,7 +3516,7 @@ describe('SetupLandingPageModal', () => {
                 return new Promise(() => {});
             });
 
-            render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const scrollArea = screen.getByTestId('setup-lp-modal-scroll-area');
             expect(scrollArea.textContent).toMatch(/Loading configuration/i);
@@ -3524,7 +3527,9 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('applies the same accessible tooltip and layout classes for short titles', async () => {
-            render(<SetupLandingPageModal context="resource-list" resource={{ id: 1, title: 'Short title' }} isOpen={true} onClose={mockOnClose} />);
+            await render(
+                <SetupLandingPageModal context="resource-list" resource={{ id: 1, title: 'Short title' }} isOpen={true} onClose={mockOnClose} />,
+            );
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
             // Short titles use the same accessible tooltip pattern for consistency.
@@ -3563,7 +3568,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('places the collapsed verified option after all normal settings and before the footer', async () => {
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             const toggle = await screen.findByRole('button', { name: 'Tombstone page' });
             const section = toggle.closest('section')!;
             const fields = screen.getByTestId('setup-lp-modal-editable-fields');
@@ -3575,7 +3580,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it.each(['editor-preview', 'editor-registration'] as const)('does not request tombstone state in %s context', async (context) => {
-            render(<SetupLandingPageModal context={context} resource={mockResource} isOpen onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context={context} resource={mockResource} isOpen onClose={mockOnClose} />);
             await screen.findByLabelText('Landing Page Template');
             expect(screen.queryByRole('button', { name: 'Tombstone page' })).not.toBeInTheDocument();
             expect(mockedAxiosGet.mock.calls.some(([url]) => String(url).includes('/tombstone'))).toBe(false);
@@ -3584,7 +3589,9 @@ describe('SetupLandingPageModal', () => {
         it.each([{ doi: null }, { resourcetypegeneral: 'Physical Object' }])(
             'skips tombstone checks for excluded resources %j',
             async (overrides) => {
-                render(<SetupLandingPageModal context="resource-list" resource={{ ...mockResource, ...overrides }} isOpen onClose={mockOnClose} />);
+                await render(
+                    <SetupLandingPageModal context="resource-list" resource={{ ...mockResource, ...overrides }} isOpen onClose={mockOnClose} />,
+                );
                 await screen.findByLabelText('Landing Page Template');
                 expect(mockedAxiosGet.mock.calls.some(([url]) => String(url).includes('/tombstone'))).toBe(false);
             },
@@ -3592,7 +3599,7 @@ describe('SetupLandingPageModal', () => {
 
         it('does not offer activation to a beginner', async () => {
             mockUsePage.mockReturnValue({ props: { auth: { user: { can_delete_landing_pages: true, role: 'beginner' } } } });
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             await screen.findByLabelText('Landing Page Template');
             expect(mockedAxiosGet.mock.calls.some(([url]) => String(url).includes('/tombstone'))).toBe(false);
         });
@@ -3601,12 +3608,15 @@ describe('SetupLandingPageModal', () => {
             const base = mockedAxiosGet.getMockImplementation()!;
             const active = { ...tombstone, is_tombstone: true, revision: 1, statement: 'Lost data.' };
             mockedAxiosGet.mockImplementation((url: string, config: unknown) => {
+                if (url === '/api/landing-page-domains/list') return Promise.resolve({ data: { domains: [] } });
+                if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+                if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.endsWith('/tombstone')) return Promise.resolve({ data: { tombstone: active } });
                 if (url === `/resources/${mockResource.id}/landing-page`)
                     return Promise.resolve({ data: { landing_page: { ...mockExistingConfig, is_tombstone: true, tombstone_revision: 1 } } });
                 return base(url, config);
             });
-            render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
+            await render(<SetupLandingPageModal context="resource-list" resource={mockResource} isOpen onClose={mockOnClose} />);
             expect(await screen.findByRole('button', { name: 'Tombstone page' })).toHaveAttribute('aria-expanded', 'true');
             expect(screen.getByTestId('setup-lp-modal-editable-fields')).toBeDisabled();
             expect(screen.getByLabelText('Public explanation')).toBeEnabled();

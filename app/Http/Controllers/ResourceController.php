@@ -15,11 +15,13 @@ use App\Http\Requests\StoreResourceRequest;
 use App\Models\DataCiteUrlUpdateRun;
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\ContactPersons\ContactPersonFilterService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
 use App\Services\Editor\EditorResourceSaveService;
 use App\Services\Resources\DeleteAllResourcesService;
 use App\Services\Resources\ResourceListingPayloadService;
 use App\Services\Resources\ResourceQueryBuilder;
+use App\Services\SizeFormat\ResourceContentMetadataService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
@@ -84,7 +86,7 @@ class ResourceController extends Controller
                 'direction' => $criteria['sortDirection'],
             ],
             'filters' => $criteria['filters'],
-            'canImportFromDataCite' => $request->user()?->can('importFromDataCite', Resource::class) ?? false,
+            'contactSelection' => app(ContactPersonFilterService::class)->describe($criteria['filters']['contact'] ?? null),
             'canCreateResource' => $request->user()?->can('create', Resource::class) ?? false,
             'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
             'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),
@@ -153,6 +155,8 @@ class ResourceController extends Controller
         return response()->json([
             'message' => $message,
             'geoLocationChanges' => $changes,
+            'relatedWorkLabels' => $this->savedWorkLabels($resource),
+            'contentMetadata' => app(ResourceContentMetadataService::class)->state($resource),
             'resource' => [
                 'id' => $resource->id,
                 'publicStatus' => $resource->publicStatus(),
@@ -211,12 +215,22 @@ class ResourceController extends Controller
         return response()->json([
             'message' => $message,
             'geoLocationChanges' => $changes,
+            'relatedWorkLabels' => $this->savedWorkLabels($resource),
+            'contentMetadata' => app(ResourceContentMetadataService::class)->state($resource),
             'resource' => [
                 'id' => $resource->id,
                 'publicStatus' => $resource->publicStatus(),
                 'canEditDoi' => $request->user()?->can('editDoi', $resource) ?? false,
             ],
         ], $status);
+    }
+
+    /** @return array<int, array{id: int, citation_label: string|null, citation_label_hash: string}> */
+    private function savedWorkLabels(Resource $resource): array
+    {
+        return $resource->relatedIdentifiers->sortBy('position')->map(fn ($row) => [
+            'id' => $row->id, 'citation_label' => $row->citation_label, 'citation_label_hash' => hash('sha256', (string) $row->citation_label),
+        ])->values()->all();
     }
 
     /**

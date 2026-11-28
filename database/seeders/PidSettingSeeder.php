@@ -14,7 +14,7 @@ class PidSettingSeeder extends Seeder
         PidSetting::firstOrCreate(
             ['type' => PidSetting::TYPE_PID4INST],
             [
-                'display_name' => 'PID4INST (b2inst)',
+                'display_name' => 'PIDINST (B2INST + DataCite)',
                 'is_active' => true,
                 'is_elmo_active' => true,
                 'is_elmo_msl_active' => true,

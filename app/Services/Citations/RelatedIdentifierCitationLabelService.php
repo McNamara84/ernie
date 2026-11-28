@@ -17,19 +17,18 @@ class RelatedIdentifierCitationLabelService
 
     public function __construct(
         private readonly DataCiteApiService $dataCite,
-        private readonly LegacyCitationCacheService $legacyCitationCache,
+        private readonly RelatedWorkCitationFormatter $formatter,
     ) {}
 
     public function resolve(string $identifier, string $identifierType, ?float $timeoutSeconds = null): ?string
     {
+        return $this->lookup($identifier, $identifierType, $timeoutSeconds)?->text;
+    }
+
+    public function lookup(string $identifier, string $identifierType, ?float $timeoutSeconds = null): ?RelatedWorkCitation
+    {
         $identifier = trim($identifier);
         $identifierType = trim($identifierType);
-
-        $legacyUrlCitation = $this->resolveFromLiteralUrlCache($identifier, $identifierType);
-
-        if ($legacyUrlCitation !== null) {
-            return $legacyUrlCitation;
-        }
 
         $doi = $this->normalizeResolvableDoi($identifier, $identifierType);
 
@@ -37,19 +36,18 @@ class RelatedIdentifierCitationLabelService
             return null;
         }
 
-        return $this->resolveNormalizedDoi($doi, $timeoutSeconds);
+        return $this->resolveFromDoiMetadata($doi, $timeoutSeconds);
     }
 
     public function resolveBestEffort(string $identifier, string $identifierType, float $deadline): ?string
     {
+        return $this->lookupBestEffort($identifier, $identifierType, $deadline)?->text;
+    }
+
+    public function lookupBestEffort(string $identifier, string $identifierType, float $deadline): ?RelatedWorkCitation
+    {
         $identifier = trim($identifier);
         $identifierType = trim($identifierType);
-
-        $legacyUrlCitation = $this->resolveFromLiteralUrlCache($identifier, $identifierType);
-
-        if ($legacyUrlCitation !== null) {
-            return $legacyUrlCitation;
-        }
 
         $remainingBudget = $deadline - microtime(true);
 
@@ -69,19 +67,17 @@ class RelatedIdentifierCitationLabelService
             return null;
         }
 
-        return $this->resolveNormalizedDoi($doi, $timeoutSeconds);
+        return $this->resolveFromDoiMetadata($doi, $timeoutSeconds);
     }
 
     /**
-     * Resolve a complete import list within one shared best-effort deadline.
+     * Resolve a complete identifier list within one shared best-effort deadline.
      *
      * @param  array<int, array<string, mixed>>  $relatedIdentifiers
      * @return array<int, array<string, mixed>>
      */
     public function resolveBestEffortBatch(array $relatedIdentifiers, float $deadline): array
     {
-        /** @var array<string, list<int>> $indexesByUrl */
-        $indexesByUrl = [];
         /** @var array<string, list<int>> $indexesByDoi */
         $indexesByDoi = [];
 
@@ -103,37 +99,6 @@ class RelatedIdentifierCitationLabelService
 
                 continue;
             }
-
-            if ($identifierType === 'URL') {
-                $indexesByUrl[$identifier] ??= [];
-                $indexesByUrl[$identifier][] = $index;
-            }
-        }
-
-        if ($indexesByUrl !== []) {
-            $legacyUrlCitations = $this->legacyCitationCache->findManyUrls(array_keys($indexesByUrl));
-
-            foreach ($legacyUrlCitations as $url => $citation) {
-                if (! isset($indexesByUrl[$url]) || trim($citation) === '') {
-                    continue;
-                }
-
-                foreach ($indexesByUrl[$url] as $index) {
-                    $relatedIdentifiers[$index]['citationLabel'] = trim($citation);
-                }
-            }
-        }
-
-        foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
-            $citationLabel = trim((string) ($relatedIdentifier['citationLabel'] ?? ''));
-
-            if ($citationLabel !== '') {
-                continue;
-            }
-
-            $identifier = trim((string) ($relatedIdentifier['relatedIdentifier'] ?? ''));
-            $identifierType = trim((string) ($relatedIdentifier['relatedIdentifierType'] ?? ''));
-
             $doi = $this->normalizeResolvableDoi($identifier, $identifierType);
 
             if ($doi !== null) {
@@ -144,20 +109,6 @@ class RelatedIdentifierCitationLabelService
 
         if ($indexesByDoi === []) {
             return $relatedIdentifiers;
-        }
-
-        $legacyCitations = $this->legacyCitationCache->findMany(array_keys($indexesByDoi));
-
-        foreach ($legacyCitations as $doi => $citation) {
-            if (! isset($indexesByDoi[$doi]) || trim($citation) === '') {
-                continue;
-            }
-
-            foreach ($indexesByDoi[$doi] as $index) {
-                $relatedIdentifiers[$index]['citationLabel'] = trim($citation);
-            }
-
-            unset($indexesByDoi[$doi]);
         }
 
         foreach ($indexesByDoi as $doi => $indexes) {
@@ -177,7 +128,10 @@ class RelatedIdentifierCitationLabelService
             }
 
             foreach ($indexes as $index) {
-                $relatedIdentifiers[$index]['citationLabel'] = $citation;
+                $relatedIdentifiers[$index]['citationLabel'] = $citation->text;
+                if ($citation->parts !== null) {
+                    $relatedIdentifiers[$index]['citationLabelParts'] = $citation->parts;
+                }
             }
         }
 
@@ -217,19 +171,17 @@ class RelatedIdentifierCitationLabelService
     }
 
     /**
-     * Exhaustively resolve missing citation labels for a single-resource import.
+     * Exhaustively resolve missing citation labels from DOI metadata.
      *
      * Existing labels are preserved. DOI-like URL identifiers participate in
      * resolution, while unrelated URL and non-DOI identifier types stay optional.
-     * A final miss is retained without a label and never blocks the import.
+     * A final miss is retained without a label and never blocks saving.
      *
      * @param  array<int, array<string, mixed>>  $relatedIdentifiers
      * @return array<int, array<string, mixed>>
      */
     public function resolveExhaustive(array $relatedIdentifiers): array
     {
-        /** @var array<string, list<int>> $indexesByUrl */
-        $indexesByUrl = [];
         /** @var array<string, list<int>> $indexesByDoi */
         $indexesByDoi = [];
         $existingLabelCount = 0;
@@ -255,47 +207,6 @@ class RelatedIdentifierCitationLabelService
 
                 continue;
             }
-
-            if ($identifierType === 'URL' && $identifier !== '') {
-                $indexesByUrl[$identifier] ??= [];
-                $indexesByUrl[$identifier][] = $index;
-            }
-        }
-
-        $legacyUrlHitCount = 0;
-
-        if ($indexesByUrl !== []) {
-            $legacyUrlCitations = $this->legacyCitationCache->findManyUrls(array_keys($indexesByUrl));
-
-            foreach ($legacyUrlCitations as $url => $citation) {
-                if (! isset($indexesByUrl[$url]) || trim($citation) === '') {
-                    continue;
-                }
-
-                foreach ($indexesByUrl[$url] as $index) {
-                    $relatedIdentifiers[$index]['citationLabel'] = trim($citation);
-                }
-
-                $legacyUrlHitCount++;
-            }
-        }
-
-        foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
-            $citationLabel = isset($relatedIdentifier['citationLabel'])
-                ? trim((string) $relatedIdentifier['citationLabel'])
-                : '';
-
-            if ($citationLabel !== '') {
-                continue;
-            }
-
-            $identifier = isset($relatedIdentifier['relatedIdentifier'])
-                ? trim((string) $relatedIdentifier['relatedIdentifier'])
-                : '';
-            $identifierType = isset($relatedIdentifier['relatedIdentifierType'])
-                ? trim((string) $relatedIdentifier['relatedIdentifierType'])
-                : '';
-
             $doi = $this->normalizeResolvableDoi($identifier, $identifierType);
 
             if ($doi === null) {
@@ -306,27 +217,9 @@ class RelatedIdentifierCitationLabelService
             $indexesByDoi[$doi][] = $index;
         }
 
-        $legacyDoiHitCount = 0;
         $metadataHitCount = 0;
         /** @var array<string, string> $unresolved */
         $unresolved = [];
-
-        if ($indexesByDoi !== []) {
-            $legacyCitations = $this->legacyCitationCache->findMany(array_keys($indexesByDoi));
-
-            foreach ($legacyCitations as $doi => $citation) {
-                if (! isset($indexesByDoi[$doi]) || trim($citation) === '') {
-                    continue;
-                }
-
-                foreach ($indexesByDoi[$doi] as $index) {
-                    $relatedIdentifiers[$index]['citationLabel'] = trim($citation);
-                }
-
-                unset($indexesByDoi[$doi]);
-                $legacyDoiHitCount++;
-            }
-        }
 
         if ($indexesByDoi !== []) {
             $outcomes = $this->dataCite->getMetadataBatch(array_keys($indexesByDoi));
@@ -346,16 +239,19 @@ class RelatedIdentifierCitationLabelService
                     continue;
                 }
 
-                $citation = trim($this->dataCite->buildCitationFromMetadata($outcome['metadata']));
+                $citation = $this->formatter->format($doi, $outcome['metadata']);
 
-                if ($citation === '') {
+                if ($citation === null) {
                     $unresolved[$doi] = 'The DOI metadata did not produce a citation label.';
 
                     continue;
                 }
 
                 foreach ($indexes as $index) {
-                    $relatedIdentifiers[$index]['citationLabel'] = $citation;
+                    $relatedIdentifiers[$index]['citationLabel'] = $citation->text;
+                    if ($citation->parts !== null) {
+                        $relatedIdentifiers[$index]['citationLabelParts'] = $citation->parts;
+                    }
                 }
 
                 $metadataHitCount++;
@@ -364,9 +260,6 @@ class RelatedIdentifierCitationLabelService
 
         Log::info('Exhaustive citation label resolution completed.', [
             'existing_labels' => $existingLabelCount,
-            'legacy_hits' => $legacyUrlHitCount + $legacyDoiHitCount,
-            'legacy_url_hits' => $legacyUrlHitCount,
-            'legacy_doi_hits' => $legacyDoiHitCount,
             'doi_metadata_hits' => $metadataHitCount,
             'unresolved_count' => count($unresolved),
             'unresolved' => $unresolved,
@@ -413,6 +306,7 @@ class RelatedIdentifierCitationLabelService
                 unset($relatedIdentifiers[$index]['citationLabel']);
             }
 
+            unset($relatedIdentifiers[$index]['citationLabelParts']);
             $resolutionCandidates[$index] = [
                 'relatedIdentifier' => $identifier,
                 'relatedIdentifierType' => $identifierType,
@@ -432,6 +326,14 @@ class RelatedIdentifierCitationLabelService
 
             if ($citationLabel !== '') {
                 $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
+                $parts = $resolvedCandidate['citationLabelParts'] ?? null;
+                if ($parts === null && is_string($proof = $relatedIdentifiers[$index]['citationProof'] ?? null)) {
+                    $doi = $this->normalizeResolvableDoi($resolutionCandidates[$index]['relatedIdentifier'], $resolutionCandidates[$index]['relatedIdentifierType']);
+                    $parts = RelatedWorkCitation::verifiedParts($proof, $doi, $citationLabel);
+                }
+                if ($parts !== null) {
+                    $relatedIdentifiers[$index]['citationLabelParts'] = $parts;
+                }
             } else {
                 unset($relatedIdentifiers[$index]['citationLabel']);
             }
@@ -463,32 +365,9 @@ class RelatedIdentifierCitationLabelService
         return mb_strtolower($doi);
     }
 
-    private function resolveFromLiteralUrlCache(string $identifier, string $identifierType): ?string
+    private function resolveFromDoiMetadata(string $doi, ?float $timeoutSeconds = null): ?RelatedWorkCitation
     {
-        if ($identifierType !== 'URL' || $identifier === '') {
-            return null;
-        }
-
-        $citation = $this->legacyCitationCache->findUrl($identifier);
-
-        return is_string($citation) && trim($citation) !== ''
-            ? trim($citation)
-            : null;
-    }
-
-    private function resolveNormalizedDoi(string $doi, ?float $timeoutSeconds = null): ?string
-    {
-        $legacyCitation = $this->legacyCitationCache->find($doi);
-
-        if (is_string($legacyCitation) && trim($legacyCitation) !== '') {
-            return trim($legacyCitation);
-        }
-
-        return $this->resolveFromDoiMetadata($doi, $timeoutSeconds);
-    }
-
-    private function resolveFromDoiMetadata(string $doi, ?float $timeoutSeconds = null): ?string
-    {
+        $deadline = $timeoutSeconds === null ? null : microtime(true) + $timeoutSeconds;
         $metadata = $timeoutSeconds === null
             ? $this->dataCite->getMetadata($doi)
             : $this->dataCite->getMetadata($doi, $timeoutSeconds, false);
@@ -497,8 +376,6 @@ class RelatedIdentifierCitationLabelService
             return null;
         }
 
-        $citation = trim($this->dataCite->buildCitationFromMetadata($metadata));
-
-        return $citation !== '' ? $citation : null;
+        return $this->formatter->format($doi, $metadata, $deadline);
     }
 }

@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Enums\AccessLevel;
 use App\Http\Requests\Concerns\AuthorizesResourceDoiChanges;
+use App\Http\Requests\Concerns\ValidatesContentMetadata;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Http\Requests\Concerns\ValidatesRelatedItems;
 use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
@@ -22,6 +23,7 @@ use App\Services\DoiSuggestionService;
 use App\Services\EmbargoService;
 use App\Support\BooleanNormalizer;
 use App\Support\LanguageTag;
+use App\Support\Swhid;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -31,6 +33,7 @@ use Illuminate\Validation\Validator;
 class StoreResourceRequest extends FormRequest
 {
     use AuthorizesResourceDoiChanges;
+    use ValidatesContentMetadata;
     use ValidatesEditorDates;
     use ValidatesRelatedItems;
     use ValidatesTemporalCoverages;
@@ -60,6 +63,7 @@ class StoreResourceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            ...$this->contentMetadataRules(),
             'resourceId' => ['nullable', 'integer', Rule::exists('resources', 'id')],
             'doi' => [
                 'nullable',
@@ -139,7 +143,7 @@ class StoreResourceRequest extends FormRequest
                 Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
-            'dates.*.startDate' => ['nullable', new EditorDate(allowFuture: true)],
+            'dates.*.startDate' => ['nullable', app(EditorDate::class)],
             'dates.*.endDate' => ['nullable', app(EditorDate::class)],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
             'freeKeywords' => ['nullable', 'array'],
@@ -196,6 +200,8 @@ class StoreResourceRequest extends FormRequest
                 ]),
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
+            'relatedIdentifiers.*.citationProof' => ['sometimes', 'string'],
+            'relatedIdentifiers.*.originalCitationLabelHash' => ['sometimes', 'string', 'regex:/^[a-f0-9]{64}$/D'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
             'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in(RelatedIdentifier::INTERNAL_SOURCES)],
 
@@ -798,6 +804,7 @@ class StoreResourceRequest extends FormRequest
                 'relationType' => $relationType,
                 ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
                 ...($citationLabel !== '' ? ['citationLabel' => $citationLabel] : []),
+                ...array_intersect_key($relatedIdentifier, array_flip(['citationProof', 'originalCitationLabelHash'])),
                 ...($source !== '' ? ['source' => $source] : []),
             ];
         }
@@ -1196,6 +1203,21 @@ class StoreResourceRequest extends FormRequest
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                $identifiers = $this->input('relatedIdentifiers', []);
+                if (! is_array($identifiers)) {
+                    return;
+                }
+                foreach ($identifiers as $index => $identifier) {
+                    if (! is_array($identifier) || ($identifier['identifierType'] ?? null) !== 'SWHID' || ! is_string($identifier['identifier'] ?? null)) {
+                        continue;
+                    }
+                    $result = Swhid::validate($identifier['identifier']);
+                    foreach ($result['errors'] as $error) {
+                        $validator->errors()->add("relatedIdentifiers.{$index}.identifier", '[Related Work] '.$error['message']);
+                    }
+                }
+            },
             function (Validator $validator): void {
                 $this->validateEditorDates($validator);
             },

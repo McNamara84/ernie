@@ -4,7 +4,7 @@
 import { fireEvent, render, screen, within } from '@tests/vitest/utils/render';
 import L from 'leaflet';
 import { MapContainer } from 'react-leaflet';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const fitBoundsMock = vi.hoisted(() => vi.fn());
 
@@ -169,9 +169,6 @@ describe('historical location failures', () => {
 });
 
 describe('LocationSection', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     describe('rendering', () => {
         it('should not render when geoLocations is empty', () => {

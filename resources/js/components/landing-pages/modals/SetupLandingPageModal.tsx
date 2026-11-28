@@ -9,10 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { LANDING_PAGE_POPUP_BLOCKED_MESSAGE, openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
-import { AdditionalLinkDescriptorFields } from '@/components/landing-pages/modals/AdditionalLinkDescriptorFields';
-import { ContentDescriptorFields } from '@/components/landing-pages/modals/ContentDescriptorFields';
 import { ExternalLandingPageFields } from '@/components/landing-pages/modals/ExternalLandingPageFields';
-import { ImportedFileDescriptorFields } from '@/components/landing-pages/modals/ImportedFileDescriptorFields';
 import {
     buildLandingPagePreviewPayload,
     buildLandingPageSetupPayload,
@@ -86,8 +83,6 @@ type PersistedLandingPageDraftState = {
     template: string;
     ftpUrl: string;
     primaryDownloadLabel: string;
-    ftpFormatId: number | null;
-    ftpSizeId: number | null;
     activateDownloads: boolean;
     isPublished: boolean;
     externalDomainId: string;
@@ -105,8 +100,6 @@ type ResourceTemplateOptions = {
     automatic_template: { id: number; name: string; slug: string };
     automatic_source: 'datacenter' | 'default';
     supports_datacenter_inheritance: boolean;
-    available_formats: Array<{ id: number; value: string }>;
-    available_sizes: Array<{ id: number; label: string; content_size: string }>;
 };
 
 function isLandingPageLinkKind(value: unknown): value is NonNullable<LandingPageLink['kind']> {
@@ -120,8 +113,6 @@ function cloneLandingPageLinks(links: LandingPageLink[] = []): LandingPageLink[]
         url: link.url,
         label: link.label,
         kind: isLandingPageLinkKind(link.kind) ? link.kind : 'related',
-        format_id: link.format_id ?? null,
-        size_id: link.size_id ?? null,
         position: typeof link.position === 'number' ? link.position : index,
     }));
 }
@@ -131,8 +122,6 @@ function cloneLandingPageFiles(files: LandingPageFile[] = []): LandingPageFile[]
         id: file.id,
         url: file.url,
         label: file.label ?? null,
-        format_id: file.format_id ?? null,
-        size_id: file.size_id ?? null,
         tracked_url: file.tracked_url ?? null,
         position: typeof file.position === 'number' ? file.position : index,
     }));
@@ -144,8 +133,6 @@ function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPag
         template: draftState.template,
         ftpUrl: draftState.ftpUrl,
         primaryDownloadLabel: draftState.primaryDownloadLabel,
-        ftpFormatId: draftState.ftpFormatId,
-        ftpSizeId: draftState.ftpSizeId,
         activateDownloads: draftState.activateDownloads,
         isPublished: draftState.isPublished,
         externalDomainId: draftState.externalDomainId,
@@ -155,16 +142,12 @@ function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPag
             url: link.url,
             label: link.label,
             kind: link.kind ?? 'related',
-            format_id: link.format_id ?? null,
-            size_id: link.size_id ?? null,
             position: typeof link.position === 'number' ? link.position : index,
         })),
         files: cloneLandingPageFiles(draftState.files).map((file, index) => ({
             id: file.id,
             url: file.url,
             label: file.label ?? null,
-            format_id: file.format_id ?? null,
-            size_id: file.size_id ?? null,
             position: typeof file.position === 'number' ? file.position : index,
         })),
     };
@@ -204,8 +187,6 @@ function parsePersistedLandingPageDraftState(rawValue: string | null, fallbackFi
                       url: typeof candidate.url === 'string' ? candidate.url : '',
                       label: typeof candidate.label === 'string' ? candidate.label : '',
                       kind: isLandingPageLinkKind(candidate.kind) ? candidate.kind : 'related',
-                      format_id: typeof candidate.format_id === 'number' ? candidate.format_id : null,
-                      size_id: typeof candidate.size_id === 'number' ? candidate.size_id : null,
                       position: typeof candidate.position === 'number' ? candidate.position : index,
                   } satisfies LandingPageLink;
               })
@@ -228,8 +209,6 @@ function parsePersistedLandingPageDraftState(rawValue: string | null, fallbackFi
                           id: candidate.id,
                           url: candidate.url,
                           label: typeof candidate.label === 'string' ? candidate.label : null,
-                          format_id: typeof candidate.format_id === 'number' ? candidate.format_id : null,
-                          size_id: typeof candidate.size_id === 'number' ? candidate.size_id : null,
                           tracked_url: typeof candidate.tracked_url === 'string' ? candidate.tracked_url : null,
                           position: typeof candidate.position === 'number' ? candidate.position : index,
                       },
@@ -242,8 +221,6 @@ function parsePersistedLandingPageDraftState(rawValue: string | null, fallbackFi
             template: parsed.template,
             ftpUrl: typeof parsed.ftpUrl === 'string' ? parsed.ftpUrl : '',
             primaryDownloadLabel: typeof parsed.primaryDownloadLabel === 'string' ? parsed.primaryDownloadLabel : '',
-            ftpFormatId: typeof parsed.ftpFormatId === 'number' ? parsed.ftpFormatId : null,
-            ftpSizeId: typeof parsed.ftpSizeId === 'number' ? parsed.ftpSizeId : null,
             activateDownloads: parsed.downloadWorkflowVersion === 2 && parsed.activateDownloads === true,
             isPublished: parsed.isPublished === true,
             externalDomainId: typeof parsed.externalDomainId === 'string' ? parsed.externalDomainId : '',
@@ -445,8 +422,6 @@ export default function SetupLandingPageModal({
                 template: preferredTemplate,
                 ftpUrl: config?.ftp_url ?? '',
                 primaryDownloadLabel: config?.primary_download_label ?? '',
-                ftpFormatId: config?.ftp_format_id ?? null,
-                ftpSizeId: config?.ftp_size_id ?? null,
                 activateDownloads: false,
                 isPublished: (config?.status ?? 'draft') === 'published',
                 externalDomainId: String(config?.external_domain_id ?? ''),
@@ -464,8 +439,6 @@ export default function SetupLandingPageModal({
         setFtpUrl(draftState.ftpUrl);
         setDownloadInputOpen(draftState.ftpUrl.trim() !== '');
         setPrimaryDownloadLabel(draftState.primaryDownloadLabel);
-        setFtpFormatId(draftState.ftpFormatId);
-        setFtpSizeId(draftState.ftpSizeId);
         setActivateDownloads(draftState.activateDownloads);
         setIsPublished(draftState.isPublished);
         setExternalDomainId(draftState.externalDomainId);
@@ -481,8 +454,6 @@ export default function SetupLandingPageModal({
     const addDownloadButtonRef = useRef<HTMLButtonElement>(null);
     const [ftpUrl, setFtpUrl] = useState<string>(existingConfig?.ftp_url ?? '');
     const [primaryDownloadLabel, setPrimaryDownloadLabel] = useState<string>(existingConfig?.primary_download_label ?? '');
-    const [ftpFormatId, setFtpFormatId] = useState<number | null>(existingConfig?.ftp_format_id ?? null);
-    const [ftpSizeId, setFtpSizeId] = useState<number | null>(existingConfig?.ftp_size_id ?? null);
     const [activateDownloads, setActivateDownloads] = useState<boolean>(false);
     const [isPublished, setIsPublished] = useState<boolean>((existingConfig?.status ?? 'draft') === 'published');
     const [previewUrl, setPreviewUrl] = useState<string>(existingConfig?.preview_url ?? '');
@@ -560,16 +531,12 @@ export default function SetupLandingPageModal({
             return false;
         }
     });
-    const availableFormats = currentConfig?.available_formats ?? templateOptions?.available_formats ?? [];
-    const availableSizes = currentConfig?.available_sizes ?? templateOptions?.available_sizes ?? [];
     const currentDraftState = useMemo<PersistedLandingPageDraftState>(
         () => ({
             tombstoneRevision: currentConfig?.tombstone_revision ?? 0,
             template,
             ftpUrl,
             primaryDownloadLabel,
-            ftpFormatId,
-            ftpSizeId,
             activateDownloads,
             isPublished,
             externalDomainId,
@@ -584,8 +551,6 @@ export default function SetupLandingPageModal({
             externalDomainId,
             externalPath,
             files,
-            ftpFormatId,
-            ftpSizeId,
             ftpUrl,
             primaryDownloadLabel,
             isPublished,
@@ -754,8 +719,6 @@ export default function SetupLandingPageModal({
                 supportsFtpUrl,
                 ftpUrl,
                 primaryDownloadLabel,
-                ftpFormatId,
-                ftpSizeId,
                 supportsDownloadActivation,
                 activateDownloads,
                 supportsLinks,
@@ -1012,8 +975,6 @@ export default function SetupLandingPageModal({
                     supportsFtpUrl,
                     ftpUrl,
                     primaryDownloadLabel,
-                    ftpFormatId,
-                    ftpSizeId,
                     supportsDownloadActivation,
                     activateDownloads,
                     supportsLinks,
@@ -1089,7 +1050,7 @@ export default function SetupLandingPageModal({
 
                 const updated = { ...link, [field]: value };
 
-                return field === 'kind' && value !== 'download' ? { ...updated, format_id: null, size_id: null } : updated;
+                return updated;
             }),
         );
     }, []);
@@ -1289,8 +1250,6 @@ export default function SetupLandingPageModal({
                                             onClick={() => {
                                                 setFtpUrl('');
                                                 setPrimaryDownloadLabel('');
-                                                setFtpFormatId(null);
-                                                setFtpSizeId(null);
                                                 setDownloadInputOpen(false);
                                                 setDownloadUrlSuggestionsOpen(false);
                                                 requestAnimationFrame(() => addDownloadButtonRef.current?.focus());
@@ -1490,18 +1449,6 @@ export default function SetupLandingPageModal({
                                             </p>
                                         </div>
                                     )}
-
-                                    {!hasUsableImportedFiles && ftpUrl.trim() !== '' && (
-                                        <ContentDescriptorFields
-                                            formatId={ftpFormatId}
-                                            sizeId={ftpSizeId}
-                                            formats={availableFormats}
-                                            sizes={availableSizes}
-                                            onFormatChange={setFtpFormatId}
-                                            onSizeChange={setFtpSizeId}
-                                            testIdPrefix={'primary-download'}
-                                        />
-                                    )}
                                 </div>
                             )}
 
@@ -1543,10 +1490,6 @@ export default function SetupLandingPageModal({
                                     </div>
                                     <p className="text-sm text-muted-foreground">Labels can be edited. Imported target URLs remain read-only.</p>
                                 </div>
-                            )}
-
-                            {!isExternal && hasImportedFiles && (
-                                <ImportedFileDescriptorFields files={files} setFiles={setFiles} formats={availableFormats} sizes={availableSizes} />
                             )}
 
                             {/* Additional Links (only for GFZ templates, not external or IGSN) */}
@@ -1593,10 +1536,6 @@ export default function SetupLandingPageModal({
                                         Add Link ({links.length}/{MAX_LINKS})
                                     </Button>
                                 </div>
-                            )}
-
-                            {supportsLinks && (
-                                <AdditionalLinkDescriptorFields links={links} setLinks={setLinks} formats={availableFormats} sizes={availableSizes} />
                             )}
 
                             {/* Unsaved Changes Warning */}

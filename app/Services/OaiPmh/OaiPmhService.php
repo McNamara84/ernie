@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\OaiPmh;
 
+use App\Enums\DcatApFormat;
 use App\Models\OaiPmhDeletedRecord;
+use App\Models\OaiPmhFormatRecord;
 use App\Models\OaiPmhHarvest;
 use App\Models\Resource;
 use App\Services\DataCiteXmlExporter;
+use App\Services\DcatAp\DcatApReadinessService;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\Iso19115\Iso19115XmlExporter;
 use Illuminate\Database\Eloquent\Builder;
@@ -67,6 +70,7 @@ class OaiPmhService
         private readonly DataCiteXmlExporter $dataCiteExporter,
         private readonly Iso19115ResourceProfileService $isoProfile,
         private readonly Iso19115XmlExporter $isoExporter,
+        private readonly OaiPmhDcatApService $dcat,
     ) {}
 
     /**
@@ -122,6 +126,13 @@ class OaiPmhService
             ->value('earliest');
 
         $earliestDeleted = OaiPmhDeletedRecord::query()->min('datestamp');
+        $prefixes = array_column(DcatApFormat::enabledFormats(), 'value');
+        if ($prefixes !== []) {
+            $formatEarliest = OaiPmhFormatRecord::whereIn('metadata_prefix', $prefixes)->min('datestamp');
+            if ($formatEarliest !== null && ($earliestDeleted === null || $formatEarliest < $earliestDeleted)) {
+                $earliestDeleted = $formatEarliest;
+            }
+        }
 
         $earliest = match (true) {
             $earliestPublished !== null && $earliestDeleted !== null => min($earliestPublished, $earliestDeleted),
@@ -176,8 +187,19 @@ class OaiPmhService
                 ? OaiPmhDeletedRecord::query()->where('doi', $doi)->first()
                 : null;
 
+            $dcatFormats = DcatApFormat::enabledFormats();
+            $historic = $dcatFormats === [] ? [] : OaiPmhFormatRecord::whereIn('metadata_prefix', array_column($dcatFormats, 'value'))
+                ->where('oai_identifier', $identifier)->pluck('metadata_prefix')->all();
             if ($resource === null && $deletedRecord === null) {
-                return $this->unknownIdentifierResponse('ListMetadataFormats', $identifier);
+                if ($historic === []) {
+                    return $this->unknownIdentifierResponse('ListMetadataFormats', $identifier);
+                }
+                $formats = array_intersect_key($formats, array_flip($historic));
+            }
+            foreach ($dcatFormats as $format) {
+                if (! in_array($format->value, $historic, true) && ($resource === null || ! app(DcatApReadinessService::class)->available($resource, $format))) {
+                    unset($formats[$format->value]);
+                }
             }
 
             if (
@@ -276,6 +298,10 @@ class OaiPmhService
             );
         }
 
+        if (($format = DcatApFormat::tryFrom($metadataPrefix)) !== null) {
+            return $this->dcat->getRecord($format, $doi, $identifier, $requestAttrs);
+        }
+
         // Check for deleted record first
         $deletedRecord = OaiPmhDeletedRecord::where('doi', $doi)->first();
         if ($deletedRecord !== null) {
@@ -289,7 +315,7 @@ class OaiPmhService
                 $container,
                 $deletedRecord->oai_identifier,
                 $deletedRecord->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                array_values($deletedRecord->sets ?? []),
+                $this->setService->getSetsForStoredRecord($deletedRecord),
             );
 
             return $builder->toXml();
@@ -433,6 +459,12 @@ class OaiPmhService
             }
         }
 
+        if (($format = DcatApFormat::tryFrom($metadataPrefix)) !== null) {
+            return $this->dcat->listItems($format, $verb, $headersOnly, $setSpec, $from, $until, $cursor, $pageSize, $requestAttrs,
+                is_string($resumptionToken) ? $token->harvest : null, is_string($resumptionToken),
+                is_string($resumptionToken) ? (int) $token->harvest_position : 0);
+        }
+
         // Build query for published resources (join replaces whereHas to avoid redundant EXISTS)
         $query = Resource::query()
             ->whereNotNull('doi')
@@ -455,14 +487,14 @@ class OaiPmhService
             ->when($until !== null, fn ($q) => $q->where('datestamp', '<=', $until));
 
         if ($setSpec !== null) {
-            $deletedQuery->whereJsonContains('sets', $setSpec);
+            $this->setService->applyStoredSetFilter($deletedQuery, $setSpec);
         }
 
         if ($this->isIsoMetadataPrefix($metadataPrefix)) {
             $this->isoProfile->applyToDeletedRecordQuery($deletedQuery);
         }
 
-        // Old tokens remain usable until their original TTL. New requests freeze
+        // Legacy tokens resume against the current results. New requests freeze
         // identities so set exits, deletions and updates cannot shift later pages.
         if (! is_string($resumptionToken) || $token->harvest_id !== null) {
             return $this->listSnapshotItems(
@@ -503,7 +535,7 @@ class OaiPmhService
                         $container,
                         $deleted->oai_identifier,
                         $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                        array_values($deleted->sets ?? []),
+                        $this->setService->getSetsForStoredRecord($deleted),
                         deleted: true,
                     );
                 } else {
@@ -511,7 +543,7 @@ class OaiPmhService
                         $container,
                         $deleted->oai_identifier,
                         $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z'),
-                        array_values($deleted->sets ?? []),
+                        $this->setService->getSetsForStoredRecord($deleted),
                     );
                 }
                 $emitted++;
@@ -549,7 +581,11 @@ class OaiPmhService
             }
         }
 
-        // Add resumption token if more results exist
+        // The legacy token's count can include records that no longer match the filters.
+        if ($emitted === 0) {
+            return $this->errorResponse('badResumptionToken', 'No records remain at the stored cursor. Restart the list request.', $verb, $requestAttrs);
+        }
+
         $nextCursor = $cursor + $emitted;
 
         if ($nextCursor < $completeListSize) {
@@ -641,7 +677,7 @@ class OaiPmhService
                 }
                 $identifier = $deleted->oai_identifier;
                 $datestamp = $deleted->datestamp->utc()->format('Y-m-d\TH:i:s\Z');
-                $sets = array_values($deleted->sets ?? []);
+                $sets = $this->setService->getSetsForStoredRecord($deleted);
                 if ($headersOnly) {
                     $builder->addHeader($container, $identifier, $datestamp, $sets, deleted: true);
                 } else {
@@ -922,14 +958,7 @@ class OaiPmhService
      */
     private function metadataFormats(): array
     {
-        /** @var array<string, array{schema: string, namespace: string}> $formats */
-        $formats = config('oaipmh.metadata_formats', []);
-
-        if (! $this->isoProfile->isEnabled()) {
-            unset($formats['iso19115_3']);
-        }
-
-        return $formats;
+        return app(OaiPmhMetadataFormatRegistry::class)->formats();
     }
 
     private function unknownIdentifierResponse(string $verb, string $identifier): string

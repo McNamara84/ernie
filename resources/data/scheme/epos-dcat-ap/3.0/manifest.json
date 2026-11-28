@@ -1,0 +1,10 @@
+{
+  "profile": "https://epos-eu.github.io/EPOS-DCAT-AP/v3/",
+  "revision": "8bf80645de30e99e839e673dd60a516f4abeda1d",
+  "files": {
+    "epos-dcat-ap_v3.0.0_shacl.ttl": {
+      "source": "https://raw.githubusercontent.com/epos-eu/EPOS-DCAT-AP/8bf80645de30e99e839e673dd60a516f4abeda1d/docs/epos-dcat-ap_v3.0.0_shacl.ttl",
+      "sha256": "dd2882d4736b83d5bddd1c9ba28c37e858efad26ca14e42810be7439fd450560"
+    }
+  }
+}

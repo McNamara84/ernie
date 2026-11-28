@@ -35,7 +35,6 @@ const gfz = centres.find((centre) => centre.slug === 'gfz')!;
 const pair = [fid, gfz];
 
 beforeEach(() => {
-    vi.clearAllMocks();
     window.history.replaceState(null, '', '/data-centres/description');
     Element.prototype.scrollIntoView = vi.fn();
 });

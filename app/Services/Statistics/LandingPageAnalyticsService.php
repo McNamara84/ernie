@@ -6,6 +6,7 @@ namespace App\Services\Statistics;
 
 use App\Models\LandingPage;
 use App\Models\LandingPageDailyStatistic;
+use App\Services\Usage\CounterTrackingStateService;
 use Illuminate\Support\Facades\DB;
 
 class LandingPageAnalyticsService
@@ -21,6 +22,11 @@ class LandingPageAnalyticsService
     }
 
     private function incrementDailyCounter(LandingPage $landingPage, string $column): void
+    {
+        app(CounterTrackingStateService::class)->legacy(fn () => $this->writeDailyCounter($landingPage, $column));
+    }
+
+    private function writeDailyCounter(LandingPage $landingPage, string $column): void
     {
         $timestamp = now();
         $statisticDate = $timestamp->toDateString();

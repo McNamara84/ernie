@@ -99,6 +99,11 @@ modules/assistants/
 
 These three use **their own database tables** (created before the modular system) and extend `AbstractAssistant`.
 
+`FundingAwardUriEnrichment/` (`funding-award-uri-enrichment`) extends `GenericTableAssistant`
+and discovers missing award URIs from Crossref Grants and CORDIS. Pending proposals
+use `assistant_suggestions`; permanent accepted/declined evidence is stored in
+`funding_award_uri_reviews`. See the [operating guide](../../docs/funding-award-uri-enrichment.md).
+
 ---
 
 ## Creating a New Assistant (Step-by-Step)
@@ -281,6 +286,20 @@ protected function applyAccepted(AssistantSuggestion $suggestion): array
     // Return ['success' => true/false, 'message' => '...']
 }
 ```
+
+### Authenticated reviewer context
+
+`acceptSuggestion(int $id, array $input = [], ?User $reviewer = null)` receives the
+authenticated user from both the controller and batch service. Assistants needing
+review attribution override `acceptWithReviewer(Model $suggestion, array $input,
+?User $reviewer)` and reject missing or unauthorized reviewers. The default hook
+delegates to `acceptWithInput`, preserving existing assistants. Never obtain the
+reviewer identity from client-submitted input.
+
+The award URI assistant also requires the displayed `award_uri_review_fingerprint`
+for accept and decline. It revalidates local data and source evidence under a
+resource lock and commits the URI, audit record and suggestion removal together.
+External source lookup and DataCite synchronization remain outside that transaction.
 
 ### The `storeSuggestion()` helper
 

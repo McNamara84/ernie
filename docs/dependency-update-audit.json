@@ -3321,6 +3321,66 @@
         "An initial Pint read failed for PortalMapClusterServiceTest.php during validation activity in the shared workspace. The file was present and readable; its focused Pint check passed, followed by the complete backend check."
       ]
     },
-    "artifacts": ".tmp/dependency-update-20261119"
+    "artifacts": ".tmp/dependency-update-20261119",
+    "integration": {
+      "status": "passed",
+      "checkedOn": "2026-11-19",
+      "devBase": "73a3ef58e324156b9e1b76b4d8720b82d6d786a1",
+      "mainSource": "50808060ac859d40714cb1ff419cb3c0235edcbb",
+      "note": "The inventory above records the main dependency update. Integration retains the dev-only native AbortController workspace, browser test tooling and league/commonmark requirement, plus dev deletions of obsolete IGSN tests. The 1.2.0 development changelog entry stays first, with the 1.1.4 stable release below it.",
+      "environment": {
+        "php": "8.5.13",
+        "mysql": "9.7.4",
+        "node": "26.13.1",
+        "npm": "12.2.3",
+        "phpMemoryLimit": "2G",
+        "pestWorkers": 8,
+        "vitestWorkers": 8,
+        "isolation": "Dedicated Docker project with private dependency, workspace, database and Redis volumes"
+      },
+      "backend": {
+        "command": "npm run check:backend",
+        "status": "passed",
+        "pest": {
+          "passed": 11655,
+          "skipped": 58,
+          "assertions": 72319
+        },
+        "phpstan": {
+          "files": 1181,
+          "errors": 0
+        },
+        "jsonld": {
+          "dataCiteDocuments": 43,
+          "schemaOrgDocuments": 34
+        },
+        "dcatAp": {
+          "graphs": 6,
+          "exchangeShacl": "passed",
+          "jenaRdflibParity": "passed"
+        },
+        "log": ".tmp/dependency-update-20261119/sync-backend.log"
+      },
+      "frontend": {
+        "command": "npm run check:frontend",
+        "status": "passed",
+        "files": 545,
+        "passed": 9402,
+        "skipped": 1,
+        "browserFiles": 13,
+        "browserTests": 45,
+        "correction": "Bind the browser project Vite server to 127.0.0.1 so Chromium and Node use the same loopback address on Windows.",
+        "log": ".tmp/dependency-update-20261119/sync-frontend.log"
+      },
+      "mysql": {
+        "command": "npm run test:php:mysql-sensitive",
+        "status": "passed",
+        "server": "9.7.4",
+        "slices": 33,
+        "passed": 920,
+        "assertions": 9218,
+        "log": ".tmp/dependency-update-20261119/sync-mysql.log"
+      }
+    }
   }
 }

@@ -107,7 +107,7 @@ export function FilesSection({
                             .map((link) => (
                                 <a
                                     key={link.id ?? `${link.url}-${link.position}`}
-                                    href={link.url}
+                                    href={link.tracked_url ?? link.url}
                                     title={link.url}
                                     target="_blank"
                                     rel="noopener noreferrer"

@@ -252,8 +252,9 @@ describe('AsyncCombobox', () => {
 
     it('handles search errors gracefully', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        mockSearch.mockRejectedValue(new Error('Network error'));
+        using consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const failure = new Error('Network error');
+        mockSearch.mockRejectedValue(failure);
 
         render(<AsyncCombobox onSearch={mockSearch} debounceMs={100} />);
 
@@ -265,10 +266,9 @@ describe('AsyncCombobox', () => {
         });
 
         await waitFor(() => {
-            expect(consoleSpy).toHaveBeenCalled();
+            expect(consoleSpy).toHaveBeenCalledExactlyOnceWith('AsyncCombobox search error:', failure);
         });
 
-        consoleSpy.mockRestore();
     });
 
     it('shows empty message when no results found', async () => {

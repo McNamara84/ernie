@@ -13,10 +13,15 @@ const updateShardTimings = shardTimingCommand || process.env.ERNIE_PEST_UPDATE_S
 const completeSuite = pestArgs.length === 0 || shardTimingCommand;
 const phpMemoryLimit = '2G';
 const jsonLdReportToken = process.env.ERNIE_JSONLD_REPORT_TOKEN?.trim();
+const dcatReportToken = process.env.ERNIE_DCAT_REPORT_TOKEN?.trim();
+if (dcatReportToken && !/^[a-f0-9]{32}$/.test(dcatReportToken)) {
+    throw new Error('Invalid DCAT-AP report token.');
+}
 if (jsonLdReportToken && !/^[a-f0-9]{32}$/.test(jsonLdReportToken)) {
     throw new Error('Invalid JSON-LD report token.');
 }
-const pestWorkspace = jsonLdReportToken ? `/tmp/ernie-jsonld-${jsonLdReportToken}` : '/var/www/pest-workspace';
+const pestWorkspace = dcatReportToken ? `/tmp/ernie-dcat-${dcatReportToken}`
+    : jsonLdReportToken ? `/tmp/ernie-jsonld-${jsonLdReportToken}` : '/var/www/pest-workspace';
 let processCount;
 const profileArgs = process.env.ERNIE_PEST_PROFILE === '1' ? ['--profile'] : [];
 const reportDirectory = process.env.ERNIE_PEST_REPORT_DIR?.trim();
@@ -39,7 +44,7 @@ const usesCoverageDriver = pestArgs.some(
 // Listing the whole suite still loads its PHP definitions. Keep this read-only
 // discovery off the slow host bind mount, using a freshly synchronized snapshot.
 const nativeDiscovery = pestArgs.includes('--list-tests') && !usesCoverageDriver;
-const nativeWorkspace = nativeDiscovery || Boolean(jsonLdReportToken);
+const nativeWorkspace = nativeDiscovery || Boolean(jsonLdReportToken) || Boolean(dcatReportToken);
 
 function run(command, args) {
     const result = spawnSync(command, args, {
@@ -73,6 +78,7 @@ function dockerPest(args, { coverage = false, workspace = false } = {}) {
         ...(workspace ? ['-e', `PHP_INI_SCAN_DIR=/usr/local/etc/php/conf.d:${pestWorkspace}/storage/framework/testing/php-ini`] : []),
         ...(coverage ? ['-e', 'XDEBUG_MODE=coverage'] : []),
         ...(jsonLdReportToken ? ['-e', `ERNIE_JSONLD_REPORT_TOKEN=${jsonLdReportToken}`] : []),
+        ...(dcatReportToken ? ['-e', `ERNIE_DCAT_REPORT_TOKEN=${dcatReportToken}`] : []),
         'app',
         'php',
         '-d',
@@ -128,7 +134,7 @@ try {
         if (nativeWorkspace) {
             timings.measure('Workspace preparation', () => run('docker', [
                 ...composeArgs, 'exec', '-T', 'app', 'sh', '/var/www/html/scripts/prepare-pest-workspace.sh',
-                ...(jsonLdReportToken ? [pestWorkspace] : []),
+                ...(jsonLdReportToken || dcatReportToken ? [pestWorkspace] : []),
             ]));
         }
         timings.measure('Focused tests', () => dockerPest(

@@ -215,6 +215,18 @@ entity "users" as users {
     updated_at : TIMESTAMP
 }
 
+entity "content_metadata_import_rows" as content_metadata_import_rows {
+    * **id** : UUID <<PK>> //opaque single-use import key//
+    --
+    user_id : BIGINT UNSIGNED <<FK>> <<INDEX>> //nullable; MySQL FK index; cascade on user deletion//
+    * kind : VARCHAR(6) //format or size//
+    * payload : JSON //original imported row//
+    * expires_at : TIMESTAMP <<INDEX>>
+}
+' content_metadata_import_rows indexes: primary(id), MySQL FK index(user_id), index(expires_at).
+' Evidence expires after 24 hours and is consumed in the resource creation transaction.
+' No created_at/updated_at columns.
+
 entity "guided_tours" as guided_tours {
     * **id** : BIGINT <<PK>>
     --
@@ -338,9 +350,22 @@ entity "resource_listing_projections" as resource_listing_projections {
     * search_text : TEXT
     party_search_text : TEXT <<nullable>>
     party_name_search_text : TEXT <<nullable>>
+    * curation_started : BOOLEAN = false
+    * curation_progress : TINYINT = 0 //unsigned//
+    * curation_manual_open : TINYINT = 8 //unsigned//
+    * curation_open : BOOLEAN = false
+    curation_activity_at : TIMESTAMP <<nullable>>
+    curation_published_at : TIMESTAMP <<nullable>>
+    curation_waiting_since : TIMESTAMP <<nullable>>
+    * curation_needs_help : BOOLEAN = false
+    curation_deadline : DATE <<nullable>>
+    curation_contact : TEXT <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
+' resource_listing_projections curation_activity_sort: index(curation_started, workflow_status, curation_activity_at, resource_id)
+' resource_listing_projections curation_deadline_sort: index(curation_started, curation_deadline, resource_id)
+' resource_listing_projections curation_progress_sort: index(curation_started, curation_progress, resource_id)
 
 entity "resource_party_name_terms" as resource_party_name_terms {
     * **id** : BIGINT <<PK>>
@@ -348,6 +373,141 @@ entity "resource_party_name_terms" as resource_party_name_terms {
     * resource_id : BIGINT <<FK>> //indexed, cascade delete//
     * term : TEXT //normalized public party name//
 }
+
+' Derived current contact variants from creators and contact contributors.
+entity "resource_contact_points" as resource_contact_points {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>> //indexed, cascade delete//
+    * identity_key : VARCHAR(64)
+    * variant_key : CHAR(64)
+    orcid : VARCHAR(19) <<nullable>>
+    * display_name : VARCHAR(1000)
+    email : VARCHAR(255) <<nullable>>
+    email_normalized : VARCHAR(255) <<nullable>>
+    * name_sort : VARCHAR(1000)
+}
+' resource_contact_points contact_resource_variant_unique: unique(resource_id, variant_key)
+' resource_contact_points contact_variant_resource_index: index(variant_key, resource_id)
+' resource_contact_points contact_identity_variant_index: index(identity_key, variant_key)
+
+' RESOURCE CURATION WORKFLOW
+
+entity "resource_curation_states" as resource_curation_states {
+    * **resource_id** : BIGINT <<PK, FK>> //unsigned, CASCADE on delete//
+    --
+    started_by : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    * start_source : VARCHAR(30)
+    * started_at : TIMESTAMP
+    * checklist_version : INT = 1 //unsigned//
+    lead_curator_id : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    waiting_for : VARCHAR(20) <<nullable>>
+    waiting_text : TEXT <<nullable>>
+    waiting_since : TIMESTAMP <<nullable>>
+    needs_help_text : TEXT <<nullable>>
+    deadline : DATE <<nullable>>
+    deadline_reason : TEXT <<nullable>>
+    * last_activity_at : TIMESTAMP
+    * revision : BIGINT = 0 //unsigned//
+}
+
+entity "resource_curators" as resource_curators {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * user_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    assigned_by : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    * assigned_at : TIMESTAMP
+}
+' resource_curators unique(resource_id, user_id)
+' resource_curators index(user_id, resource_id)
+
+entity "resource_checklist_items" as resource_checklist_items {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * item_key : VARCHAR(80)
+    * state : VARCHAR(20)
+    reason : TEXT <<nullable>>
+    changed_by : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    changed_by_name : VARCHAR(255) <<nullable>>
+    * changed_at : TIMESTAMP
+    * revision : BIGINT = 0 //unsigned//
+}
+' resource_checklist_items unique(resource_id, item_key)
+
+entity "resource_curation_events" as resource_curation_events {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * type : VARCHAR(60)
+    user_id : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    * actor_name : VARCHAR(255)
+    * payload : JSON
+    body : TEXT <<nullable>>
+    * revision : BIGINT = 0 //unsigned//
+    * created_at : TIMESTAMP
+    edited_at : TIMESTAMP <<nullable>>
+    deleted_at : TIMESTAMP <<nullable>>
+}
+' resource_curation_events curation_event_cursor: index(resource_id, created_at, id)
+' resource_curation_events curation_event_type: index(resource_id, type, id)
+
+entity "resource_review_link_dispatches" as resource_review_link_dispatches {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * operation_id : CHAR(36)
+    * kind : VARCHAR(20)
+    sent_by : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    * queued_at : TIMESTAMP
+    * queued_recipients : INT //unsigned//
+    queued_recipient_keys : JSON <<nullable>>
+    * skipped_recipients : INT = 0 //unsigned//
+}
+' resource_review_link_dispatches curation_dispatch_operation: unique(resource_id, operation_id)
+
+entity "resource_doi_registration_evidence" as resource_doi_registration_evidence {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * doi : VARCHAR(255)
+    * environment : VARCHAR(20)
+    * state : VARCHAR(20)
+    * source : VARCHAR(30)
+    * confirmed_at : TIMESTAMP
+}
+' resource_doi_registration_evidence curation_registration_identity: unique(resource_id, doi, environment)
+
+entity "resource_data_locations" as resource_data_locations {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * resource_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * type : VARCHAR(30)
+    * location : TEXT
+    created_by : BIGINT <<FK>> <<nullable>> //unsigned, SET NULL on delete//
+    * revision : BIGINT = 0 //unsigned//
+    created_at : TIMESTAMP <<nullable>>
+    updated_at : TIMESTAMP <<nullable>>
+}
+
+entity "resource_curation_mentions" as resource_curation_mentions {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * event_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * user_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+}
+' resource_curation_mentions unique(event_id, user_id)
+
+entity "resource_curation_notifications" as resource_curation_notifications {
+    * **id** : BIGINT <<PK>> //unsigned//
+    --
+    * event_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * user_id : BIGINT <<FK>> //unsigned, CASCADE on delete//
+    * type : VARCHAR(30)
+    queued_at : TIMESTAMP <<nullable>>
+}
+' resource_curation_notifications curation_notification_unique: unique(event_id, user_id, type)
 
 ' ==========================================================================
 ' RESOURCE RELATIONSHIP TABLES
@@ -500,6 +660,7 @@ entity "related_identifiers" as related_identifiers {
     * relation_type_id : BIGINT <<FK>>
     relation_type_information : VARCHAR //DataCite 4.7//
     citation_label : MEDIUMTEXT
+    citation_label_parts : JSON <<nullable>>
     source : VARCHAR(100) <<nullable>>
     resource_type_general : VARCHAR(100) <<nullable>>
     related_metadata_scheme : VARCHAR
@@ -813,7 +974,7 @@ entity "landing_page_templates" as landing_page_templates {
     logo_filename : VARCHAR
     * right_column_order : JSON
     * left_column_order : JSON
-    hidden_sections : JSON //IGSN hidden cards; [] for resources//
+    hidden_sections : JSON //Hidden DOI and IGSN modules, including Usage//
     * creator_display_limit : SMALLINT = 50
     * contributor_display_limit : SMALLINT = 50
     * citation_author_display_limit : SMALLINT = 50
@@ -835,7 +996,7 @@ entity "landing_page_template_relation_type_exclusions" as landing_page_template
 entity "landing_pages" as landing_pages {
     * **id** : BIGINT <<PK>>
     --
-    * resource_id : BIGINT <<FK>> <<UK>> //1:1//
+    * resource_id : BIGINT <<FK>> <<UK>> //1:1; cascade delete//
     doi_prefix : VARCHAR
     * slug : VARCHAR
     * template : VARCHAR(50) = 'default_gfz'
@@ -917,6 +1078,103 @@ entity "landing_page_links" as landing_page_links {
     updated_at : TIMESTAMP
 }
 
+' COUNTER usage, collected only after explicit activation.
+entity "usage_list_versions" as usage_list_versions {
+    * **id** : BIGINT <<PK>>
+    --
+    * checksum : CHAR(64) <<UK>>
+    * rules : JSON
+    * sources : JSON
+    * created_at : TIMESTAMP
+}
+
+entity "usage_tracking_state" as usage_tracking_state {
+    * **id** : TINYINT <<PK>> //Singleton, id 1//
+    --
+    started_at : TIMESTAMP(6) //Permanent activation boundary//
+    * paused : BOOLEAN = false
+    paused_at : TIMESTAMP(6)
+    list_version_id : BIGINT <<FK>> //Active classification version//
+    * metrics_revision : BIGINT UNSIGNED = 0
+    last_aggregated_at : TIMESTAMP
+    data_through : DATE
+}
+
+entity "usage_aggregation_days" as usage_aggregation_days {
+    * **day** : DATE <<PK>>
+    --
+    finalized_at : TIMESTAMP
+    * incomplete : BOOLEAN = false
+}
+
+entity "usage_events" as usage_events {
+    * **id** : BIGINT <<PK>>
+    --
+    * landing_page_id : BIGINT <<FK>> //Cascade delete//
+    * event_type : VARCHAR(16) //investigation or request//
+    * access_method : VARCHAR(8) //Regular or Machine//
+    * session_hash : CHAR(64) //Pseudonymous hourly session//
+    * target_hash : CHAR(64)
+    * day : DATE <<INDEX>>
+    * occurred_at_ms : BIGINT UNSIGNED
+    * list_version_id : BIGINT <<FK>>
+}
+' usage_events index(day, landing_page_id, access_method)
+
+entity "usage_search_events" as usage_search_events {
+    * **id** : BIGINT <<PK>>
+    --
+    * portal_scope : VARCHAR(8) //doi or igsn//
+    * normalized_term : TEXT
+    * term_hash : CHAR(64)
+    * access_method : VARCHAR(8) //Regular or Machine//
+    * session_hash : CHAR(64) //Pseudonymous hourly session//
+    * day : DATE <<INDEX>>
+    * occurred_at_ms : BIGINT UNSIGNED
+    * list_version_id : BIGINT <<FK>>
+}
+
+entity "usage_daily_metrics" as usage_daily_metrics {
+    * **id** : BIGINT <<PK>>
+    --
+    * landing_page_id : BIGINT <<FK>> //Cascade delete//
+    * day : DATE <<INDEX>>
+    * access_method : VARCHAR(8) //Regular or Machine//
+    * total_investigations : BIGINT UNSIGNED
+    * unique_investigations : BIGINT UNSIGNED
+    total_requests : BIGINT UNSIGNED //NULL for IGSNs//
+    unique_requests : BIGINT UNSIGNED //NULL for IGSNs//
+}
+' usage_daily_metrics unique(landing_page_id, day, access_method)
+
+entity "usage_monthly_metrics" as usage_monthly_metrics {
+    * **id** : BIGINT <<PK>>
+    --
+    * landing_page_id : BIGINT <<FK>> //Cascade delete//
+    * month : DATE <<INDEX>> //First day of UTC month//
+    * access_method : VARCHAR(8) //Regular or Machine//
+    * total_investigations : BIGINT UNSIGNED
+    * unique_investigations : BIGINT UNSIGNED
+    total_requests : BIGINT UNSIGNED //NULL for IGSNs//
+    unique_requests : BIGINT UNSIGNED //NULL for IGSNs//
+}
+' usage_monthly_metrics unique(landing_page_id, month, access_method)
+
+entity "usage_search_daily_metrics" as usage_search_daily_metrics {
+    * **id** : BIGINT <<PK>>
+    --
+    * day : DATE <<INDEX>>
+    * portal_scope : VARCHAR(8) //doi or igsn//
+    * normalized_term : TEXT
+    * term_hash : CHAR(64)
+    * access_method : VARCHAR(8) //Regular or Machine//
+    * search_count : BIGINT UNSIGNED
+}
+' usage_search_daily_metrics unique(day, portal_scope, term_hash, access_method)
+' Periods, hashes, and search scopes have no FK constraints.
+' List versions are retained; deleting a landing page cascades only its events and resource metrics.
+
+' landing_page_daily_statistics and portal_search_daily_statistics freeze at COUNTER activation.
 entity "landing_page_daily_statistics" as landing_page_daily_statistics {
     * **id** : BIGINT <<PK>>
     --
@@ -958,6 +1216,35 @@ entity "landing_page_domains" as landing_page_domains {
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
+
+' Homepage news: dates are stored in UTC and edited in Europe/Berlin.
+entity "news" as news {
+    * **id** : BIGINT UNSIGNED <<PK>> //auto-increment//
+    --
+    * title : VARCHAR(255)
+    * body_markdown : LONGTEXT //Markdown//
+    * kind : VARCHAR(20) //regular or temporary//
+    starts_at : DATETIME //nullable, UTC//
+    ends_at : DATETIME //nullable, UTC, exclusive end//
+    * is_scheduled : BOOLEAN = false
+    archived_at : DATETIME //nullable, UTC//
+    created_by_user_id : BIGINT UNSIGNED <<FK>> //nullable, ON DELETE SET NULL//
+    updated_by_user_id : BIGINT UNSIGNED <<FK>> //nullable, ON DELETE SET NULL//
+    * revision : INT = 1 //positive//
+    created_at : DATETIME //nullable, UTC//
+    updated_at : DATETIME //nullable, UTC//
+}
+' CHECK news_publication_shape and news_schedule_lookup are detailed below.
+
+entity "homepage_news_state" as homepage_news_state {
+    * **id** : INT <<PK>> //CHECK id = 1, no auto-increment//
+    --
+    * active_news_id : BIGINT UNSIGNED <<FK>> //ON DELETE RESTRICT//
+    * revision : INT = 1 //positive//
+    created_at : DATETIME //nullable, UTC//
+    updated_at : DATETIME //nullable, UTC//
+}
+' CHECK homepage_news_singleton: id = 1 AND revision > 0.
 
 entity "settings" as settings {
     * **id** : BIGINT <<PK>>
@@ -1171,6 +1458,7 @@ entity "igsn_metadata" as igsn_metadata {
     sample_image_mime_type : VARCHAR(100)
     sample_image_size : BIGINT <<unsigned>>
     * upload_status : VARCHAR(50) = 'pending'
+    simulated_registered_at : TIMESTAMP <<nullable>>
     upload_error_message : TEXT
     csv_filename : VARCHAR(255)
     csv_row_number : INT
@@ -1438,6 +1726,7 @@ entity "igsn_registration_runs" as igsn_registration_runs {
     activity_actor : JSON <<nullable>> //initiator identity snapshot//
     * status : VARCHAR(30)
     * test_mode : BOOLEAN
+    * is_simulation : BOOLEAN = false
     * datacite_endpoint : VARCHAR(500)
     datacite_context_fingerprint : VARCHAR(64) <<nullable>>
     * total : INT UNSIGNED
@@ -1452,6 +1741,7 @@ entity "igsn_registration_runs" as igsn_registration_runs {
     paused_at : TIMESTAMP <<nullable>>
     cancelled_at : TIMESTAMP <<nullable>>
     completed_at : TIMESTAMP <<nullable>>
+    preview_confirmed_at : TIMESTAMP <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -1465,6 +1755,8 @@ entity "igsn_registration_items" as igsn_registration_items {
     * status : VARCHAR(30)
     operation : VARCHAR(20) <<nullable>>
     approval_fingerprint : VARCHAR(64) <<nullable>>
+    preview_payload : JSON <<nullable>>
+    preview_confirmed_at : TIMESTAMP <<nullable>>
     * attempts : SMALLINT UNSIGNED
     last_http_status : SMALLINT UNSIGNED <<nullable>>
     error_message : TEXT <<nullable>>
@@ -1488,6 +1780,30 @@ entity oai_pmh_deleted_records {
     updated_at : TIMESTAMP
 }
 
+entity oai_pmh_format_records {
+    * id : BIGINT <<PK>>
+    --
+    * metadata_prefix : VARCHAR(32)
+    * oai_identifier : VARCHAR(700)
+    * doi : VARCHAR(600)
+    resource_id : BIGINT UNSIGNED <<INDEX>>
+    * status : VARCHAR(8)
+    * first_available_at : TIMESTAMP
+    * datestamp : TIMESTAMP <<INDEX>>
+    * sets : JSON
+    resource_type : VARCHAR
+    * is_igsn : BOOLEAN = false
+    * export_revision : INT UNSIGNED
+    fingerprint : CHAR(64)
+}
+note right of oai_pmh_format_records
+    UNIQUE oai_format_identity_unique (metadata_prefix, oai_identifier)
+    INDEX oai_format_harvest_index (metadata_prefix, status, datestamp)
+    status: active or deleted; sets/resource_type retain last eligible values.
+    resource_id is nullable and deliberately has no FK or cascade.
+    History survives Resource deletion; no created_at/updated_at columns.
+end note
+
 entity oai_pmh_harvests {
     * id : BIGINT <<PK>>
     --
@@ -1506,6 +1822,7 @@ entity oai_pmh_harvest_items {
 }
 ' Composite primary key (harvest_id, position) supports indexed page ranges.
 ' Positions are zero-based; identity_id has no FK so resource deletion preserves the inventory.
+' kind: resource, deleted, or format; format identifies oai_pmh_format_records.id.
 
 entity oai_pmh_resumption_tokens {
     * id : BIGINT <<PK>>
@@ -1575,12 +1892,20 @@ entity relation_type_correction_reviews {
 ' RELATIONSHIPS
 ' ==========================================================================
 
+' Homepage news relationships
+news }o--o| users : "created_by_user_id; ON DELETE SET NULL"
+news }o--o| users : "updated_by_user_id; ON DELETE SET NULL"
+news ||--o| homepage_news_state : "active_news_id; ON DELETE RESTRICT"
+
 ' Assistant module relationships
 resources ||--o{ assistant_suggestions
 users ||--o{ assistant_dismissed
 resources |o--o{ relation_type_correction_reviews : "resource_id"
 related_identifiers |o--o{ relation_type_correction_reviews : "related_identifier_id"
 users |o--o{ relation_type_correction_reviews : "actor_id"
+
+' Content metadata import evidence relationships
+users |o--o{ content_metadata_import_rows : "upload evidence; cascade on user deletion"
 
 ' Guided tour relationships
 users ||--o{ guided_tours : "created_by"
@@ -1615,9 +1940,31 @@ users |o--o{ assessment_runs : "last_controlled_by_user_id"
 assessment_runs ||--o{ assessment_run_items
 resources |o--o{ assessment_run_items
 
+' Resource curation relationships
+resources ||--o| resource_curation_states : "resource_id"
+users |o--o{ resource_curation_states : "started_by"
+users |o--o{ resource_curation_states : "lead_curator_id"
+resources ||--o{ resource_curators : "resource_id"
+users ||--o{ resource_curators : "user_id"
+users |o--o{ resource_curators : "assigned_by"
+resources ||--o{ resource_checklist_items : "resource_id"
+users |o--o{ resource_checklist_items : "changed_by"
+resources ||--o{ resource_curation_events : "resource_id"
+users |o--o{ resource_curation_events : "user_id"
+resources ||--o{ resource_review_link_dispatches : "resource_id"
+users |o--o{ resource_review_link_dispatches : "sent_by"
+resources ||--o{ resource_doi_registration_evidence : "resource_id"
+resources ||--o{ resource_data_locations : "resource_id"
+users |o--o{ resource_data_locations : "created_by"
+resource_curation_events ||--o{ resource_curation_mentions : "event_id"
+users ||--o{ resource_curation_mentions : "user_id"
+resource_curation_events ||--o{ resource_curation_notifications : "event_id"
+users ||--o{ resource_curation_notifications : "user_id"
+
 ' Resource core relationships
 resources ||--o| resource_listing_projections
 resources ||--o{ resource_party_name_terms
+resources ||--o{ resource_contact_points
 resources ||--o{ titles
 resources ||--o{ resource_creators
 resources ||--o{ resource_contributors
@@ -1703,6 +2050,12 @@ landing_page_files }o--o| sizes : "content size"
 landing_page_links }o--o| formats : "content format"
 landing_page_links }o--o| sizes : "content size"
 landing_pages ||--o{ landing_page_daily_statistics
+landing_pages ||--o{ usage_events : cascade delete
+landing_pages ||--o{ usage_daily_metrics : cascade delete
+landing_pages ||--o{ usage_monthly_metrics : cascade delete
+usage_tracking_state }o--o| usage_list_versions : active classification
+usage_events }o--|| usage_list_versions : classified with
+usage_search_events }o--|| usage_list_versions : classified with
 landing_pages }o--o| landing_page_templates
 landing_page_templates }o--o| users
 landing_page_template_date_type_exclusions }o--|| landing_page_templates
@@ -1722,6 +2075,7 @@ igsn_measurements }o--|| resources
 igsn_metadata_values }o--|| resources
 
 ' OAI-PMH snapshot relationships
+resources |o..o{ oai_pmh_format_records : "logical resource_id link; no FK; history survives deletion"
 oai_pmh_harvests ||--o{ oai_pmh_harvest_items : "ordered identities; cascade on delete"
 oai_pmh_harvests |o--o{ oai_pmh_resumption_tokens : "shared snapshot; cascade on delete"
 
@@ -1745,3 +2099,11 @@ dismissed_rors }o--o| users
 
 @enduml
 ```
+
+## Homepage news constraints
+
+- `news_publication_shape` (CHECK): regular news have no start or end and cannot be scheduled; temporary news require both dates with `ends_at > starts_at`. All rows require `is_scheduled IN (0, 1)` and `revision > 0`; an archived row cannot remain scheduled.
+- `news_schedule_lookup` is a non-unique index on `(kind, is_scheduled, archived_at, starts_at, ends_at)`.
+- `homepage_news_singleton` (CHECK) requires `id = 1 AND revision > 0`. Together with the primary key, this permits at most one selection row. The data migration initializes that row with a non-null reference to the original announcement.
+- Both nullable user references use `ON DELETE SET NULL`. The required active-news reference uses `ON DELETE RESTRICT`; deleting the selected news is prohibited.
+- The application enforces the selection of non-archived regular news and prevents overlapping scheduled intervals while holding the selection-row lock. These are application rules, not additional database constraints. Display intervals use an inclusive start and exclusive end.

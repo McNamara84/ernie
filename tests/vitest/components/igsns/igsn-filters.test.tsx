@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { type IgsnFilterOptions, IgsnFilters, type IgsnFilterState } from '@/components/igsns/igsn-filters';
 
@@ -67,9 +67,6 @@ describe('IgsnFilters Component', () => {
         isLoading: false,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders search input and filter dropdowns', () => {
         render(<IgsnFilters {...defaultProps} />);

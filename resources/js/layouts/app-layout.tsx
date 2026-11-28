@@ -7,10 +7,11 @@ interface AppLayoutProps {
     children: ReactNode;
     breadcrumbs?: BreadcrumbItem[];
     showFooter?: boolean;
+    transitionKey?: string;
 }
 
-export default ({ children, breadcrumbs, showFooter }: AppLayoutProps) => (
-    <AppLayoutTemplate breadcrumbs={breadcrumbs} showFooter={showFooter}>
+export default ({ children, breadcrumbs, showFooter, transitionKey }: AppLayoutProps) => (
+    <AppLayoutTemplate breadcrumbs={breadcrumbs} showFooter={showFooter} transitionKey={transitionKey}>
         {children}
     </AppLayoutTemplate>
 );

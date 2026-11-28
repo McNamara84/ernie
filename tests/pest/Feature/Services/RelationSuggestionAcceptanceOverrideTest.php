@@ -64,7 +64,7 @@ it('stores an active override instead of the suggested relation type', function 
         ->with(Mockery::on(fn (Resource $candidate): bool => $candidate->is($resource)))
         ->andReturn(DataCiteSyncResult::notRequired());
     $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $citationLabelService->shouldReceive('resolveBestEffort')->once()->andReturnNull();
+    $citationLabelService->shouldReceive('lookupBestEffort')->once()->andReturnNull();
 
     $result = relationAcceptanceService($syncService, $citationLabelService)
         ->acceptRelation($suggestion, $overrideType->id);
@@ -109,7 +109,7 @@ it('defers DataCite synchronization when accepted through a batch input', functi
     $syncService = Mockery::mock(DataCiteSyncService::class);
     $syncService->shouldNotReceive('syncIfRegistered');
     $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $citationLabelService->shouldReceive('resolveBestEffort')->once()->andReturnNull();
+    $citationLabelService->shouldReceive('lookupBestEffort')->once()->andReturnNull();
     $assistant = new RelationSuggestionAssistant(relationAcceptanceService($syncService, $citationLabelService));
 
     $result = $assistant->acceptSuggestion($suggestion->id, ['defer_datacite_sync' => true]);
@@ -150,7 +150,7 @@ it('rejects an inactive override without mutating the suggestion', function (): 
     $syncService = Mockery::mock(DataCiteSyncService::class);
     $syncService->shouldNotReceive('syncIfRegistered');
     $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $citationLabelService->shouldNotReceive('resolveBestEffort');
+    $citationLabelService->shouldNotReceive('lookupBestEffort');
 
     $result = relationAcceptanceService($syncService, $citationLabelService)
         ->acceptRelation($suggestion, $inactiveOverride->id);
@@ -171,7 +171,7 @@ it('still accepts an inactive original type when no override is supplied', funct
     $syncService = Mockery::mock(DataCiteSyncService::class);
     $syncService->shouldReceive('syncIfRegistered')->once()->andReturn(DataCiteSyncResult::notRequired());
     $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $citationLabelService->shouldReceive('resolveBestEffort')->once()->andReturnNull();
+    $citationLabelService->shouldReceive('lookupBestEffort')->once()->andReturnNull();
 
     $result = relationAcceptanceService($syncService, $citationLabelService)->acceptRelation($suggestion);
 
@@ -200,7 +200,7 @@ it('uses the override for duplicate detection and preserves the curated relation
     $syncService = Mockery::mock(DataCiteSyncService::class);
     $syncService->shouldReceive('syncIfRegistered')->once()->andReturn(DataCiteSyncResult::notRequired());
     $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $citationLabelService->shouldNotReceive('resolveBestEffort');
+    $citationLabelService->shouldNotReceive('lookupBestEffort');
 
     $result = relationAcceptanceService($syncService, $citationLabelService)
         ->acceptRelation($suggestion, $overrideType->id);

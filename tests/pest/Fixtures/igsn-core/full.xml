@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ERNIE fixture, not an upstream example. -->
+<igsn:resource xmlns:igsn="urn:FAIR-AIMS:Core:1" xmlns:daci="http://datacite.org/schema/kernel-4">
+  <igsn:identifier igsn:identifierType="DOI">10.60510/test-core</igsn:identifier>
+  <igsn:name igsn:lang="en">Core sample</igsn:name>
+  <igsn:name igsn:titleType="AlternativeTitle">CORE-01</igsn:name>
+  <igsn:agents>
+    <igsn:creator igsn:creatorType="collector">
+      <igsn:creatorName igsn:nameType="Personal">Doe, Jane</igsn:creatorName>
+      <igsn:givenName>Jane</igsn:givenName>
+      <igsn:familyName>Doe</igsn:familyName>
+      <igsn:nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0002-1825-0097</igsn:nameIdentifier>
+      <igsn:affiliation affiliationIdentifier="https://ror.org/04z8jg394" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/">GFZ</igsn:affiliation>
+    </igsn:creator>
+    <igsn:contributor igsn:contributorType="ResearchGroup">
+      <igsn:contributorName igsn:nameType="Organizational">Sample laboratory</igsn:contributorName>
+    </igsn:contributor>
+    <igsn:publisher igsn:publisherIdentifier="https://ror.org/04z8jg394" igsn:publisherIdentifierScheme="ROR" igsn:schemeURI="https://ror.org/">GFZ</igsn:publisher>
+  </igsn:agents>
+  <igsn:entityTypeClassifications>
+    <igsn:resourceType igsn:resourceTypeGeneral="PhysicalObject">Core</igsn:resourceType>
+    <igsn:material igsn:subjectScheme="Example" igsn:schemeURI="https://example.org/materials" igsn:valueURI="https://example.org/materials/rock" igsn:classificationCode="R">Rock</igsn:material>
+    <igsn:alternateMaterial>Basalt</igsn:alternateMaterial>
+    <igsn:description igsn:descriptionType="Abstract" igsn:lang="de">Eine Probe mit ä, &amp; und &lt;.</igsn:description>
+  </igsn:entityTypeClassifications>
+  <igsn:dates>
+    <igsn:date igsn:dateType="Collected" igsn:dateInformation="Month precision">2025-03/2025-04</igsn:date>
+    <igsn:publicationYear>2026</igsn:publicationYear>
+  </igsn:dates>
+  <igsn:archives>
+    <igsn:archive>
+      <igsn:archiveName>Current archive</igsn:archiveName>
+      <igsn:geoLocationPlace>Potsdam</igsn:geoLocationPlace>
+      <igsn:geoLocationPoint igsn:coordinateSystem="WGS84"><daci:pointLongitude>13</daci:pointLongitude><daci:pointLatitude>52</daci:pointLatitude></igsn:geoLocationPoint>
+      <igsn:contactPerson igsn:contributorType="ContactPerson">
+        <igsn:contributorName igsn:nameType="Personal">Example contact</igsn:contributorName>
+        <igsn:email>archive@example.org</igsn:email>
+      </igsn:contactPerson>
+      <igsn:sampleCondition>Available</igsn:sampleCondition>
+    </igsn:archive>
+  </igsn:archives>
+  <igsn:relationshipIdentifiers>
+    <igsn:alternateIdentifier igsn:alternateIdentifierType="URL">https://example.org/sample</igsn:alternateIdentifier>
+    <igsn:parentIdentifier igsn:identifierType="IGSN" igsn:relationType="IsPartOf">PARENT01</igsn:parentIdentifier>
+    <igsn:relatedIdentifier igsn:identifierType="DOI" igsn:relationType="IsDescribedBy">10.5880/article</igsn:relatedIdentifier>
+  </igsn:relationshipIdentifiers>
+  <igsn:geoLocations>
+    <igsn:geoLocationPlace>Sample location</igsn:geoLocationPlace>
+    <igsn:geoLocationPoint igsn:coordinateSystem="WGS84"><daci:pointLongitude>0</daci:pointLongitude><daci:pointLatitude>0</daci:pointLatitude></igsn:geoLocationPoint>
+    <igsn:geoLocationBox igsn:coordinateSystem="WGS84"><daci:westBoundLongitude>-1</daci:westBoundLongitude><daci:eastBoundLongitude>1</daci:eastBoundLongitude><daci:southBoundLatitude>-1</daci:southBoundLatitude><daci:northBoundLatitude>1</daci:northBoundLatitude></igsn:geoLocationBox>
+    <igsn:geoLocationPolygon>
+      <igsn:polygonPoint igsn:coordinateSystem="WGS84"><daci:pointLongitude>0</daci:pointLongitude><daci:pointLatitude>0</daci:pointLatitude></igsn:polygonPoint>
+      <igsn:polygonPoint igsn:coordinateSystem="WGS84"><daci:pointLongitude>1</daci:pointLongitude><daci:pointLatitude>0</daci:pointLatitude></igsn:polygonPoint>
+      <igsn:polygonPoint igsn:coordinateSystem="WGS84"><daci:pointLongitude>0</daci:pointLongitude><daci:pointLatitude>1</daci:pointLatitude></igsn:polygonPoint>
+      <igsn:polygonPoint igsn:coordinateSystem="WGS84"><daci:pointLongitude>0</daci:pointLongitude><daci:pointLatitude>0</daci:pointLatitude></igsn:polygonPoint>
+    </igsn:geoLocationPolygon>
+  </igsn:geoLocations>
+  <igsn:fundingReferences><igsn:fundingReference><igsn:funderName>Example funder</igsn:funderName><igsn:funderIdentifier igsn:funderIdentifierType="ROR" igsn:schemeURI="https://ror.org/">https://ror.org/04z8jg394</igsn:funderIdentifier><igsn:awardNumber igsn:awardURI="https://example.org/award">123</igsn:awardNumber><igsn:awardTitle>Research</igsn:awardTitle></igsn:fundingReference></igsn:fundingReferences>
+  <igsn:language>en</igsn:language>
+</igsn:resource>

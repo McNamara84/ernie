@@ -6,13 +6,12 @@ import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { CitationLabelReviewDialog } from '@/components/citations/citation-label-review-dialog';
 import { CitationManagerModal } from '@/components/citations/CitationManagerModal';
 import { DataCiteUrlUpdateModal, type DataCiteUrlUpdateRun } from '@/components/datacite-url-update-modal';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
 import { type ResourcesActionKey, type ResourcesActionState, ResourcesBulkActionsToolbar } from '@/components/resources/bulk-actions-toolbar';
-import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
-import ImportSingleOldResourceModal from '@/components/resources/modals/ImportSingleOldResourceModal';
 import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
 import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -150,12 +149,12 @@ export function mergeLoadMoreState(
 }
 
 interface ResourcesProps {
+    contactSelection?: import('@/types/contact-persons').ContactSelection | null;
     resources: Resource[];
     pagination: PaginationInfo;
     error?: string;
     sort: ResourceSortState;
     filters?: ResourceFilterState;
-    canImportFromDataCite?: boolean;
     canCreateResource?: boolean;
     canUpdateDataCiteLandingPageUrls?: boolean;
     dataCiteUrlUpdateRun?: DataCiteUrlUpdateRun | null;
@@ -775,12 +774,12 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 function ResourcesPage({
+    contactSelection,
     resources: initialResources,
     pagination: initialPagination,
     error,
     sort: initialSort,
     filters: initialFilters,
-    canImportFromDataCite,
     canCreateResource,
     canUpdateDataCiteLandingPageUrls,
     dataCiteUrlUpdateRun,
@@ -813,11 +812,8 @@ function ResourcesPage({
     const nextCursorRef = useRef(pagination.next_cursor);
     nextCursorRef.current = pagination.next_cursor;
     const serverPropsRef = useRef({ initialResources, initialPagination, initialSort, initialFilters });
-    const [showImportModal, setShowImportModal] = useState(false);
     const [isUploadingXml, setIsUploadingXml] = useState(false);
     const xmlUploadInputRef = useRef<HTMLInputElement>(null);
-    const [showDatacenterImportModal, setShowDatacenterImportModal] = useState(false);
-    const [showSingleImportModal, setShowSingleImportModal] = useState(false);
     const [showDataCiteUrlUpdateModal, setShowDataCiteUrlUpdateModal] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [isBulkRegistering, setIsBulkRegistering] = useState(false);
@@ -1198,11 +1194,6 @@ function ResourcesPage({
         toast.success(`DOI ${doi} successfully registered!`);
     }, []);
 
-    const handleImportSuccess = useCallback(() => {
-        // Refresh the resources list to show imported resources
-        router.reload({ only: ['resources', 'pagination'] });
-    }, []);
-
     const handleXmlUpload = useCallback(async (file: File) => {
         setIsUploadingXml(true);
         try {
@@ -1411,6 +1402,7 @@ function ResourcesPage({
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
+    const [citationReviewIds, setCitationReviewIds] = useState<number[] | null>(null);
     const [citationManagerResourceId, setCitationManagerResourceId] = useState<number | null>(null);
     const [isUpdateMetadataDialogOpen, setIsUpdateMetadataDialogOpen] = useState(false);
     const [reviewLinkEmailKind, setReviewLinkEmailKind] = useState<ReviewLinkEmailKind | null>(null);
@@ -1905,6 +1897,7 @@ function ResourcesPage({
             available: selectedCount === 1,
             reason: selectedCount === 0 ? noSelectionReason : singleRecordReason,
         },
+        'review-citation-labels': { available: selectedCount > 0, reason: noSelectionReason },
         'manage-related-items': {
             available: selectedCount === 1 && !citationVocabulariesLoading,
             reason: selectedCount === 0 ? noSelectionReason : selectedCount > 1 ? singleRecordReason : 'Related item vocabularies are still loading.',
@@ -2008,6 +2001,9 @@ function ResourcesPage({
                         handleSetupLandingPage(singleSelectedResource);
                     }
                     break;
+                case 'review-citation-labels':
+                    setCitationReviewIds(selectedResourceIds);
+                    break;
                 case 'manage-related-items':
                     if (singleSelectedResource) {
                         setCitationManagerResourceId(singleSelectedResource.id);
@@ -2043,6 +2039,7 @@ function ResourcesPage({
             handleOpenDeleteDialog,
             handleRegisterDoi,
             handleSetupLandingPage,
+            selectedResourceIds,
             singleSelectedResource,
         ],
     );
@@ -2419,6 +2416,7 @@ function ResourcesPage({
 
                         {/* Filter Component - Always visible so filters can be adjusted */}
                         <ResourcesFilters
+                            contactSelection={contactSelection}
                             filters={filters}
                             onFilterChange={handleFilterChange}
                             filterOptions={filterOptions}
@@ -2429,7 +2427,7 @@ function ResourcesPage({
                             isLoading={loading}
                         />
 
-                        {/* Bulk action toolbar + Import button (mirrors IGSN pattern) */}
+                        {/* Bulk actions and resource management */}
                         <div className="mt-4 flex flex-wrap items-center gap-2">
                             <ResourcesBulkActionsToolbar
                                 selectedCount={selectedCount}
@@ -2437,7 +2435,7 @@ function ResourcesPage({
                                 onAction={handleResourceAction}
                                 onUnavailableAction={handleUnavailableAction}
                             />
-                            {(canCreateResource || canImportFromDataCite || canUpdateDataCiteLandingPageUrls) && (
+                            {(canCreateResource || canUpdateDataCiteLandingPageUrls) && (
                                 <div className="ml-auto flex flex-wrap items-center gap-2">
                                     {canCreateResource && (
                                         <>
@@ -2477,37 +2475,6 @@ function ResourcesPage({
                                             <DataCiteIcon className="size-4" aria-hidden="true" />
                                             Update DataCite landing-page URLs
                                         </Button>
-                                    )}
-                                    {canImportFromDataCite && (
-                                        <>
-                                            <Button
-                                                variant="outline"
-                                                size="default"
-                                                onClick={() => setShowImportModal(true)}
-                                                className="flex items-center gap-2"
-                                            >
-                                                <DataCiteIcon className="size-4" aria-hidden="true" />
-                                                Import all old Resources
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="default"
-                                                onClick={() => setShowDatacenterImportModal(true)}
-                                                className="flex items-center gap-2"
-                                            >
-                                                <DataCiteIcon className="size-4" aria-hidden="true" />
-                                                Import all Resources from a Datacenter
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="default"
-                                                onClick={() => setShowSingleImportModal(true)}
-                                                className="flex items-center gap-2"
-                                            >
-                                                <DataCiteIcon className="size-4" aria-hidden="true" />
-                                                Import old single Resource
-                                            </Button>
-                                        </>
                                     )}
                                 </div>
                             )}
@@ -2723,24 +2690,6 @@ function ResourcesPage({
                     onSuccess={handleDoiSuccess}
                 />
             )}
-
-            {/* Import from DataCite Modal */}
-            <ImportFromDataCiteModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} onSuccess={handleImportSuccess} />
-
-            {/* Import old resources for one portal datacenter */}
-            <ImportFromDataCiteModal
-                isOpen={showDatacenterImportModal}
-                onClose={() => setShowDatacenterImportModal(false)}
-                onSuccess={handleImportSuccess}
-                mode="datacenter"
-            />
-
-            {/* Import Single Old Resource Modal */}
-            <ImportSingleOldResourceModal
-                isOpen={showSingleImportModal}
-                onClose={() => setShowSingleImportModal(false)}
-                onSuccess={handleImportSuccess}
-            />
 
             <Dialog
                 open={blockedEditorTabs.length > 0}
@@ -2969,6 +2918,7 @@ function ResourcesPage({
                     initialRun={dataCiteUrlUpdateRun}
                 />
             )}
+            {citationReviewIds && <CitationLabelReviewDialog ids={citationReviewIds} onClose={() => setCitationReviewIds(null)} />}
         </AppLayout>
     );
 }

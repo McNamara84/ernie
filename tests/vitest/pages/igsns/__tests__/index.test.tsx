@@ -137,24 +137,6 @@ vi.mock('@/components/igsns/igsn-filters', () => ({
 vi.mock('@/components/landing-pages/modals/SetupIgsnLandingPageModal', () => ({
     default: () => null,
 }));
-vi.mock('@/components/igsns/modals/ImportIgsnsModal', () => ({
-    default: ({ isOpen, mode }: { isOpen: boolean; mode?: 'all' | 'datacenter' }) =>
-        isOpen ? (
-            <div data-testid={mode === 'datacenter' ? 'import-datacenter-igsns-modal' : 'import-all-igsns-modal'}>
-                {mode === 'datacenter' ? 'Import datacenter modal' : 'Import all modal'}
-            </div>
-        ) : null,
-}));
-vi.mock('@/components/igsns/modals/ImportSingleIgsnModal', () => ({
-    default: ({ isOpen, igsnPrefix, onClose, onSuccess }: { isOpen: boolean; igsnPrefix?: string; onClose: () => void; onSuccess?: () => void }) =>
-        isOpen ? (
-            <div data-testid="import-single-igsn-modal" data-prefix={igsnPrefix}>
-                Import single modal
-                <button onClick={onClose}>Close single import modal</button>
-                <button onClick={onSuccess}>Finish single import</button>
-            </div>
-        ) : null,
-}));
 vi.mock('@/components/ui/validation-error-modal', () => ({
     ValidationErrorModal: () => null,
 }));
@@ -283,8 +265,6 @@ const defaultProps = {
     sort: { key: 'updated_at' as const, direction: 'desc' as const },
     canDelete: true,
     canRegister: true,
-    canImport: false,
-    igsnPrefix: '10.60510',
     search: '',
     totalCount: 2,
     filters: { prefix: '', status: '' },
@@ -293,7 +273,6 @@ const defaultProps = {
 
 describe('IgsnsPage', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         mockAxiosGet.mockResolvedValue({ data: { prefixes: [], statuses: [] } });
         localStorage.clear();
         // Mock window.location
@@ -302,6 +281,25 @@ describe('IgsnsPage', () => {
             writable: true,
             value: { href: '', pathname: '/test', search: '' },
         });
+    });
+
+    it('preserves the exact contact filter for counts and subsequent filter navigation', async () => {
+        const contact = 'a'.repeat(64);
+        mockAxiosGet.mockResolvedValue({
+            data: { filter_fingerprint: 'contact-test', filtered_total: 1, inventory_total: 2, last_page: 1, count_status: 'ready' },
+        });
+        render(
+            <IgsnsPage
+                {...defaultProps}
+                filters={{ ...defaultProps.filters, contact }}
+                pagination={createPagination({ count_status: 'pending', filter_fingerprint: 'contact-test' })}
+            />,
+        );
+        await waitFor(() => expect(mockAxiosGet).toHaveBeenCalled());
+        const call = mockAxiosGet.mock.calls.find(([url]) => url === '/igsns/count');
+        expect(call?.[1].params.get('contact')).toBe(contact);
+        fireEvent.click(screen.getByTestId('select-datacenter'));
+        expect(new URL(mockRouterVisit.mock.calls.at(-1)![0], 'https://example.test').searchParams.get('contact')).toBe(contact);
     });
 
     describe('rendering', () => {
@@ -333,16 +331,8 @@ describe('IgsnsPage', () => {
             expect(badges).toHaveLength(2);
         });
 
-        it('shows all three import buttons when canImport is true', () => {
-            render(<IgsnsPage {...defaultProps} canImport={true} />);
-
-            expect(screen.getByRole('button', { name: /import all igsns/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /import single igsn/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /import by datacenter/i })).toBeInTheDocument();
-        });
-
-        it('hides import buttons when canImport is false', () => {
-            render(<IgsnsPage {...defaultProps} canImport={false} />);
+        it('does not offer retired legacy IGSN imports', () => {
+            render(<IgsnsPage {...defaultProps} />);
 
             expect(screen.queryByRole('button', { name: /import all igsns/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import single igsn/i })).not.toBeInTheDocument();
@@ -357,36 +347,6 @@ describe('IgsnsPage', () => {
 
             rerender(<IgsnsPage {...defaultProps} canUpdateDataCiteLandingPageUrls={false} />);
             expect(screen.queryByTestId('igsns-datacite-url-update')).not.toBeInTheDocument();
-        });
-
-        it('opens the single IGSN import modal', async () => {
-            render(<IgsnsPage {...defaultProps} canImport={true} />);
-
-            await userEvent.click(screen.getByRole('button', { name: /import single igsn/i }));
-
-            expect(screen.getByTestId('import-single-igsn-modal')).toBeInTheDocument();
-            expect(screen.getByTestId('import-single-igsn-modal')).toHaveAttribute('data-prefix', '10.60510');
-        });
-
-        it('opens the datacenter IGSN import modal', async () => {
-            render(<IgsnsPage {...defaultProps} canImport={true} />);
-
-            await userEvent.click(screen.getByRole('button', { name: /import by datacenter/i }));
-
-            expect(screen.getByTestId('import-datacenter-igsns-modal')).toBeInTheDocument();
-        });
-
-        it('wires single IGSN import modal close and success callbacks', async () => {
-            render(<IgsnsPage {...defaultProps} canImport={true} />);
-
-            await userEvent.click(screen.getByRole('button', { name: /import single igsn/i }));
-            await userEvent.click(screen.getByRole('button', { name: /finish single import/i }));
-
-            expect(mockRouterReload).toHaveBeenCalledOnce();
-
-            await userEvent.click(screen.getByRole('button', { name: /close single import modal/i }));
-
-            expect(screen.queryByTestId('import-single-igsn-modal')).not.toBeInTheDocument();
         });
 
         it('shows pagination info', () => {
@@ -483,6 +443,17 @@ describe('IgsnsPage', () => {
             expect(screen.getByText(/counting total/i)).toBeInTheDocument();
             await waitFor(() => expect(screen.getByTestId('search-counts')).toHaveTextContent('7 / 9'));
             expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
+        });
+
+        it('refreshes the count after a registration reloads the same filtered page', async () => {
+            const pagination = createPagination({ count_status: 'pending', filter_fingerprint: 'registered' });
+            const filters = { ...defaultProps.filters, status: 'registered' };
+            const result = { filter_fingerprint: 'registered', filtered_total: 1, inventory_total: 5, last_page: 1 };
+            mockAxiosGet.mockResolvedValueOnce({ data: result }).mockResolvedValueOnce({ data: { ...result, filtered_total: 2 } });
+            const { rerender } = render(<IgsnsPage {...defaultProps} filters={filters} pagination={pagination} />);
+            await waitFor(() => expect(screen.getByTestId('search-counts')).toHaveTextContent('1 / 5'));
+            rerender(<IgsnsPage {...defaultProps} filters={filters} pagination={{ ...pagination }} />);
+            await waitFor(() => expect(screen.getByTestId('search-counts')).toHaveTextContent('2 / 5'));
         });
 
         it('reloads the cached count when navigating between pages with the same filters', async () => {
@@ -936,6 +907,21 @@ describe('IgsnsPage', () => {
                 />,
             );
             expect(screen.getByRole('button', { name: /update metadata at datacite/i })).toBeInTheDocument();
+        });
+
+        it('opens the simulation result for a repeated test registration', async () => {
+            mockAxiosPost.mockResolvedValueOnce({
+                data: { mode: 'simulation', run: createRegistrationRun({ is_simulation: true, status: 'completed' }) },
+            });
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[{ ...createIgsn({ has_landing_page: true, upload_status: 'registered' }), registration_operation: 'register' }]}
+                />,
+            );
+            await userEvent.click(screen.getByRole('button', { name: /register at datacite/i }));
+            expect(await screen.findByTestId('igsn-registration-run-modal-mock')).toHaveTextContent('registration-run-1');
+            expect(mockAxiosPost).toHaveBeenCalledWith('/igsns/1/register');
         });
 
         it('calls axios.post and shows success toast on successful registration', async () => {

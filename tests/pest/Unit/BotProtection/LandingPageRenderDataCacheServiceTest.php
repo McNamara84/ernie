@@ -76,7 +76,7 @@ it('ignores legacy render entries and leaves them untouched', function (string $
         ->and($calls)->toBe(1)
         ->and($cache->get($legacyCacheKey))->toBe($legacyPayload)
         ->and($cache->has($versionedCacheKey))->toBeTrue();
-})->with(['landing_pages:render_data', 'landing_pages:render_data:v10', 'landing_pages:render_data:v11', 'landing_pages:render_data:v12', 'landing_pages:render_data:v13']);
+})->with(['landing_pages:render_data', 'landing_pages:render_data:v10', 'landing_pages:render_data:v11', 'landing_pages:render_data:v12', 'landing_pages:render_data:v13', 'landing_pages:render_data:v14']);
 
 it('does not cache draft landing page render data', function (): void {
     $service = new LandingPageRenderDataCacheService;
@@ -142,6 +142,26 @@ it('forgets cached render data through the tagged cache repository', function ()
         ->and($service->forget($landingPage))->toBeTrue()
         ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
 });
+
+it('invalidates both DCAT flag variants when a landing page changes', function (bool $enabledDuringEdit): void {
+    $service = app(LandingPageRenderDataCacheService::class);
+    $landingPage = botProtectionRenderCacheLandingPage();
+    $old = ['template' => 'default_gfz', 'props' => ['download' => 'https://example.org/old.csv']];
+    $new = ['template' => 'default_gfz', 'props' => ['download' => 'https://example.org/new.csv']];
+
+    foreach ([false, true] as $enabled) {
+        config(['dcatap.enabled' => $enabled]);
+        expect($service->remember($landingPage, fn () => $old))->toBe($old);
+    }
+
+    config(['dcatap.enabled' => $enabledDuringEdit]);
+    expect($service->forgetById($landingPage->id))->toBeTrue();
+
+    foreach ([false, true] as $enabled) {
+        config(['dcatap.enabled' => $enabled]);
+        expect($service->remember($landingPage, fn () => $new))->toBe($new);
+    }
+})->with([false, true]);
 
 it('forgets versioned render data by id without deleting a legacy entry', function (): void {
     $service = new LandingPageRenderDataCacheService;

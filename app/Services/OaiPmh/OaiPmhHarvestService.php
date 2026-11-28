@@ -61,7 +61,7 @@ final class OaiPmhHarvestService
             ->update(['expires_at' => now()]);
     }
 
-    /** @return list<array{kind: 'resource'|'deleted', id: int}> */
+    /** @return list<array{kind: 'resource'|'deleted'|'format', id: int}> */
     public function page(OaiPmhHarvest $harvest, int $position, int $pageSize): array
     {
         $rows = DB::table('oai_pmh_harvest_items')
@@ -72,7 +72,7 @@ final class OaiPmhHarvestService
             ->get(['kind', 'identity_id']);
         $items = [];
         foreach ($rows as $row) {
-            /** @var 'resource'|'deleted' $kind */
+            /** @var 'resource'|'deleted'|'format' $kind */
             $kind = $row->kind;
             $items[] = ['kind' => $kind, 'id' => (int) $row->identity_id];
         }

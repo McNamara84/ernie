@@ -7,14 +7,19 @@ use App\Jobs\ProcessIgsnRegistrationRunJob;
 use App\Models\IgsnMetadata;
 use App\Models\IgsnRegistrationRun;
 use App\Models\LandingPage;
+use App\Models\OaiPmhDeletedRecord;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceTombstoneTransition;
+use App\Models\ResourceType;
 use App\Models\User;
 use App\Services\DataCiteRegistrationService;
 use App\Services\IgsnRegistrationExclusionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
@@ -28,7 +33,7 @@ beforeEach(function () {
     URL::forceRootUrl('https://ernie.example');
     URL::forceScheme('https');
     config([
-        'datacite.test_mode' => true,
+        'datacite.test_mode' => false,
         'datacite.test.client_id' => 'test.repo',
         'datacite.test.username' => 'TEST.USER',
         'datacite.test.password' => 'test-password',
@@ -60,7 +65,8 @@ beforeEach(function () {
 function createIgsnWithMetadata(array $resourceOverrides = [], array $metadataOverrides = []): Resource
 {
     $resource = Resource::factory()->create(array_merge([
-        'doi' => '10.83279/IGSN-TEST-001',
+        'doi' => '10.60510/IGSN-TEST-001',
+        'resource_type_id' => ResourceType::firstOrCreate(['slug' => 'physical-object'], ['name' => 'Physical Object', 'is_active' => true])->id,
         'publication_year' => 2024,
     ], $resourceOverrides));
 
@@ -79,6 +85,256 @@ function createIgsnWithMetadata(array $resourceOverrides = [], array $metadataOv
     return $resource->fresh(['igsnMetadata']);
 }
 
+test('a team preview of a draft persists only on dismissal and matches the production request', function (string $identifier, string $doi) {
+    config(['datacite.test_mode' => true, 'datacite.test.username' => null, 'datacite.test.password' => null]);
+    $resource = createIgsnWithMetadata(['doi' => $identifier]);
+    $page = LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => false]);
+    fakeIgsnMemberApi();
+
+    $runId = $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")
+        ->assertOk()->assertJsonPath('mode', 'simulation')->json('run.id');
+    $base = "/igsns/batch-register/{$runId}";
+    $item = $this->getJson("{$base}/items")->assertOk()->assertJsonMissingPath('items.0.preview_payload')->json('items.0.id');
+    $payload = $this->getJson("{$base}/items/{$item}/preview")->assertOk()
+        ->assertJsonPath('payload.data.attributes.doi', $doi)
+        ->assertJsonPath('payload.data.attributes.types.resourceTypeGeneral', 'PhysicalObject')
+        ->assertJsonPath('payload.data.attributes.event', 'publish')
+        ->assertJsonPath('payload.data.attributes.url', url('/datasets/'.$resource->id))->json('payload');
+    expect($resource->fresh()->igsnMetadata->simulated_registered_at)->toBeNull();
+
+    $colleague = User::factory()->curator()->create();
+    $this->actingAs($colleague)->getJson("{$base}/items/{$item}/preview")->assertForbidden();
+    $this->postJson("{$base}/confirm-preview")->assertForbidden();
+    $this->actingAs($this->user)->postJson("{$base}/confirm-preview")->assertOk();
+    $confirmed = $resource->fresh()->igsnMetadata->simulated_registered_at;
+    $this->travel(5)->seconds();
+    $this->postJson("{$base}/confirm-preview")->assertOk();
+    expect($resource->fresh()->igsnMetadata->simulated_registered_at)->toEqual($confirmed)
+        ->and($resource->fresh()->igsnMetadata->upload_status)->toBe('uploaded')
+        ->and($resource->fresh()->doi)->toBe($identifier)->and($resource->fresh()->publication_year)->toBe(2024)
+        ->and($page->fresh()->is_published)->toBeFalse();
+    $this->actingAs($colleague)->get('/igsns?status=registered&sort=upload_status')->assertInertia(fn ($page) => $page
+        ->where('igsns.0.upload_status', 'registered')->where('igsns.0.registration_operation', 'register')
+        ->where('filterOptions.statuses', ['registered']));
+    $this->getJson('/igsns/count?status=registered')->assertOk()->assertJsonPath('filtered_total', 1);
+    Http::assertNothingSent();
+
+    config(['datacite.test_mode' => false]);
+    $this->getJson('/igsns/count?status=registered')->assertOk()->assertJsonPath('filtered_total', 0);
+    $this->get('/igsns')->assertInertia(fn ($page) => $page->where('igsns.0.upload_status', 'uploaded'));
+    $this->postJson("/igsns/{$resource->id}/register")->assertOk()->assertJsonPath('updated', false);
+    Http::assertSent(fn (Request $request) => $request->method() === 'POST' && $request->data() == $payload);
+    expect($resource->fresh()->doi)->toBe($doi)->and($resource->fresh()->igsnMetadata->isRegistered())->toBeTrue();
+})->with([['10.60510/IGSN-TEST-001', '10.60510/IGSN-TEST-001'], ['ICDP1001', '10.60510/icdp1001']]);
+
+test('a changed sample or mode cannot confirm a stale preview', function () {
+    config(['datacite.test_mode' => true]);
+    $resource = createIgsnWithMetadata();
+    LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => false]);
+    Http::fake();
+    $id = $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")->assertOk()->json('run.id');
+    config(['datacite.test_mode' => false]);
+    $this->postJson("/igsns/batch-register/{$id}/confirm-preview")->assertConflict();
+    config(['datacite.test_mode' => true]);
+    $resource->titles()->update(['value' => 'Revised sample']);
+    $this->postJson("/igsns/batch-register/{$id}/confirm-preview")->assertOk()->assertJsonPath('run.failed', 1);
+    expect($resource->fresh()->igsnMetadata->simulated_registered_at)->toBeNull();
+    Http::assertNothingSent();
+});
+
+test('an existing IGSN previews the update with its original publication year and current landing page', function (bool $withdrawn) {
+    config(['datacite.test_mode' => true]);
+    $resource = createIgsnWithMetadata([], ['upload_status' => 'registered']);
+    $page = LandingPage::factory()->published()->create(['resource_id' => $resource->id, 'is_tombstone' => $withdrawn]);
+    $target = $withdrawn ? url('/datasets/'.$resource->id) : $page->public_url;
+    if ($withdrawn) {
+        ResourceTombstoneTransition::create(['resource_id' => $resource->id, 'doi' => $resource->doi, 'revision' => 1,
+            'action' => 'activate', 'test_mode' => false, 'target_state' => 'registered', 'target_url' => $target, 'status' => 'succeeded']);
+    }
+    fakeIgsnMemberApi([$resource->doi => $withdrawn ? 'registered' : 'findable']);
+    $id = $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")->assertOk()->json('run.id');
+    $item = $this->getJson("/igsns/batch-register/{$id}/items")->assertJsonPath('items.0.operation', 'update')->json('items.0.id');
+    $payload = $this->getJson("/igsns/batch-register/{$id}/items/{$item}/preview")
+        ->assertJsonPath('payload.data.id', $resource->doi)->assertJsonPath('payload.data.attributes.publicationYear', '2024')
+        ->assertJsonPath('payload.data.attributes.url', $target)->assertJsonMissingPath('payload.data.attributes.event')->json('payload');
+    Http::assertNothingSent();
+
+    config(['datacite.test_mode' => false]);
+    $this->postJson("/igsns/{$resource->id}/register")->assertOk()->assertJsonPath('updated', true);
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'PUT' && $request->data() == $payload);
+})->with([false, true]);
+
+test('production checks the IGSN repository before choosing a write for a historical badge', function (bool $alreadyRegistered) {
+    $resource = createIgsnWithMetadata(['doi' => 'ICDP1001'], ['upload_status' => IgsnMetadata::STATUS_UNVERIFIED]);
+    $doi = '10.60510/icdp1001';
+    LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $alreadyRegistered]);
+    fakeIgsnMemberApi($alreadyRegistered ? [$doi => 'findable'] : []);
+
+    $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")->assertOk()->assertJsonPath('updated', $alreadyRegistered);
+
+    $writes = Http::recorded(fn (Request $request): bool => in_array($request->method(), ['POST', 'PUT'], true));
+    expect($writes)->toHaveCount(1);
+    $request = $writes->first()[0];
+    expect($request->method())->toBe($alreadyRegistered ? 'PUT' : 'POST')
+        ->and($request['data']['attributes']['publicationYear'])->toBe($alreadyRegistered ? '2024' : (string) now()->year)
+        ->and($resource->fresh()->doi)->toBe($doi)
+        ->and($resource->fresh()->igsnMetadata->isRegistered())->toBeTrue();
+})->with([true, false]);
+
+test('a CSV handle has a routable public target when DataCite receives the request', function (bool $update, bool $legacyPage, bool $published) {
+    $handle = 'ICDP1001';
+    $doi = '10.60510/icdp1001';
+    $resource = createIgsnWithMetadata(['doi' => $handle], ['upload_status' => $update ? 'registered' : 'uploaded']);
+    // Normal setup derives the prefix from the sample. Older pages persisted the bare handle.
+    $page = $resource->landingPage()->create([
+        'template' => 'default_gfz', 'slug' => 'borehole', 'is_published' => $published,
+        ...($legacyPage ? ['doi_prefix' => $handle] : []),
+    ]);
+    $canonical = url('/'.$doi.'/borehole');
+    $stable = url('/datasets/'.$resource->id);
+    $expectedTarget = $update ? $canonical : $stable;
+    $expectedPrefix = $legacyPage ? $handle : $doi;
+    expect($page->doi_prefix)->toBe($expectedPrefix);
+    $headUrls = [];
+    Http::fake(function (Request $request) use ($resource, $handle, $doi, $update, $stable, $canonical, $expectedTarget, &$headUrls) {
+        if ($request->method() === 'HEAD') {
+            // Dispatch both the reachability probe and its redirect through ERNIE's real public router.
+            $headUrls[] = $request->url();
+            $response = $this->head($request->url());
+
+            return Http::response('', $response->status(), $response->headers->all());
+        }
+        if ($request->method() === 'GET') {
+            return $update ? Http::response(dataCiteRecord($doi, 'registered', 'igsn.repo')) : Http::response([], 404);
+        }
+        expect($resource->fresh()->doi)->toBe($handle)
+            ->and($request['data']['attributes']['url'])->toBe($expectedTarget);
+        $redirect = $this->get($stable)->assertRedirect($canonical);
+        $this->get($redirect->headers->get('Location'))->assertOk();
+
+        return Http::response(dataCiteRecord($doi, $update ? 'registered' : 'findable', 'igsn.repo', $request['data']['attributes']));
+    });
+
+    config(['datacite.test_mode' => true]);
+    $runId = $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")->assertOk()->json('run.id');
+    $preview = IgsnRegistrationRun::findOrFail($runId)->items()->sole()->preview_payload;
+    expect($preview['data']['attributes']['url'])->toBe($expectedTarget)
+        ->and($page->fresh()->doi_prefix)->toBe($expectedPrefix)
+        ->and($page->fresh()->is_published)->toBe($published)
+        ->and($resource->fresh()->doi)->toBe($handle);
+    Http::assertNothingSent();
+
+    config(['datacite.test_mode' => false]);
+    Cache::put("landing-page.{$handle}.borehole", true);
+    Cache::put("landing-page.{$doi}.borehole", true);
+    $service = app(DataCiteRegistrationService::class);
+    auth()->logout();
+    $response = $update ? $service->updateMetadata($resource) : $service->registerIgsn($resource);
+    expect($response['data']['id'])->toBe($doi)
+        ->and($headUrls)->toBe($update ? [] : [$stable, $canonical])
+        ->and($resource->fresh()->doi)->toBe($doi)
+        ->and($page->fresh()->doi_prefix)->toBe($doi)
+        ->and($page->fresh()->public_url)->toBe($canonical)
+        ->and(Cache::has("landing-page.{$handle}.borehole"))->toBeFalse()
+        ->and(Cache::has("landing-page.{$doi}.borehole"))->toBeFalse()
+        ->and(OaiPmhDeletedRecord::where('doi', $handle)->exists())->toBeTrue();
+    Http::assertSent(fn (Request $request): bool => $request->method() === ($update ? 'PUT' : 'POST') && $request->data() == $preview);
+    $this->followingRedirects()->get($expectedTarget)->assertOk();
+})->with([
+    'new landing page' => [false, false, false],
+    'legacy draft landing page' => [false, true, false],
+    'legacy published landing page' => [false, true, true],
+    'existing DOI with a new landing page' => [true, false, true],
+    'existing DOI with a legacy page' => [true, true, true],
+]);
+
+test('a concurrent DOI edit survives confirmation of a metadata update for the original CSV handle', function () {
+    $resource = createIgsnWithMetadata(['doi' => 'ICDP1001'], ['upload_status' => 'registered']);
+    $page = LandingPage::factory()->published()->withDoi('ICDP1001')->create(['resource_id' => $resource->id]);
+    $doi = '10.60510/icdp1001';
+    $edited = '10.60510/curator-edit';
+    Http::fake(function (Request $request) use ($resource, $doi, $edited) {
+        if ($request->method() === 'PUT') {
+            $resource->fresh()->update(['doi' => $edited]);
+        }
+
+        return Http::response(dataCiteRecord($doi, 'registered', 'igsn.repo'));
+    });
+
+    expect(fn () => app(DataCiteRegistrationService::class)->updateMetadata($resource))
+        ->toThrow(RuntimeException::class, 'The IGSN changed while DataCite was updating its metadata.');
+    expect($resource->fresh()->doi)->toBe($edited)->and($page->fresh()->doi_prefix)->toBe($edited);
+});
+
+test('a rejected metadata update keeps the CSV handle and its routable landing page for a retry', function () {
+    $resource = createIgsnWithMetadata(['doi' => 'ICDP1001'], ['upload_status' => 'registered']);
+    $page = LandingPage::factory()->published()->withDoi('ICDP1001')->create(['resource_id' => $resource->id]);
+    $doi = '10.60510/icdp1001';
+    Http::fake(fn (Request $request) => $request->method() === 'PUT'
+        ? Http::response([], 422)
+        : Http::response(dataCiteRecord($doi, 'registered', 'igsn.repo')));
+
+    expect(fn () => app(DataCiteRegistrationService::class)->updateMetadata($resource))
+        ->toThrow(RequestException::class);
+    expect($resource->fresh()->doi)->toBe('ICDP1001')->and($page->fresh()->doi_prefix)->toBe($doi)
+        ->and(OaiPmhDeletedRecord::where('doi', 'ICDP1001')->exists())->toBeFalse();
+    $this->followingRedirects()->get('/datasets/'.$resource->id)->assertOk();
+});
+
+test('an already normalized resource repairs a legacy bare landing-page prefix on its next metadata update', function () {
+    $doi = '10.60510/icdp1001';
+    $resource = createIgsnWithMetadata(['doi' => $doi], ['upload_status' => 'registered']);
+    $page = LandingPage::factory()->published()->withDoi('ICDP1001')->create(['resource_id' => $resource->id]);
+    fakeIgsnMemberApi([$doi => 'registered']);
+
+    app(DataCiteRegistrationService::class)->updateMetadata($resource);
+
+    $page->refresh();
+    expect($page->doi_prefix)->toBe($doi);
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'PUT' && $request['data']['attributes']['url'] === $page->public_url);
+    $this->followingRedirects()->get('/datasets/'.$resource->id)->assertOk();
+});
+
+test('an external target changed during verification prevents the stale metadata PUT', function () {
+    $resource = createIgsnWithMetadata(['doi' => 'ICDP1001'], ['upload_status' => 'registered']);
+    $page = LandingPage::factory()->external()->published()->withDoi('ICDP1001')->create(['resource_id' => $resource->id]);
+    Http::fake(function () use ($page) {
+        $page->update(['external_path' => 'corrected-sample']);
+
+        return Http::response(dataCiteRecord('10.60510/icdp1001', 'registered', 'igsn.repo'));
+    });
+
+    expect(fn () => app(DataCiteRegistrationService::class)->updateMetadata($resource))
+        ->toThrow(RuntimeException::class, 'The landing page changed before the metadata update.');
+    Http::assertNotSent(fn (Request $request): bool => $request->method() === 'PUT');
+    expect($page->fresh()->doi_prefix)->toBe('ICDP1001')->and($resource->fresh()->doi)->toBe('ICDP1001');
+});
+
+test('editing an unregistered CSV handle invalidates both canonical landing-page URLs', function () {
+    $resource = createIgsnWithMetadata(['doi' => 'ICDP1001']);
+    $page = $resource->landingPage()->create(['template' => 'default_gfz', 'slug' => 'borehole']);
+    foreach (['10.60510/icdp1001', '10.60510/icdp1002'] as $doi) {
+        Cache::put("landing-page.{$doi}.borehole", true);
+    }
+    $resource->update(['doi' => 'ICDP1002']);
+    expect($page->fresh()->doi_prefix)->toBe('10.60510/icdp1002')
+        ->and(Cache::has('landing-page.10.60510/icdp1001.borehole'))->toBeFalse()
+        ->and(Cache::has('landing-page.10.60510/icdp1002.borehole'))->toBeFalse();
+});
+
+test('a preview uses the configured external URL without contacting the landing page', function () {
+    config(['datacite.test_mode' => true]);
+    $resource = createIgsnWithMetadata();
+    $page = LandingPage::factory()->external()->create(['resource_id' => $resource->id, 'external_path' => 'samples/rock']);
+    Http::fake();
+
+    $id = $this->actingAs($this->user)->postJson("/igsns/{$resource->id}/register")->assertOk()->json('run.id');
+    $item = $this->getJson("/igsns/batch-register/{$id}/items")->json('items.0.id');
+    $this->getJson("/igsns/batch-register/{$id}/items/{$item}/preview")->assertOk()
+        ->assertJsonPath('payload.data.attributes.url', $page->external_url);
+    Http::assertNothingSent();
+});
+
 // ============================================================================
 // Service: registerIgsn()
 // ============================================================================
@@ -93,24 +349,24 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
         $service = app(DataCiteRegistrationService::class);
         $response = $service->registerIgsn($resource);
 
-        expect($response['data']['id'])->toBe('10.83279/IGSN-TEST-001');
+        expect($response['data']['id'])->toBe('10.60510/IGSN-TEST-001');
 
         // Verify the DOI was kept in the payload (not unset like registerDoi)
         // and publicationYear is always set to current year
         Http::assertSent(function ($request) {
             $body = json_decode($request->body(), true);
 
-            return str_contains($request->url(), 'api.test.datacite.org/dois')
+            return str_contains($request->url(), 'api.datacite.org/dois')
                 && $request->method() === 'POST'
                 && isset($body['data']['attributes']['doi'])
-                && $body['data']['attributes']['doi'] === '10.83279/IGSN-TEST-001'
+                && $body['data']['attributes']['doi'] === '10.60510/IGSN-TEST-001'
                 && isset($body['data']['attributes']['publicationYear'])
                 && $body['data']['attributes']['publicationYear'] === (string) date('Y');
         });
     });
 
     test('extracts prefix from IGSN automatically', function () {
-        $resource = createIgsnWithMetadata(['doi' => '10.83186/SAMPLE-XYZ']);
+        $resource = createIgsnWithMetadata(['doi' => '10.60510/SAMPLE-XYZ']);
         LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
         fakeIgsnMemberApi();
@@ -118,13 +374,13 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
         $service = app(DataCiteRegistrationService::class);
         $response = $service->registerIgsn($resource);
 
-        expect($response['data']['id'])->toBe('10.83186/SAMPLE-XYZ');
+        expect($response['data']['id'])->toBe('10.60510/SAMPLE-XYZ');
 
         // Verify the correct prefix was sent
         Http::assertSent(function ($request) {
             $body = json_decode($request->body(), true);
 
-            return $request->method() === 'POST' && str_starts_with($body['data']['attributes']['doi'], '10.83186/');
+            return $request->method() === 'POST' && str_starts_with($body['data']['attributes']['doi'], '10.60510/');
         });
     });
 
@@ -200,7 +456,7 @@ describe('IgsnController@registerAtDataCite', function () {
         $response->assertOk()
             ->assertJson([
                 'success' => true,
-                'doi' => '10.83279/IGSN-TEST-001',
+                'doi' => '10.60510/IGSN-TEST-001',
                 'updated' => false,
             ]);
 
@@ -446,19 +702,9 @@ describe('IgsnController@registerAtDataCite', function () {
         $response = $this->actingAs($beginner)
             ->postJson("/igsns/{$resource->id}/register");
 
-        $response->assertOk()
-            ->assertJson([
-                'success' => true,
-                'doi' => '10.83279/IGSN-TEST-001',
-                'mode' => 'test',
-                'updated' => false,
-            ]);
-
-        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.test.datacite.org/dois')
-            && $request->method() === 'POST');
-
-        $resource->refresh();
-        expect($resource->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
+        $response->assertOk()->assertJsonPath('mode', 'simulation')->assertJsonPath('run.is_simulation', true);
+        Http::assertNothingSent();
+        expect($resource->fresh()->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_UPLOADED);
     });
 });
 
@@ -468,8 +714,8 @@ describe('IgsnController@registerAtDataCite', function () {
 
 describe('BatchIgsnRegistrationController@register', function () {
     test('batch registers multiple IGSNs successfully', function () {
-        $resource1 = createIgsnWithMetadata(['doi' => '10.83279/BATCH-001']);
-        $resource2 = createIgsnWithMetadata(['doi' => '10.83279/BATCH-002']);
+        $resource1 = createIgsnWithMetadata(['doi' => '10.60510/BATCH-001']);
+        $resource2 = createIgsnWithMetadata(['doi' => '10.60510/BATCH-002']);
         LandingPage::factory()->create(['resource_id' => $resource1->id]);
         LandingPage::factory()->create(['resource_id' => $resource2->id]);
 
@@ -489,8 +735,8 @@ describe('BatchIgsnRegistrationController@register', function () {
     });
 
     test('reports failures for IGSNs without landing pages', function () {
-        $resource1 = createIgsnWithMetadata(['doi' => '10.83279/LP-YES']);
-        $resource2 = createIgsnWithMetadata(['doi' => '10.83279/LP-NO']);
+        $resource1 = createIgsnWithMetadata(['doi' => '10.60510/LP-YES']);
+        $resource2 = createIgsnWithMetadata(['doi' => '10.60510/LP-NO']);
         LandingPage::factory()->create(['resource_id' => $resource1->id]);
         // resource2 has no landing page
 
@@ -509,7 +755,7 @@ describe('BatchIgsnRegistrationController@register', function () {
     });
 
     test('sets publicationYear for newly registered IGSNs', function () {
-        $resource = createIgsnWithMetadata(['doi' => '10.83279/YEAR-001', 'publication_year' => 2020]);
+        $resource = createIgsnWithMetadata(['doi' => '10.60510/YEAR-001', 'publication_year' => 2020]);
         LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
 
         fakeIgsnMemberApi();
@@ -525,7 +771,7 @@ describe('BatchIgsnRegistrationController@register', function () {
 
     test('preserves publicationYear for already-registered IGSNs in batch', function () {
         $resource = createIgsnWithMetadata(
-            ['doi' => '10.83279/YEAR-002', 'publication_year' => 2020],
+            ['doi' => '10.60510/YEAR-002', 'publication_year' => 2020],
             ['upload_status' => IgsnMetadata::STATUS_REGISTERED],
         );
         LandingPage::factory()->create(['resource_id' => $resource->id, 'is_published' => $resource->igsnMetadata?->isRegistered() ?? false]);
@@ -549,7 +795,7 @@ describe('BatchIgsnRegistrationController@register', function () {
     });
 
     test('isolates failures from successes in batch', function () {
-        $resource1 = createIgsnWithMetadata(['doi' => '10.83279/OK-001']);
+        $resource1 = createIgsnWithMetadata(['doi' => '10.60510/OK-001']);
         $resource2 = createIgsnWithMetadata(['doi' => '10.99999/BAD-PREFIX']);
         LandingPage::factory()->create(['resource_id' => $resource1->id]);
         LandingPage::factory()->create(['resource_id' => $resource2->id]);
@@ -583,7 +829,7 @@ describe('BatchIgsnRegistrationController@register', function () {
 
         $response->assertAccepted()
             ->assertJsonPath('run.test_mode', true)
-            ->assertJsonPath('run.datacite_endpoint', 'https://api.test.datacite.org');
+            ->assertJsonPath('run.is_simulation', true);
 
         Http::assertNothingSent();
 

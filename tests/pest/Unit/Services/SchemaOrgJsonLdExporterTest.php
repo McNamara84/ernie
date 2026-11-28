@@ -5,8 +5,10 @@ declare(strict_types=1);
 use App\Enums\AccessLevel;
 use App\Models\DateType;
 use App\Models\DescriptionType;
+use App\Models\IdentifierType;
 use App\Models\LandingPage;
 use App\Models\Person;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
@@ -674,6 +676,67 @@ it('never exports caller supplied downloads or repositories for a tombstone', fu
         expect($result['isAccessibleForFree'])->toBeFalse();
     }
 })->with(['dataset', 'software', 'physical-object', 'image', 'report']);
+
+describe('SWHID identifiers', function () {
+    it('preserves the DOI object without eligible SWHIDs and appends distinct identities in stored order', function () {
+        $resource = createSchemaOrgResource();
+        $resource->update(['resource_type_id' => ResourceType::where('slug', 'dataset')->firstOrFail()->id]);
+        $before = $this->exporter->export($resource);
+        $type = IdentifierType::where('slug', 'SWHID')->firstOrFail();
+        $identical = RelationType::where('slug', 'IsIdenticalTo')->firstOrFail();
+        $references = RelationType::where('slug', 'References')->firstOrFail();
+        $release = 'swh:1:rel:f059f67da934b408306be0175c1f076590b68b7f';
+        $file = 'swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b';
+        $create = fn (string $value, int $position, ?int $relation = null) => $resource->relatedIdentifiers()->create([
+            'identifier' => $value, 'identifier_type_id' => $type->id,
+            'relation_type_id' => $relation ?? $identical->id, 'position' => $position,
+        ]);
+        $create($release, 0, $references->id);
+        $create(substr($release, 0, -1), 1);
+        expect($this->exporter->export($resource->fresh()))->toBe($before);
+
+        $qualified = $file.';origin=https://example.org/r?a=1&b=2#readme;path=/A%20B.c;lines=9-15';
+        $create($qualified, 3);
+        $create('https://archive.softwareheritage.org/'.$release.'/', 2);
+        $create($release, 4);
+        $create($file.';lines=9-15;path=/A%20B.c;origin=https://example.org/r?a=1&b=2#readme', 5);
+        $create($file.';lines=16', 6);
+        $result = $this->exporter->export($resource->fresh());
+        expect($result['identifier'])->toHaveCount(4)
+            ->and($result['identifier'][0])->toBe($before['identifier'])
+            ->and(array_column(array_slice($result['identifier'], 1), 'value'))->toBe([$release, $qualified, $file.';lines=16']);
+        $expectedUrls = [
+            $release => 'https://archive.softwareheritage.org/'.$release,
+            $qualified => 'https://archive.softwareheritage.org/'.$file.';origin=https://example.org/r%3Fa=1%26b=2%23readme;path=/A%2520B.c;lines=9-15',
+            $file.';lines=16' => 'https://archive.softwareheritage.org/'.$file.';lines=16',
+        ];
+        foreach (array_slice($result['identifier'], 1) as $identifier) {
+            expect($identifier)->toBe([
+                '@id' => $expectedUrls[$identifier['value']],
+                '@type' => 'PropertyValue', 'propertyID' => 'https://registry.identifiers.org/registry/swh',
+                'value' => $identifier['value'], 'url' => $expectedUrls[$identifier['value']],
+            ])->and(parse_url($identifier['url']))->not->toHaveKeys(['query', 'fragment'])
+                ->and(rawurldecode(substr(parse_url($identifier['url'], PHP_URL_PATH), 1)))->toBe($identifier['value']);
+        }
+        unset($result['identifier'], $before['identifier']);
+        expect($result)->toBe($before);
+    });
+
+    it('uses a single SWHID object without a DOI and skips every non-identical relation', function () {
+        $resource = createSchemaOrgResource(null);
+        $type = IdentifierType::where('slug', 'SWHID')->firstOrFail();
+        $core = 'swh:1:dir:d198bc9d7a6bcf6db04f476d29314f157507d505';
+        foreach (RelationType::where('slug', '!=', 'IsIdenticalTo')->get() as $relation) {
+            $resource->relatedIdentifiers()->create(['identifier' => $core, 'identifier_type_id' => $type->id, 'relation_type_id' => $relation->id, 'position' => 0]);
+        }
+        expect($this->exporter->export($resource->fresh()))->not->toHaveKey('identifier');
+        $resource->relatedIdentifiers()->create([
+            'identifier' => strtoupper($core), 'identifier_type_id' => $type->id,
+            'relation_type_id' => RelationType::where('slug', 'IsIdenticalTo')->firstOrFail()->id, 'position' => 1,
+        ]);
+        expect($this->exporter->export($resource->fresh())['identifier']['value'])->toBe($core);
+    });
+});
 
 function createSchemaOrgResource(?string $doi = '10.5880/test.2025.001'): Resource
 {

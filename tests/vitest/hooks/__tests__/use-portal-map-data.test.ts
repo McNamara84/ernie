@@ -1,4 +1,5 @@
 import { waitFor } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { describe, expect, it } from 'vitest';
 
 import { usePortalMapData } from '@/hooks/use-portal-map-data';
@@ -127,3 +128,5 @@ describe('usePortalMapData', () => {
         expect(url.searchParams.getAll('geological_units[]')).toEqual(['Unit A']);
     });
 });
+
+installCsrfFixture();

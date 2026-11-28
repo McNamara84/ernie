@@ -4,7 +4,7 @@
 
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import FreeKeywordsCsvImport from '@/components/curation/fields/free-keywords-csv-import';
 
@@ -18,9 +18,6 @@ describe('FreeKeywordsCsvImport Component', () => {
         existingKeywords: [],
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     afterEach(() => {
         cleanup();

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ResourcesFilters } from '@/components/resources-filters';
 
@@ -27,9 +27,6 @@ vi.mock('@/components/ui/select', () => ({
 describe('ResourcesFilters Component', () => {
     const mockOnFilterChange = vi.fn();
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     // Note: We use real timers with setTimeout instead of vi.useFakeTimers() because:
     // 1. userEvent.type() internally uses timers that conflict with fake timers

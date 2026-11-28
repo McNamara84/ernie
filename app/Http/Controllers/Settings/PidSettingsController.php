@@ -55,7 +55,13 @@ class PidSettingsController extends Controller
                 ], 400);
             }
 
-            $comparison = $statusService->compareWithRemote($setting);
+            if ($statusService instanceof Pid4instStatusService) {
+                $comparison = $statusService->compareWithRemote($setting);
+                $sourceDetails = ['comparisonBasis' => 'count', 'sources' => $comparison['sources']];
+            } else {
+                $comparison = $statusService->compareWithRemote($setting);
+                $sourceDetails = [];
+            }
 
             return response()->json([
                 'type' => $type,
@@ -64,6 +70,7 @@ class PidSettingsController extends Controller
                 'remoteCount' => $comparison['remoteCount'],
                 'updateAvailable' => $comparison['updateAvailable'],
                 'lastUpdated' => $comparison['lastUpdated'],
+                ...$sourceDetails,
             ]);
         } catch (\RuntimeException $e) {
             return response()->json([

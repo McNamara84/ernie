@@ -105,6 +105,20 @@ jobs:
         if: ${{ matrix.slice == 'serial' }}
         run: npm run test:jsonld
 
+      - name: Validate DCAT-AP RDF with Jena and SHACL offline
+        id: dcat_validation
+        if: ${{ matrix.slice == 'serial' }}
+        run: npm run test:dcat-ap
+
+      - name: Upload SHACL failure report
+        if: ${{ failure() && matrix.slice == 'serial' && steps.dcat_validation.outputs.shacl_failure == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dcat-ap-shacl-report
+          path: storage/logs/dcat-ap/validation.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Verify migrations and seeders
         if: ${{ matrix.slice == 'serial' }}
         run: |

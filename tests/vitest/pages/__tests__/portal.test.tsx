@@ -6,9 +6,10 @@ import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Portal from '@/pages/portal';
-import type { PortalBasemapConfig, PortalPageProps } from '@/types/portal';
+import type { PortalBasemapConfig, PortalPageProps, PortalPagination } from '@/types/portal';
 
-const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
+const routerMock = vi.hoisted(() => ({ get: vi.fn(), on: vi.fn((_event: string, _callback: () => void) => vi.fn()) }));
+const usePageMock = vi.hoisted(() => vi.fn());
 const axiosGetMock = vi.hoisted(() => vi.fn());
 const isDesktopMock = vi.hoisted(() => vi.fn(() => true));
 const headTitleMock = vi.hoisted(() => vi.fn());
@@ -19,11 +20,11 @@ vi.mock('@inertiajs/react', () => ({
         return null;
     },
     router: routerMock,
+    usePage: usePageMock,
 }));
 
 vi.mock('axios', () => ({
     default: { get: axiosGetMock },
-    isAxiosError: (error: unknown) => Boolean(error && typeof error === 'object' && 'isAxiosError' in error),
 }));
 
 vi.mock('@/hooks/use-media-query', () => ({
@@ -47,7 +48,7 @@ const setGeologicalAgesMock = vi.fn();
 const setGeologicalUnitsMock = vi.fn();
 const clearFiltersMock = vi.fn();
 const setBoundsMock = vi.fn();
-const clearBoundsMock = vi.fn();
+const setMapFilterEnabledMock = vi.fn();
 const setTemporalMock = vi.fn();
 const useNavigationStatusMock = vi.fn();
 
@@ -68,7 +69,7 @@ vi.mock('@/hooks/use-portal-filters', () => ({
         setGeologicalAges: setGeologicalAgesMock,
         setGeologicalUnits: setGeologicalUnitsMock,
         setBounds: setBoundsMock,
-        clearBounds: clearBoundsMock,
+        setMapFilterEnabled: setMapFilterEnabledMock,
         setTemporal: setTemporalMock,
         clearFilters: clearFiltersMock,
         hasActiveFilters: false,
@@ -190,6 +191,8 @@ vi.mock('@/components/portal/PortalMap', () => ({
         onViewportChange,
         onLocationCountChange,
         geoFilterEnabled,
+        viewRevision,
+        viewportSearch,
     }: {
         filters: { query: string | null };
         maxZoom: number;
@@ -197,8 +200,10 @@ vi.mock('@/components/portal/PortalMap', () => ({
         onViewportChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
         onLocationCountChange?: (count: number) => void;
         geoFilterEnabled?: boolean;
+        viewRevision: number;
+        viewportSearch: string | null;
     }) => (
-        <div data-testid="portal-map">
+        <div data-testid="portal-map" data-view-revision={viewRevision} data-viewport-search={viewportSearch}>
             <span data-testid="map-filter-query">{filters.query ?? ''}</span>
             <span data-testid="map-max-zoom">{maxZoom}</span>
             <span data-testid="map-basemap">{`${basemap.provider}:${basemap.styleUrl}:${basemap.language}`}</span>
@@ -226,7 +231,7 @@ vi.mock('@/components/portal/PortalResultList', () => ({
         onRetryCount,
     }: {
         resources: unknown[];
-        pagination: { current_page: number; last_page: number | null; total: number | null; count_status: string };
+        pagination: PortalPagination;
         onPageChange: (page: number) => void;
         isLoading?: boolean;
         onRetryCount?: () => void;
@@ -234,6 +239,8 @@ vi.mock('@/components/portal/PortalResultList', () => ({
         <div data-testid="portal-result-list">
             <span data-testid="result-count">{(resources as unknown[]).length}</span>
             <span data-testid="current-page">{pagination.current_page}</span>
+            <span data-testid="page-range">{`${pagination.from}-${pagination.to}`}</span>
+            <span data-testid="last-page">{pagination.last_page}</span>
             <span data-testid="result-loading">{String(isLoading ?? false)}</span>
             <span data-testid="total-results">{pagination.total}</span>
             <span data-testid="count-status">{pagination.count_status}</span>
@@ -343,10 +350,28 @@ const defaultProps: PortalPageProps = {
     datacenterFacets: [],
 };
 
+const pendingPagination: PortalPagination = {
+    ...defaultProps.pagination,
+    filter_fingerprint: 'current-filter',
+    per_page: 20,
+    to: 20,
+    total: null,
+    last_page: null,
+    count_status: 'pending',
+};
+const secondPage = { ...pendingPagination, current_page: 2, from: 21, to: 40 };
+const countResponse = { data: { filter_fingerprint: 'current-filter', total: 45, last_page: 3, count_status: 'ready' } };
+
+function resultPage(pagination: PortalPagination) {
+    const props = { ...defaultProps, pagination };
+    usePageMock.mockReturnValue({ props });
+    return <Portal {...props} />;
+}
+
 describe('Portal', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         axiosGetMock.mockReset();
+        usePageMock.mockReturnValue({ props: defaultProps });
         headTitleMock.mockReset();
         localStorage.clear();
         window.history.replaceState(null, '', '/doi-search');
@@ -415,23 +440,169 @@ describe('Portal', () => {
             },
         });
 
-        render(
-            <Portal
-                {...defaultProps}
-                pagination={{
-                    ...defaultProps.pagination,
-                    total: null,
-                    last_page: null,
-                    count_status: 'pending',
-                    filter_fingerprint: 'current-filter',
-                }}
-            />,
-        );
+        render(<Portal {...defaultProps} pagination={pendingPagination} />);
 
         expect(screen.getAllByTestId('result-count')[0]).toHaveTextContent('2');
         expect(screen.getByText('Counting results...')).toBeInTheDocument();
         await waitFor(() => expect(screen.getByTestId('total-results')).toHaveTextContent('7'));
         expect(screen.getByText('7 results')).toBeInTheDocument();
+    });
+
+    it('keeps the resolved count when Inertia supplies the next result page with the same filters', async () => {
+        axiosGetMock.mockResolvedValue(countResponse);
+        const { rerender } = render(resultPage(pendingPagination));
+        await screen.findByText('45 results');
+
+        rerender(resultPage(secondPage));
+
+        expect(screen.getByTestId('current-page')).toHaveTextContent('2');
+        expect(screen.getByTestId('page-range')).toHaveTextContent('21-40');
+        expect(screen.getByTestId('last-page')).toHaveTextContent('3');
+        expect(screen.getByText('45 results')).toBeInTheDocument();
+        expect(axiosGetMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('revalidates an expired count on the next result page and shares the in-flight refresh across pages', async () => {
+        const countedAt = Date.now();
+        using clock = vi.spyOn(Date, 'now').mockReturnValue(countedAt);
+        const refresh = Promise.withResolvers<typeof countResponse>();
+        axiosGetMock.mockResolvedValueOnce(countResponse).mockReturnValueOnce(refresh.promise);
+        const { rerender } = render(resultPage(pendingPagination));
+        await screen.findByText('45 results');
+
+        clock.mockReturnValue(countedAt + 29_999);
+        rerender(resultPage(pendingPagination));
+        expect(axiosGetMock).toHaveBeenCalledTimes(1);
+
+        clock.mockReturnValue(countedAt + 30_000);
+        // A local render still has the same Inertia response.
+        rerender(<Portal {...defaultProps} pagination={pendingPagination} />);
+        expect(axiosGetMock).toHaveBeenCalledTimes(1);
+        rerender(resultPage(secondPage));
+        expect(axiosGetMock).toHaveBeenCalledTimes(2);
+        expect(screen.getByTestId('page-range')).toHaveTextContent('21-40');
+        expect(screen.getByText('45 results')).toBeInTheDocument();
+        expect(screen.getByTestId('last-page')).toHaveTextContent('3');
+
+        rerender(resultPage(pendingPagination));
+        expect(axiosGetMock).toHaveBeenCalledTimes(2);
+        expect(axiosGetMock.mock.calls[1][1].signal.aborted).toBe(false);
+        refresh.resolve({ data: { ...countResponse.data, total: 65, last_page: 4 } });
+        await screen.findByText('65 results');
+        expect(screen.getByTestId('last-page')).toHaveTextContent('4');
+        expect(screen.getByTestId('current-page')).toHaveTextContent('1');
+
+        clock.mockReturnValue(countedAt + 45_000);
+        rerender(resultPage(secondPage));
+        expect(screen.getByText('65 results')).toBeInTheDocument();
+        expect(axiosGetMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the cached count after a failed refresh and retries on an identical search response', async () => {
+        const countedAt = Date.now();
+        using clock = vi.spyOn(Date, 'now').mockReturnValue(countedAt);
+        axiosGetMock
+            .mockResolvedValueOnce(countResponse)
+            .mockRejectedValueOnce(new Error('count unavailable'))
+            .mockResolvedValueOnce({ data: { ...countResponse.data, total: 25, last_page: 2 } });
+        const { rerender } = render(resultPage(pendingPagination));
+        await screen.findByText('45 results');
+
+        clock.mockReturnValue(countedAt + 30_000);
+        await act(async () => rerender(resultPage(pendingPagination)));
+        expect(axiosGetMock).toHaveBeenCalledTimes(2);
+        expect(screen.getByText('45 results')).toBeInTheDocument();
+        expect(screen.getByTestId('last-page')).toHaveTextContent('3');
+        expect(screen.getByTestId('count-status')).toHaveTextContent('ready');
+
+        rerender(resultPage(pendingPagination));
+        await screen.findByText('25 results');
+        expect(screen.getByTestId('last-page')).toHaveTextContent('2');
+        expect(axiosGetMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('uses the supplied page range without requesting a count when the fingerprint is missing', () => {
+        render(<Portal {...defaultProps} pagination={{ ...secondPage, filter_fingerprint: '' }} />);
+
+        expect(screen.getByTestId('page-range')).toHaveTextContent('21-40');
+        expect(screen.getByTestId('total-results')).toBeEmptyDOMElement();
+        expect(axiosGetMock).not.toHaveBeenCalled();
+    });
+
+    it('finishes a slow count on the currently displayed page without restarting it', async () => {
+        const request = Promise.withResolvers<typeof countResponse>();
+        axiosGetMock.mockReturnValue(request.promise);
+        const { rerender } = render(<Portal {...defaultProps} pagination={pendingPagination} />);
+
+        rerender(<Portal {...defaultProps} filters={{ ...defaultProps.filters }} pagination={secondPage} />);
+        expect(screen.getByTestId('page-range')).toHaveTextContent('21-40');
+        expect(screen.getByText('Counting results...')).toBeInTheDocument();
+        expect(axiosGetMock.mock.calls[0][1].signal.aborted).toBe(false);
+
+        request.resolve(countResponse);
+        await screen.findByText('45 results');
+        expect(screen.getByTestId('current-page')).toHaveTextContent('2');
+        expect(screen.getByTestId('last-page')).toHaveTextContent('3');
+        expect(axiosGetMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses a server-provided count on subsequent pages and discards an older outstanding count', async () => {
+        const request = Promise.withResolvers<typeof countResponse>();
+        axiosGetMock.mockReturnValueOnce(request.promise);
+        const { rerender } = render(<Portal {...defaultProps} pagination={pendingPagination} />);
+        const signal: AbortSignal = axiosGetMock.mock.calls[0][1].signal;
+
+        rerender(<Portal {...defaultProps} pagination={{ ...secondPage, count_status: 'ready', total: 78, last_page: 4 }} />);
+        expect(screen.getByText('78 results')).toBeInTheDocument();
+        expect(signal.aborted).toBe(true);
+        await act(async () => request.resolve(countResponse));
+
+        rerender(<Portal {...defaultProps} pagination={pendingPagination} />);
+        expect(screen.getByText('78 results')).toBeInTheDocument();
+        expect(screen.getByTestId('last-page')).toHaveTextContent('4');
+        expect(screen.getByTestId('current-page')).toHaveTextContent('1');
+        expect(axiosGetMock).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        { change: 'filters', pagination: { ...pendingPagination, filter_fingerprint: 'new-filter' }, portal: defaultProps.portal },
+        { change: 'page size', pagination: { ...pendingPagination, per_page: 10 }, portal: defaultProps.portal },
+        {
+            change: 'portal',
+            pagination: pendingPagination,
+            portal: { kind: 'igsn', title: 'IGSN Portal', basePath: '/igsn-search', showResourceTypeFilter: false } as const,
+        },
+    ])('cancels the old request and ignores its late response after a change of $change', async ({ pagination, portal }) => {
+        const oldRequest = Promise.withResolvers<typeof countResponse>();
+        const newRequest = Promise.withResolvers<typeof countResponse>();
+        axiosGetMock.mockReturnValueOnce(oldRequest.promise).mockReturnValueOnce(newRequest.promise);
+        const { rerender } = render(<Portal {...defaultProps} pagination={pendingPagination} />);
+        const signal: AbortSignal = axiosGetMock.mock.calls[0][1].signal;
+
+        rerender(<Portal {...defaultProps} portal={portal} pagination={pagination} />);
+        expect(signal.aborted).toBe(true);
+        expect(axiosGetMock).toHaveBeenLastCalledWith(`${portal.basePath}/count`, expect.objectContaining({ signal: expect.anything() }));
+        newRequest.resolve({ data: { ...countResponse.data, filter_fingerprint: pagination.filter_fingerprint, total: 7, last_page: 1 } });
+        await screen.findByText('7 results');
+
+        await act(async () => oldRequest.resolve(countResponse));
+        expect(screen.getByText('7 results')).toBeInTheDocument();
+        expect(screen.getByTestId('last-page')).toHaveTextContent('1');
+        expect(axiosGetMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('clears a resolved count as soon as the active search changes', async () => {
+        const newRequest = Promise.withResolvers<typeof countResponse>();
+        axiosGetMock.mockResolvedValueOnce(countResponse).mockReturnValueOnce(newRequest.promise);
+        const { rerender } = render(<Portal {...defaultProps} pagination={pendingPagination} />);
+        await screen.findByText('45 results');
+
+        rerender(<Portal {...defaultProps} pagination={{ ...pendingPagination, filter_fingerprint: 'empty-search' }} />);
+        expect(screen.getByTestId('last-page')).toBeEmptyDOMElement();
+        expect(screen.getByTestId('total-results')).toBeEmptyDOMElement();
+        newRequest.resolve({ data: { ...countResponse.data, filter_fingerprint: 'empty-search', total: 0, last_page: 1 } });
+        await screen.findByText('0 results');
+        expect(screen.getByTestId('last-page')).toHaveTextContent('1');
     });
 
     it('ignores a portal count response from a stale filter', async () => {
@@ -444,18 +615,7 @@ describe('Portal', () => {
             },
         });
 
-        render(
-            <Portal
-                {...defaultProps}
-                pagination={{
-                    ...defaultProps.pagination,
-                    total: null,
-                    last_page: null,
-                    count_status: 'pending',
-                    filter_fingerprint: 'current-filter',
-                }}
-            />,
-        );
+        render(<Portal {...defaultProps} pagination={pendingPagination} />);
 
         await waitFor(() => expect(axiosGetMock).toHaveBeenCalled());
         expect(screen.getByText('Counting results...')).toBeInTheDocument();
@@ -485,13 +645,7 @@ describe('Portal', () => {
                     query: ' climate ',
                     bounds: { north: 53.123456789, south: 50.987654321, east: 15.000000009, west: 11.000000001 },
                 }}
-                pagination={{
-                    ...defaultProps.pagination,
-                    total: null,
-                    last_page: null,
-                    count_status: 'pending',
-                    filter_fingerprint: 'current-filter',
-                }}
+                pagination={pendingPagination}
             />,
         );
 
@@ -504,25 +658,20 @@ describe('Portal', () => {
         expect(countUrl.searchParams.has('page')).toBe(false);
     });
 
-    it('keeps portal results visible and offers a retry after a count failure', async () => {
-        axiosGetMock.mockRejectedValueOnce(new Error('count failed'));
+    it('retries a failed count on a directly opened second page', async () => {
+        window.history.replaceState(null, '', '/doi-search?q=climate&page=2');
+        axiosGetMock.mockRejectedValueOnce(new Error('count failed')).mockResolvedValueOnce(countResponse);
+        render(<Portal {...defaultProps} pagination={secondPage} filters={{ ...defaultProps.filters, query: 'climate' }} />);
 
-        render(
-            <Portal
-                {...defaultProps}
-                pagination={{
-                    ...defaultProps.pagination,
-                    total: null,
-                    last_page: null,
-                    count_status: 'pending',
-                    filter_fingerprint: 'current-filter',
-                }}
-            />,
-        );
-
-        expect(await screen.findByRole('button', { name: /retry count/i })).toBeInTheDocument();
+        const retry = await screen.findByRole('button', { name: /retry count/i });
         expect(screen.getAllByTestId('result-count')[0]).toHaveTextContent('2');
         expect(screen.getByTestId('count-status')).toHaveTextContent('failed');
+        await userEvent.setup().click(retry);
+        await screen.findByText('45 results');
+        expect(screen.getByTestId('current-page')).toHaveTextContent('2');
+        expect(screen.getByTestId('page-range')).toHaveTextContent('21-40');
+        expect(screen.getByTestId('last-page')).toHaveTextContent('3');
+        expect(axiosGetMock.mock.calls.map(([url]) => url)).toEqual(['/doi-search/count?q=climate', '/doi-search/count?q=climate']);
     });
 
     it('shows refresh feedback when portal navigation is pending', () => {
@@ -733,9 +882,10 @@ describe('Portal', () => {
     });
 
     describe('Geo Filter Integration', () => {
-        it('passes geoFilterEnabled to PortalFilters', () => {
+        it('starts worldwide in the sidebar and map', () => {
             render(<Portal {...defaultProps} />);
-            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
+            expect(screen.getByTestId('map-geo-enabled')).toHaveTextContent('true');
         });
 
         it('initializes geoFilterEnabled from URL bounds', () => {
@@ -762,16 +912,17 @@ describe('Portal', () => {
             expect(screen.getByText('Spatial filter')).toBeInTheDocument();
         });
 
-        it('does not show spatial filter badge when enabled but no bounds applied', async () => {
-            const user = userEvent.setup();
+        it('does not mark the worldwide default as a regional filter', () => {
             render(<Portal {...defaultProps} />);
-
-            // Enable geo filter (no bounds yet)
-            await user.click(screen.getByTestId('geo-toggle'));
-            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
-
-            // Badge should NOT be shown since bounds are null
             expect(screen.queryByText('Spatial filter')).not.toBeInTheDocument();
+        });
+
+        it('restores the opt-out from an older history entry and preserves it on pagination', async () => {
+            usePageMock.mockReturnValue({ url: '/doi-search?map_filter=0#results', props: defaultProps });
+            render(<Portal {...defaultProps} />);
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
+            await userEvent.setup().click(screen.getAllByTestId('next-page')[0]);
+            expect(routerMock.get.mock.calls[0][0]).toBe('/doi-search?map_filter=0');
         });
 
         it('renders geo toggle button in filter panel', () => {
@@ -812,15 +963,11 @@ describe('Portal', () => {
 
         it('calls handleGeoFilterToggle when geo toggle is clicked (enable)', async () => {
             const user = userEvent.setup();
-            render(<Portal {...defaultProps} />);
-
-            // Initially geo filter is disabled
+            const view = render(<Portal {...defaultProps} filters={{ ...defaultProps.filters, mapFilterEnabled: false }} />);
             expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
-
-            // Click the geo toggle to enable
             await user.click(screen.getByTestId('geo-toggle'));
-
-            // After toggling, geo filter should be enabled
+            expect(setMapFilterEnabledMock).toHaveBeenCalledWith(true);
+            view.rerender(<Portal {...defaultProps} />);
             expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
         });
 
@@ -833,17 +980,12 @@ describe('Portal', () => {
                     bounds: { north: 53, south: 51, east: 14, west: 12 },
                 },
             };
-            render(<Portal {...propsWithBounds} />);
-
-            // Initially geo filter is enabled (has bounds)
+            const view = render(<Portal {...propsWithBounds} />);
             expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
-
-            // Click the geo toggle to disable
             await user.click(screen.getByTestId('geo-toggle'));
-
-            // After toggling, geo filter should be disabled and clearBounds called
+            expect(setMapFilterEnabledMock).toHaveBeenCalledWith(false);
+            view.rerender(<Portal {...defaultProps} filters={{ ...defaultProps.filters, mapFilterEnabled: false }} />);
             expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
-            expect(clearBoundsMock).toHaveBeenCalled();
         });
 
         it('calls handleBoundsChange when apply bounds is clicked', async () => {
@@ -874,9 +1016,8 @@ describe('Portal', () => {
             // Click clear all filters
             await user.click(screen.getByTestId('clear-filters'));
 
-            // clearFilters should have been called and geo filter disabled
             expect(clearFiltersMock).toHaveBeenCalled();
-            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
         });
 
         it('calls handleViewportChange via PortalMap callback with debounce', () => {
@@ -979,8 +1120,65 @@ describe('Portal', () => {
             // Click the clear bounds button
             await user.click(screen.getByTestId('clear-bounds'));
 
-            // clearBounds should have been called
-            expect(clearBoundsMock).toHaveBeenCalled();
+            expect(setBoundsMock).toHaveBeenCalledWith(null);
+        });
+
+        it.each(['geo-toggle', 'clear-filters', 'popstate', 'navigation', 'unmount'])('cancels a pending pan on %s', (action) => {
+            vi.useFakeTimers();
+            try {
+                const view = render(<Portal {...defaultProps} />);
+                fireEvent.click(screen.getByTestId('trigger-viewport-change'));
+                if (action === 'popstate') {
+                    fireEvent.popState(window);
+                    expect(screen.getByTestId('portal-map')).toHaveAttribute('data-view-revision', '1');
+                } else if (action === 'navigation') act(() => routerMock.on.mock.lastCall![1]());
+                else if (action === 'unmount') view.unmount();
+                else fireEvent.click(screen.getByTestId(action));
+                act(() => vi.advanceTimersByTime(500));
+                expect(setBoundsMock).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('refits the last completed search when going back while a pan request is in flight', () => {
+            vi.useFakeTimers();
+            try {
+                const filters = { ...defaultProps.filters, bounds: { north: 53, south: 51, east: 14, west: 12 } };
+                const view = render(<Portal {...defaultProps} filters={filters} />);
+                const map = screen.getByTestId('portal-map');
+                fireEvent.click(screen.getByTestId('trigger-viewport-change'));
+                act(() => vi.advanceTimersByTime(500));
+                expect(setBoundsMock).toHaveBeenCalledWith({ north: 54, south: 50, east: 15, west: 11 });
+
+                useNavigationStatusMock.mockReturnValue({ isNavigating: true });
+                view.rerender(<Portal {...defaultProps} filters={filters} />);
+                expect(map).toHaveAttribute('data-viewport-search');
+                expect(map).toHaveAttribute('data-view-revision', '0');
+
+                fireEvent.popState(window);
+                expect(map).toHaveAttribute('data-view-revision', '1');
+                expect(map).not.toHaveAttribute('data-viewport-search');
+                expect(setBoundsMock).toHaveBeenCalledTimes(1);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('skips list navigation for an unchanged viewport or a disabled filter', () => {
+            vi.useFakeTimers();
+            try {
+                const bounds = { north: 54, south: 50, east: 15, west: 11 };
+                const view = render(<Portal {...defaultProps} filters={{ ...defaultProps.filters, bounds }} />);
+                fireEvent.click(screen.getByTestId('trigger-viewport-change'));
+                act(() => vi.advanceTimersByTime(500));
+                view.rerender(<Portal {...defaultProps} filters={{ ...defaultProps.filters, mapFilterEnabled: false }} />);
+                fireEvent.click(screen.getByTestId('trigger-viewport-change'));
+                act(() => vi.advanceTimersByTime(500));
+                expect(setBoundsMock).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it('preserves keywords params on page change', async () => {

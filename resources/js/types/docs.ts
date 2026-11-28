@@ -76,10 +76,10 @@ export interface DocsCapabilities {
     deleteResources: boolean;
     deletePublishedResources: boolean;
     manageLandingPages: boolean;
-    importFromDataCite: boolean;
     updateDataCiteUrls: boolean;
     manageUsers: boolean;
     accessEditorSettings: boolean;
+    manageNews?: boolean;
 }
 
 /**

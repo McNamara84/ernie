@@ -10,6 +10,7 @@ use App\Models\Resource;
 use App\Models\Right;
 use App\Models\Title;
 use App\Services\Creators\ResourceCreatorNameResolverService;
+use App\Services\Curation\CurationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -84,6 +85,10 @@ final class ResourceListItemResource extends JsonResource
                 : null;
             // @phpstan-ignore nullsafe.neverNull (updatedBy is nullable in the database)
             $curator = $resource->updatedBy?->name ?? $resource->createdBy?->name;
+            if (app(CurationService::class)->available() && ! $resource->isIgsn() && $resource->igsnMetadata === null) {
+                $leadId = $resource->curationState?->lead_curator_id;
+                $curator = $leadId === null ? $curator : ($resource->curators->firstWhere('id', $leadId)->name ?? $curator);
+            }
             $publicStatus = $resource->publicStatus();
             $resourceTypeName = $resource->resourceType?->name;
             $resourceTypeSlug = $resource->resourceType?->slug;

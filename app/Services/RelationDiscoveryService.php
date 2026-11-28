@@ -14,6 +14,8 @@ use App\Models\SuggestedRelation;
 use App\Models\User;
 use App\Services\Citations\CitationLookupService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\Citations\RelatedWorkCitation;
+use App\Services\Citations\RelatedWorkCitationFormatter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -353,7 +355,8 @@ class RelationDiscoveryService
                 'identifier' => $suggestion->identifier,
                 'identifier_type_id' => $suggestion->identifier_type_id,
                 'relation_type_id' => $effectiveRelationTypeId,
-                'citation_label' => $citationLabel,
+                'citation_label' => $citationLabel?->text,
+                'citation_label_parts' => $citationLabel?->parts,
                 'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
                 'position' => $maxPosition + 1,
             ]);
@@ -401,19 +404,21 @@ class RelationDiscoveryService
         ];
     }
 
-    private function resolveAcceptedSuggestionCitationLabel(SuggestedRelation $suggestion): ?string
+    private function resolveAcceptedSuggestionCitationLabel(SuggestedRelation $suggestion): ?RelatedWorkCitation
     {
-        $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->resolveBestEffort(
+        $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->lookupBestEffort(
             $suggestion->identifier,
             (string) ($suggestion->identifierType->slug ?? ''),
             microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS,
         );
 
-        if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {
-            return trim($resolvedCitationLabel);
+        if ($resolvedCitationLabel !== null || RelatedWorkCitationFormatter::paperType((string) $suggestion->source_type) !== null) {
+            return $resolvedCitationLabel;
         }
 
-        return $this->buildCitationLabelFromSuggestionMetadata($suggestion);
+        $text = $this->buildCitationLabelFromSuggestionMetadata($suggestion);
+
+        return $text === null ? null : new RelatedWorkCitation($text);
     }
 
     private function buildCitationLabelFromSuggestionMetadata(SuggestedRelation $suggestion): ?string

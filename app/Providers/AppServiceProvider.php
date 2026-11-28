@@ -7,19 +7,19 @@ namespace App\Providers;
 use App\Enums\UserRole;
 use App\Jobs\CreateDatabaseDumpJob;
 use App\Jobs\DiscoverRelationsJob;
-use App\Jobs\ImportFromDataCiteJob;
-use App\Jobs\ImportIgsnsFromDataCiteJob;
 use App\Jobs\UpdatePidJob;
 use App\Jobs\UpdateThesaurusJob;
 use App\Listeners\MarkContactMessageAsSent;
 use App\Models\Affiliation;
 use App\Models\AlternateIdentifier;
+use App\Models\ContributorType;
 use App\Models\Datacenter;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Format;
 use App\Models\GeoLocation;
+use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
@@ -31,14 +31,18 @@ use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Models\LandingPageTemplate;
+use App\Models\Language;
 use App\Models\Person;
+use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceContributor;
 use App\Models\ResourceContributorTypePivot;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\ResourceInstrument;
 use App\Models\ResourceRight;
 use App\Models\ResourceRightPivot;
 use App\Models\ResourceType;
@@ -51,6 +55,8 @@ use App\Models\User;
 use App\Observers\AssistanceDatacenterOptionsObserver;
 use App\Observers\DashboardMetricsObserver;
 use App\Observers\DatacenterLandingPageTemplateAssignmentObserver;
+use App\Observers\DcatApMetadataObserver;
+use App\Observers\DcatApSharedMetadataObserver;
 use App\Observers\FormatObserver;
 use App\Observers\IgsnMetadataObserver;
 use App\Observers\LandingPageFileObserver;
@@ -66,6 +72,7 @@ use App\Observers\ResourceTypeObserver;
 use App\Observers\SizeObserver;
 use App\Observers\SubjectObserver;
 use App\Services\Assistance\AssistanceDatacenterOptionsCacheInvalidationService;
+use App\Services\B2inst\B2instClient;
 use App\Services\BotProtection\BotClassifierService;
 use App\Services\DashboardMetricsCacheInvalidationService;
 use App\Services\DatabaseDumps\DatabaseDumpProcessRunner;
@@ -74,6 +81,9 @@ use App\Services\DatabaseDumps\LaravelDatabaseServerInfoProvider;
 use App\Services\DatabaseDumps\SymfonyDatabaseDumpProcessRunner;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
+use App\Services\DcatAp\DcatApRecordService;
+use App\Services\DcatAp\DcatApVocabularyMapper;
+use App\Services\DcatAp\EposDcatApConceptLookupService;
 use App\Services\InteractiveApiRequestContextService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\PortalCacheVersionService;
@@ -101,6 +111,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Share the synchronization deadline across registry and Handle requests.
+        $this->app->scoped(B2instClient::class);
         // Bind DataCiteServiceInterface to the real implementation
         // This binding is overridden by TestingServiceProvider in testing environment
         $this->app->bind(DataCiteServiceInterface::class, DataCiteRegistrationService::class);
@@ -115,6 +127,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ResourceFilterOptionsCacheInvalidationService::class);
         $this->app->scoped(InteractiveApiRequestContextService::class);
         $this->app->singleton(ResourceListingProjectorService::class);
+        $this->app->singleton(DcatApVocabularyMapper::class);
+        $this->app->singleton(DcatApRecordService::class);
+        $this->app->scoped(EposDcatApConceptLookupService::class);
         $this->app->singleton(ResourceListingProjectionRefreshService::class);
         $this->app->singleton(DatabaseDumpProcessRunner::class, SymfonyDatabaseDumpProcessRunner::class);
         $this->app->singleton(DatabaseServerInfoProvider::class, LaravelDatabaseServerInfoProvider::class);
@@ -126,6 +141,20 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureIso19115XmlCatalog();
+
+        foreach ([Publisher::class, ResourceType::class, Language::class, Right::class,
+            TitleType::class, DescriptionType::class, DateType::class, ContributorType::class,
+            RelationType::class, IdentifierType::class, LandingPageDomain::class,
+            Person::class, Institution::class] as $model) {
+            $model::observe(DcatApSharedMetadataObserver::class);
+        }
+
+        foreach ([Resource::class, LandingPage::class, Title::class, Description::class, ResourceCreator::class,
+            ResourceContributor::class, ResourceContributorTypePivot::class, ResourceDate::class, ResourceRight::class,
+            ResourceRightPivot::class, ResourceInstrument::class, IgsnMetadata::class, Format::class, Size::class, LandingPageFile::class,
+            LandingPageLink::class, Subject::class, GeoLocation::class, AlternateIdentifier::class, RelatedIdentifier::class] as $model) {
+            $model::observe(DcatApMetadataObserver::class);
+        }
 
         // Register model observers
         Resource::observe(ResourceObserver::class);
@@ -141,6 +170,7 @@ class AppServiceProvider extends ServiceProvider
         ResourceContributor::observe(PortalResourceDependencyObserver::class);
         ResourceContributor::observe(AssistanceDatacenterOptionsObserver::class);
         ResourceContributorTypePivot::observe(PortalResourceDependencyObserver::class);
+        ResourceContributorTypePivot::observe(ResourceListingProjectionObserver::class);
         ResourceDate::observe(ResourceListingProjectionObserver::class);
         ResourceDate::observe(PortalResourceDependencyObserver::class);
         ResourceRight::observe(ResourceListingProjectionObserver::class);
@@ -192,10 +222,7 @@ class AppServiceProvider extends ServiceProvider
         // Define authorization gates
         $this->defineGates();
 
-        // Route jobs to dedicated queues to prevent long-running imports
-        // from blocking shorter vocabulary/PID update tasks
-        Queue::route(ImportFromDataCiteJob::class, queue: 'imports');
-        Queue::route(ImportIgsnsFromDataCiteJob::class, queue: 'imports');
+        // Route independent background workflows to their dedicated queues
         Queue::route(UpdatePidJob::class, queue: 'vocabularies');
         Queue::route(UpdateThesaurusJob::class, queue: 'vocabularies');
         Queue::route(CreateDatabaseDumpJob::class, queue: 'database-dumps');
@@ -233,6 +260,13 @@ class AppServiceProvider extends ServiceProvider
      */
     private function configureRateLimiting(): void
     {
+        RateLimiter::for('identifier-validation', function (Request $request) {
+            // Keep API keys out of cache keys; isolate callers and this endpoint.
+            $key = $request->header('X-API-Key') ?: $request->bearerToken() ?: '';
+
+            return Limit::perMinute(60)->by(hash('sha256', $key).'|'.$request->ip());
+        });
+
         // Rate limiter for ORCID API endpoints
         // Allows 30 requests per minute per IP address
         RateLimiter::for('orcid-api', function (Request $request) {
@@ -248,6 +282,10 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(60)->by((string) $identifier);
         });
+
+        // Each preview page can resolve up to 16 related DOIs.
+        RateLimiter::for('citation-label-preview', fn (Request $request): Limit => Limit::perMinute(6)
+            ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
         // Limit external review invitations independently for each user.
         RateLimiter::for('resource-review-links', function (Request $request) {
@@ -325,6 +363,14 @@ class AppServiceProvider extends ServiceProvider
      */
     private function defineGates(): void
     {
+        Gate::define('manage-news', fn (User $user): bool => $user->is_active && in_array($user->role, [
+            UserRole::ADMIN, UserRole::GROUP_LEADER,
+        ], true));
+
+        Gate::define('access-contact-persons', fn (User $user): bool => in_array($user->role, [
+            UserRole::ADMIN, UserRole::GROUP_LEADER, UserRole::CURATOR,
+        ], true));
+
         // Access to Logs page (Admin only)
         Gate::define('access-logs', function (User $user): bool {
             return $user->role === UserRole::ADMIN;

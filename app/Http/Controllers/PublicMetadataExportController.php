@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DcatApFormat;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
+use App\Services\DcatAp\DcatApReadinessService;
+use App\Services\Igsn\Export\IgsnCoreMetadataException;
+use App\Services\Igsn\Export\IgsnCoreXmlExporter;
+use App\Services\Igsn\Export\IgsnCoreXmlValidator;
+use App\Services\Iso19115\Iso19115JsonExporter;
+use App\Services\Iso19115\Iso19115JsonValidator;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\Iso19115\Iso19115XmlExporter;
 use App\Services\Iso19115\Iso19115XmlValidator;
@@ -21,6 +28,63 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class PublicMetadataExportController extends Controller
 {
+    public function dcatAp(string $doiPrefix, string $slug, DcatApReadinessService $readiness): Response
+    {
+        return $this->dcatDownload($doiPrefix, $slug, $readiness, DcatApFormat::Eu);
+    }
+
+    public function eposDcatAp(string $doiPrefix, string $slug, DcatApReadinessService $readiness): Response
+    {
+        return $this->dcatDownload($doiPrefix, $slug, $readiness, DcatApFormat::Epos);
+    }
+
+    private function dcatDownload(string $doiPrefix, string $slug, DcatApReadinessService $readiness, DcatApFormat $format): Response
+    {
+        [$resource] = $this->resolvePublishedResource($doiPrefix, $slug);
+        abort_unless($readiness->available($resource, $format), Response::HTTP_NOT_FOUND, 'Metadata representation not found');
+
+        return $this->xmlDownload($format->exporter()->export($resource), $slug.'-'.$format->slug().'.rdf', 'application/rdf+xml');
+    }
+
+    public function igsnCore(string $doiPrefix, string $slug, IgsnCoreXmlExporter $exporter, IgsnCoreXmlValidator $validator): Response
+    {
+        [$resource] = $this->resolvePublishedResource($doiPrefix, $slug);
+        abort_unless($resource->isIgsn(), Response::HTTP_NOT_FOUND, 'Metadata representation not found');
+
+        try {
+            $result = $exporter->export($resource);
+            $validation = $validator->validate($result->xml);
+        } catch (IgsnCoreMetadataException $exception) {
+            return response()->json([
+                'code' => 'igsn_core_metadata_incomplete',
+                'message' => 'This sample cannot be exported as IGSN Core yet. Required metadata is missing or unsupported.',
+                'fields' => $exception->fields,
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Throwable $exception) {
+            Log::error('IGSN Core export failed', ['resource_id' => $resource->id, 'exception_type' => $exception::class]);
+
+            return $this->igsnCoreFailure();
+        }
+        if (! $validation->isValid()) {
+            Log::error('IGSN Core XML failed local validation', ['resource_id' => $resource->id, 'error_count' => count($validation->errors), 'revision' => config('igsn_core.revision')]);
+
+            return $this->igsnCoreFailure();
+        }
+        if ($result->omissions !== []) {
+            Log::notice('IGSN Core export omitted unsupported optional metadata', ['resource_id' => $resource->id, 'codes' => $result->omissions]);
+        }
+
+        return $this->xmlDownload($result->xml, "{$slug}-igsn-core-2.0.xml");
+    }
+
+    private function igsnCoreFailure(): JsonResponse
+    {
+        return response()->json([
+            'code' => 'igsn_core_export_failed',
+            'message' => 'A valid IGSN Core metadata file could not be generated. Please try again later.',
+        ], Response::HTTP_INTERNAL_SERVER_ERROR);
+    }
+
     public function dataCiteXml(string $doiPrefix, string $slug): Response
     {
         [$resource] = $this->resolvePublishedResource($doiPrefix, $slug);
@@ -84,6 +148,41 @@ class PublicMetadataExportController extends Controller
         }
 
         return response($xml, Response::HTTP_OK, $headers);
+    }
+
+    public function iso19115Json(
+        string $doiPrefix,
+        string $slug,
+        Iso19115ResourceProfileService $profile,
+        Iso19115JsonExporter $exporter,
+        Iso19115JsonValidator $validator,
+    ): JsonResponse {
+        [$resource] = $this->resolvePublishedResource($doiPrefix, $slug);
+        abort_unless($profile->supportsJson($resource), Response::HTTP_NOT_FOUND, 'Metadata representation not found');
+
+        try {
+            $json = $exporter->export($resource);
+            $validation = $validator->validate($json);
+        } catch (\Throwable $exception) {
+            Log::error('Failed to generate ISO 19115-4 JSON', [
+                'resource_id' => $resource->id,
+                'exception_type' => $exception::class,
+            ]);
+            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Failed to generate a valid metadata representation');
+        }
+
+        if (! $validation->isValid()) {
+            Log::error('Generated ISO 19115-4 JSON failed local validation', [
+                'resource_id' => $resource->id,
+                'errors' => $validation->errors,
+            ]);
+            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Failed to generate a valid metadata representation');
+        }
+
+        return response()->json($json, Response::HTTP_OK, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Content-Disposition' => $this->attachment("{$slug}-iso-19115-4.json"),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
 
     /**

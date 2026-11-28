@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\DataCiteVerificationException;
-use App\Exceptions\JsonValidationException;
 use App\Models\Resource;
 use App\Models\ResourceDoiPublication;
+use App\Support\IgsnIdentifier;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -45,39 +45,17 @@ class ResourceDoiPublicationService
                 return $this->execute($current, $pending);
             }
             app(EmbargoService::class)->normalizeResource($current);
-            app(EmbargoService::class)->assertCanRegister($current);
-            if (! $current->isComplete()) {
-                throw new DataCiteVerificationException('metadata_incomplete', 'Complete the required resource metadata before publication.');
-            }
             $doi = trim((string) $current->doi);
-            if ($doi !== '' && Resource::whereRaw('LOWER(doi) = ?', [strtolower($doi)])->count() !== 1) {
-                throw new DataCiteVerificationException('ambiguous_local_doi', 'This DOI is assigned to more than one local resource. Resolve the duplicate before publication.');
-            }
             $prefix = $doi !== '' ? explode('/', $doi, 2)[0] : trim((string) $prefix);
             $allowed = $igsn && ! $this->client->isTestMode() ? [$this->client->igsnPrefix()] : $this->client->prefixes();
-            if (! in_array(strtolower($prefix), $allowed, true)
-                || ($doi !== '' && ! preg_match('/^10\.\d{4,}(?:\.\d+)*\/\S+$/', $doi))) {
-                throw new DataCiteVerificationException('invalid_doi_prefix', 'The DOI or prefix is not permitted in this DataCite environment.');
-            }
-            $repository = $this->client->repositoryClientId($doi !== '' ? $doi : $prefix);
-            $target = $this->targets->target($current);
-            $attributes = $this->attributes($current);
+            $payload = app(DataCitePayloadService::class)->publication($current, $prefix, $allowed, $igsn);
             if ($igsn) {
-                $attributes['publicationYear'] = (string) now(config('app.timezone'))->year;
+                $doi = (string) $payload['data']['attributes']['doi'];
+                $prefix = explode('/', $doi, 2)[0];
             }
-            try {
-                app(JsonSchemaValidator::class)->validate($attributes, strictMode: $doi !== '');
-            } catch (JsonValidationException $exception) {
-                throw new DataCiteVerificationException('metadata_invalid', implode(' ', $exception->getErrorMessages()));
-            }
+            $target = (string) $payload['data']['attributes']['url'];
+            $repository = $this->client->repositoryClientId($doi !== '' ? $doi : $prefix);
             $evidence = $doi !== '' ? $this->verifier->verify($this->client, $doi) : null;
-            $payload = ['data' => ['type' => 'dois', 'attributes' => [
-                ...$attributes, 'url' => $target, 'event' => 'publish',
-            ]]];
-            if ($doi === '') {
-                unset($payload['data']['attributes']['doi']);
-                $payload['data']['attributes']['prefix'] = $prefix;
-            }
             $pending = DB::transaction(function () use ($current, $prefix, $doi, $repository, $target, $payload, $evidence, $actorId, $igsn): ResourceDoiPublication {
                 Resource::whereKey($current->id)->lockForUpdate()->firstOrFail();
 
@@ -111,8 +89,13 @@ class ResourceDoiPublicationService
                 $current = Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
                 $this->assertCurrent($current, $publication);
                 $page = $current->landingPage()->lockForUpdate()->firstOrFail();
+                if ($publication->operation === 'igsn_publication' && $publication->doi !== null) {
+                    $page->useRegistrationDoi((string) $current->doi, $publication->doi);
+                }
                 if (! $page->is_published) {
                     $page->publish();
+                } elseif ($page->isDirty('doi_prefix')) {
+                    $page->save();
                 }
                 $publication->update(['status' => 'landing_page_published', 'last_error' => null]);
             });
@@ -213,7 +196,10 @@ class ResourceDoiPublicationService
     {
         DB::transaction(function () use ($resource, $publication): void {
             $current = Resource::whereKey($resource->id)->lockForUpdate()->firstOrFail();
-            if ($current->doi && strcasecmp($current->doi, (string) $publication->doi) !== 0) {
+            $localDoi = $publication->operation === 'igsn_publication'
+                ? IgsnIdentifier::forRegistration((string) $current->doi, $publication->prefix)
+                : $current->doi;
+            if ($localDoi && strcasecmp($localDoi, (string) $publication->doi) !== 0) {
                 throw new \RuntimeException('The resource DOI changed. Publication needs manual reconciliation.');
             }
             if ($current->landingPage?->is_published !== true || $current->landingPage->is_tombstone) {
@@ -230,7 +216,17 @@ class ResourceDoiPublicationService
             $publication->update(['status' => 'succeeded', 'completed_at' => now(), 'last_error' => null, 'last_error_code' => null]);
         });
 
-        return ['data' => ['id' => $publication->doi], 'publication' => $publication->summary(), 'complete' => true];
+        // Completion is reached only after authenticated findable-state verification.
+        // Preserve that evidence for curation consumers of the registration response.
+        return [
+            'data' => [
+                'id' => $publication->doi,
+                'type' => 'dois',
+                'attributes' => ['doi' => $publication->doi, 'state' => 'findable', 'url' => $publication->target_url],
+            ],
+            'publication' => $publication->summary(),
+            'complete' => true,
+        ];
     }
 
     private function assertCurrent(Resource $resource, ResourceDoiPublication $publication): void

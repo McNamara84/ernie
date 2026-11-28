@@ -12,8 +12,8 @@ use Illuminate\Support\Carbon;
 /**
  * A file entry associated with a landing page.
  *
- * Stores download URLs imported from the legacy metaworks database
- * during DataCite import. Each landing page can have multiple files.
+ * Includes download URLs retained from the completed legacy migration.
+ * Each landing page can have multiple files.
  *
  * @property int $id
  * @property int $landing_page_id

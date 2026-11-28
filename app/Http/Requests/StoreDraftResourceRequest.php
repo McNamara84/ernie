@@ -7,6 +7,7 @@ namespace App\Http\Requests;
 use App\Enums\AccessLevel;
 use App\Enums\EditorDraftSaveIntent;
 use App\Http\Requests\Concerns\AuthorizesResourceDoiChanges;
+use App\Http\Requests\Concerns\ValidatesContentMetadata;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Http\Requests\Concerns\ValidatesRelatedItems;
 use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
@@ -37,6 +38,7 @@ use Illuminate\Validation\Validator;
 class StoreDraftResourceRequest extends FormRequest
 {
     use AuthorizesResourceDoiChanges;
+    use ValidatesContentMetadata;
     use ValidatesEditorDates;
     use ValidatesRelatedItems;
     use ValidatesTemporalCoverages;
@@ -64,6 +66,7 @@ class StoreDraftResourceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            ...$this->contentMetadataRules(),
             'intent' => ['required', Rule::enum(EditorDraftSaveIntent::class)],
             'resourceId' => ['nullable', 'integer', Rule::exists('resources', 'id')],
             'doi' => [
@@ -149,7 +152,7 @@ class StoreDraftResourceRequest extends FormRequest
                 Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
-            'dates.*.startDate' => ['nullable', new EditorDate(allowFuture: true)],
+            'dates.*.startDate' => ['nullable', app(EditorDate::class)],
             'dates.*.endDate' => ['nullable', app(EditorDate::class)],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
             'freeKeywords' => ['nullable', 'array'],
@@ -206,6 +209,8 @@ class StoreDraftResourceRequest extends FormRequest
                 ]),
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
+            'relatedIdentifiers.*.citationProof' => ['sometimes', 'string'],
+            'relatedIdentifiers.*.originalCitationLabelHash' => ['sometimes', 'string', 'regex:/^[a-f0-9]{64}$/D'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
             'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in(RelatedIdentifier::INTERNAL_SOURCES)],
             ...$this->relatedItemRules(),
@@ -802,6 +807,7 @@ class StoreDraftResourceRequest extends FormRequest
                 'relationType' => $relationType,
                 ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
                 ...($citationLabel !== '' ? ['citationLabel' => $citationLabel] : []),
+                ...array_intersect_key($relatedIdentifier, array_flip(['citationProof', 'originalCitationLabelHash'])),
                 ...($source !== '' ? ['source' => $source] : []),
             ];
         }

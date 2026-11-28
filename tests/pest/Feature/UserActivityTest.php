@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\CacheKey;
 use App\Enums\EditorDraftSaveIntent;
 use App\Enums\UserRole;
 use App\Exceptions\DuplicateUploadedResourceDoiException;
@@ -17,10 +16,8 @@ use App\Services\Uploads\UploadedResourceDraftService;
 use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 beforeEach(function () {
@@ -126,63 +123,12 @@ it('captures authorized delete-all activity behind the gate', function () {
     Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed')->once();
 });
 
-it('summarizes a partially successful import cancelled during synchronization with its original actor', function (string $prefix) {
-    $id = (string) Str::uuid();
-    $original = User::factory()->admin()->create(['name' => 'Original Importer']);
-    $cachePrefix = $prefix === 'igsns' ? 'igsn' : 'datacite';
-    Cache::put("{$cachePrefix}_import:{$id}", [
-        'status' => 'running', 'phase' => 'syncing', 'imported' => 2,
-        'activity_actor' => $this->activities->actor($original),
-    ], now()->addHour());
-
-    $this->actingAs($this->actor)->postJson("/{$prefix}/import/{$id}/cancel")->assertSuccessful();
-    $this->postJson("/{$prefix}/import/{$id}/cancel")->assertStatus(400);
-
-    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === 'batch.completed'
-        && $context['activity']['actor']['id'] === $original->id && $context['activity']['operation_id'] === $id
-        && str_contains($message, 'import (cancelled): 2 imported'))->once();
-    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => ($context['activity']['action'] ?? null) === "{$prefix}.import.cancel"
-        && $context['activity']['actor']['id'] === $this->actor->id)->once();
-})->with(['datacite', 'igsns']);
-
-it('records an import summary once for successful items at a terminal state', function (string $status) {
-    $id = (string) Str::uuid();
-    $progress = ['activity_actor' => $this->activities->actor($this->actor), 'status' => $status, 'imported' => 2, 'skipped' => 1];
-    $this->activities->importSummary($id, $progress);
-    $this->activities->importSummary($id, $progress);
-    Log::shouldHaveReceived('info')->once();
-})->with(['completed', 'cancelled', 'failed']);
-
 it('detects reordered geometry coordinates as a semantic edit', function () {
     $resource = Resource::factory()->create();
     $geo = $resource->geoLocations()->create(['geo_type' => 'polygon', 'polygon_points' => [['longitude' => 1, 'latitude' => 2], ['longitude' => 3, 'latitude' => 4], ['longitude' => 5, 'latitude' => 6]]]);
     $before = $this->activities->snapshot($resource);
     $geo->update(['polygon_points' => array_reverse($geo->polygon_points)]);
     expect($this->activities->changedFields($before, $this->activities->snapshot($resource)))->toBe(['geo_locations']);
-});
-
-it('retains import summary deduplication until the centralized TTL expires', function () {
-    $id = (string) Str::uuid();
-    $progress = ['activity_actor' => $this->activities->actor($this->actor), 'status' => 'completed', 'imported' => 2];
-    $this->activities->importSummary($id, $progress);
-    expect(Cache::get(CacheKey::USER_ACTIVITY_IMPORT_SUMMARY->key($id)))->toBeTrue();
-    $this->travel(CacheKey::USER_ACTIVITY_IMPORT_SUMMARY->ttl() - 1)->seconds();
-    $this->activities->importSummary($id, $progress);
-    $this->travel(2)->seconds();
-    expect(Cache::has(CacheKey::USER_ACTIVITY_IMPORT_SUMMARY->key($id)))->toBeFalse();
-    $this->activities->importSummary($id, $progress);
-
-    Log::shouldHaveReceived('info')->twice();
-});
-
-it('honors existing import summary markers and separates operations', function () {
-    $id = (string) Str::uuid();
-    Cache::put('activity:import-summary:'.$id, true, 3600);
-    $progress = ['activity_actor' => $this->activities->actor($this->actor), 'status' => 'completed', 'imported' => 2];
-    $this->activities->importSummary($id, $progress);
-    Log::shouldNotHaveReceived('info');
-    $this->activities->importSummary((string) Str::uuid(), $progress);
-    Log::shouldHaveReceived('info')->once();
 });
 
 it('records streamed exports only after their callback succeeds', function (bool $fail) {

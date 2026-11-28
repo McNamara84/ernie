@@ -17,6 +17,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $resource_id
  * @property string $identifier
  * @property IgsnRegistrationItemStatus $status
+ * @property array<string, mixed>|null $preview_payload
+ * @property Carbon|null $preview_confirmed_at
  * @property string|null $approval_fingerprint
  * @property string|null $operation
  * @property int $attempts
@@ -39,6 +41,8 @@ class IgsnRegistrationItem extends Model
         'status',
         'operation',
         'approval_fingerprint',
+        'preview_payload',
+        'preview_confirmed_at',
         'attempts',
         'last_http_status',
         'error_message',
@@ -50,6 +54,8 @@ class IgsnRegistrationItem extends Model
     {
         return [
             'status' => IgsnRegistrationItemStatus::class,
+            'preview_payload' => 'array',
+            'preview_confirmed_at' => 'datetime',
             'attempts' => 'integer',
             'last_http_status' => 'integer',
             'processed_at' => 'datetime',

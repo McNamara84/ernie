@@ -24,6 +24,7 @@ export const queryKeys = {
         laboratories: () => [apiEndpoints.mslLaboratories] as const,
     },
     portal: {
+        count: (basePath: string, fingerprint: string, perPage: number) => ['portal', 'count', basePath, fingerprint, perPage] as const,
         map: (url: string) => ['portal', 'map', url] as const,
         mapClusterMembers: (url: string) => ['portal', 'map-cluster-members', url] as const,
         keywordSuggestions: (basePath: string, query: string) => ['portal', 'keyword-suggestions', basePath, query] as const,

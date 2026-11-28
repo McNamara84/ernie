@@ -63,6 +63,15 @@ describe('DefaultGfzTemplate', () => {
         document.title = '';
     });
 
+    it('passes DCAT support through the metadata card to the preview download dialog', () => {
+        mockUsePage.mockReturnValue({
+            props: { resource: mockResource, landingPage: mockLandingPage, isPreview: true, supportsDcatAp: true },
+        } as unknown as ReturnType<typeof usePage>);
+        render(<DefaultGfzTemplate />);
+        fireEvent.click(screen.getByRole('button', { name: 'Download DCAT-AP 3.0.1 metadata as RDF/XML' }));
+        expect(screen.getByRole('dialog', { name: 'Metadata download unavailable' })).toBeInTheDocument();
+    });
+
     it('renders a tombstone with metadata and no data access even when URLs are retained', () => {
         mockUsePage.mockReturnValue({
             props: {
@@ -287,7 +296,7 @@ describe('DefaultGfzTemplate', () => {
         expect(logo).not.toHaveClass('h-24');
     });
 
-    it('renders the Legal Notice link', () => {
+    it('links to the legal notice and data protection policy', () => {
         mockUsePage.mockReturnValue({
             props: {
                 resource: mockResource,
@@ -301,6 +310,10 @@ describe('DefaultGfzTemplate', () => {
         const legalNoticeLink = screen.getByText('Legal Notice');
         expect(legalNoticeLink).toBeInTheDocument();
         expect(legalNoticeLink).toHaveAttribute('href', '/legal-notice');
+        expect(screen.getByRole('link', { name: 'Data Protection' })).toHaveAttribute(
+            'href',
+            'https://gfz-data-services.gfz.de/about-us/data-protection',
+        );
     });
 
     it('renders footer with GFZ and Helmholtz logos', () => {

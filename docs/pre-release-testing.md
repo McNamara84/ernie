@@ -570,7 +570,11 @@ verify them after reopening:
 - [ ] `Preview` opens a new page or tab and correctly shows title, DOI/identifier,
       creators, abstract, licence, and download area.
 
-- [ ] DataCite XML, JSON, and JSON-LD actions, plus ISO 19115-3 for eligible
+- [ ] ISO/TR 19115-4 JSON (Preview) downloads beside XML on eligible resource
+  landing pages after redeployment without separate activation, validates against
+  the pinned schema, and is absent for IGSNs and Physical Objects. Check preview
+  dialogs, mobile layout and dark mode.
+- [ ] DataCite XML, JSON, and JSON-LD actions, plus ISO XML and JSON for eligible
       resources, show the same registration notice in both session-based and
       tokenized review previews without navigating away; the corresponding actions
       on a published page still download their metadata.
@@ -635,8 +639,9 @@ verify them after reopening:
       behavior and both search portals remain available. Restore the intended
       switch values before continuing the content checks.
 
-- [ ] `Find → Data Centres` opens `/data-centres` on desktop and mobile. The
-      homepage and Find overview link to the same local page. Every tile opens
+- [ ] `Find → Data Centres` opens `https://gfz-data-services.gfz.de/find/data-centres`
+      on desktop and mobile. The homepage and Find overview link to the local
+      `/data-centres` catalogue. Every tile opens
       `/doi-search` with exactly its datacenter selected; GEOFON Events and
       GEOFON Networks remain separate. Compare the catalogue with the portal's
       published DOI datacenter facet.
@@ -692,10 +697,8 @@ verify them after reopening:
 
 #### 3.10.1 Legacy resource creator and MSL regression
 
-- [ ] Run a DOI-filtered dry run of
-      `resources:backfill-legacy-creator-and-msl-metadata` for
-      `10.5880/gfz.1.4.2021.008` and `10.5880/fidgeo.2024.038`; review the CSV
-      before applying the same scope.
+- [ ] Check the following migrated records using their stored metadata; no
+      legacy backfill command or access to the old databases is required.
 
 - [ ] Resource `10.5880/gfz.1.4.2021.008` shows and exports `Philipp S. Sommer`,
       while `10.5880/gfz.1.4.2021.005` continues to show and export `Philipp
@@ -710,8 +713,6 @@ verify them after reopening:
       exported metadata, no synthetic current-MSL URI is emitted, and a missing
       legacy source URI remains empty.
 
-- [ ] Repeating the applied DOI-filtered backfill reports no further changes and
-      does not queue another DataCite synchronization.
 
 ### 3.11 IGSN List, Portal, and Registration
 
@@ -726,8 +727,8 @@ verify them after reopening:
 - [ ] Invalid or incomplete CSV rows report the row and cause without damaging
       existing valid data.
 
-- [ ] Single import from DataCite and visible import progress work; cancelling
-      stops an active test import cleanly.
+- [ ] Legacy import actions are absent from Resources and IGSNs, including for
+      Admins and Group Leaders. Regular CSV/XML/JSON uploads still work.
 
 - [ ] JSON and JSON-LD exports of a test IGSN contain the expected identifier and
       core data.
@@ -756,19 +757,9 @@ verify them after reopening:
 - [ ] `IGSN Editor` remains disabled unless it has explicitly been enabled for the
       release.
 
-#### 3.11.1 Legacy IGSN DIF enrichment and backfill
+#### 3.11.1 Stored IGSN metadata
 
-- [ ] In DataCite Test mode, run a DOI-filtered dry run for one representative ICDP
-      IGSN and review `changed_fields`, `existing_values`, `source_values`, conflicts,
-      unknown paths, and the schema namespace in the CSV report.
-
-- [ ] Apply the same DOI-filtered scope and confirm that the command reports a sync
-      run as `skipped_test_mode`, without issuing a production DataCite request.
-
-- [ ] Repeat the identical dry run. It reports no further automatic changes; any
-      manual conflicts, missing DIF records, or unknown paths remain stable audit rows.
-
-- [ ] On the resulting landing page, verify Related Work, unbroken Funding Agency,
+- [ ] On a representative migrated ICDP landing page, verify Related Work, unbroken Funding Agency,
       all Operators, Geological Age, Rock Type, Classification Comments, Request,
       Requested by, release/sampling/collection dates, Methods, Drilling ranges,
       launch/navigation metadata, repositories, image, and sampling location.
@@ -776,10 +767,6 @@ verify them after reopening:
 - [ ] Confirm that the DataCite JSON export contains the root publication as `Cites`,
       the funding reference, approved dates, Project Leader, and alternate identifiers;
       Total Length is not exported as `sizes` and supplemental `IsCitedBy` is absent.
-
-- [ ] Exercise `--after-id`, `--limit`, repeated `--doi`, and repeated `--datacenter`
-      on a disposable stage scope. A missing or invalid DIF does not stop later records,
-      and the printed last Resource ID can resume the run without duplicates.
 
 ### 3.12 Personal Settings
 
@@ -1013,6 +1000,22 @@ reason.
 
 - [ ] If the F-UJI service is unavailable, an understandable message appears
       instead of an endless loading indicator or blank page.
+
+#### 3.17.1 Contact Persons
+
+- [ ] As curator and administrator, open **Tools → Contact Persons**. For the
+      administrator, the entry remains available in both workspaces.
+- [ ] Search by name, email, and ORCID. A matching person keeps all their contact
+      variants together, including when changing the page size or page.
+- [ ] Copy an email and verify the clipboard contents and success feedback.
+      Missing email addresses have no copy action.
+- [ ] Follow both resource and IGSN links where available. The visible contact
+      filter identifies the selected name and email; results and counts agree
+      with that variant. Sorting and paging retain the selection.
+- [ ] Remove the contact filter while another filter is active. The other filter
+      remains; browser Back restores the previous contact selection.
+- [ ] Check the contact table on a narrow screen and operate search, copy, and
+      resource links with the keyboard.
 
 ### 3.18 Statistics
 

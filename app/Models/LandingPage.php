@@ -6,6 +6,8 @@ namespace App\Models;
 
 use App\Enums\TombstoneReason;
 use App\Services\SlugGeneratorService;
+use App\Services\Usage\CounterTrackingStateService;
+use App\Support\IgsnIdentifier;
 use Database\Factories\LandingPageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -283,7 +285,15 @@ class LandingPage extends Model
     {
         $resource = $this->resource ?? Resource::find($this->resource_id);
 
-        return $resource?->doi;
+        return $resource?->doiForLandingPage();
+    }
+
+    /** Project the path used after registration, including pages previously stored with a bare handle. */
+    public function useRegistrationDoi(string $identifier, string $doi): void
+    {
+        if ($identifier !== $doi || ($this->doi_prefix !== null && IgsnIdentifier::isValidHandle($this->doi_prefix))) {
+            $this->doi_prefix = $doi;
+        }
     }
 
     /**
@@ -320,7 +330,7 @@ class LandingPage extends Model
     /**
      * Get the file entries associated with this landing page.
      *
-     * Files are imported from the legacy metaworks database during DataCite import.
+     * Includes files retained from the completed legacy migration.
      * Ordered by position for consistent display.
      *
      * @return HasMany<LandingPageFile, $this>
@@ -533,6 +543,11 @@ class LandingPage extends Model
      * Increment the view count.
      */
     public function incrementViewCount(): void
+    {
+        app(CounterTrackingStateService::class)->legacy(fn () => $this->incrementLegacyViewCount());
+    }
+
+    private function incrementLegacyViewCount(): void
     {
         $timestamp = now();
 

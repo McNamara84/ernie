@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Filesystem\Filesystem;
+
 return [
 
     /*
@@ -17,6 +19,8 @@ return [
     'ernie' => [
         'api_key' => env('ERNIE_API_KEY'),
     ],
+
+    'gfz_data_services' => (new Filesystem)->json(resource_path('data/gfz-data-services.json'), JSON_THROW_ON_ERROR),
 
     'google_maps' => [
         'api_key' => env('GM_API_KEY', ''),

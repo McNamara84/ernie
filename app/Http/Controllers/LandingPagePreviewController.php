@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DcatApFormat;
 use App\Http\Requests\LandingPage\StoreLandingPagePreviewRequest;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataPublicationTeamRecipientService;
+use App\Services\DcatAp\DcatApResourceProfileService;
 use App\Services\EmbargoService;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\LandingPageDocumentMetadataService;
 use App\Services\LandingPageDownloadAvailabilityService;
+use App\Services\LandingPageLinkSyncService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
+use App\Services\Usage\CounterReadService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Session;
@@ -125,12 +129,12 @@ class LandingPagePreviewController extends Controller
                 ? $effectivePrimaryDownloadLabel
                 : null,
             'ftp_format_id' => LandingPageController::templateSupportsFtpUrl($validated['template'])
-                ? ($validated['ftp_format_id'] ?? null)
+                ? $resource->landingPage?->ftp_format_id
                 : null,
             'ftp_size_id' => LandingPageController::templateSupportsFtpUrl($validated['template'])
-                ? ($validated['ftp_size_id'] ?? null)
+                ? $resource->landingPage?->ftp_size_id
                 : null,
-            'links' => $isLinksTemplate ? ($validated['links'] ?? $resource->landingPage?->links->toArray() ?? []) : [],
+            'links' => $isLinksTemplate ? app(LandingPageLinkSyncService::class)->preview($resource->landingPage, $validated['links'] ?? $resource->landingPage?->links->toArray() ?? []) : [],
             'files' => $previewFiles,
             'resource_id' => $resource->id,
         ]);
@@ -214,8 +218,9 @@ class LandingPagePreviewController extends Controller
             $resourceOrders = LandingPageTemplate::normalizeResourceSectionOrders(
                 $templateConfig->left_column_order,
                 $templateConfig->right_column_order,
+                $templateConfig->hidden_sections ?? [],
             );
-            $sectionOrder = ['rightColumn' => $resourceOrders['right'], 'leftColumn' => $resourceOrders['left']];
+            $sectionOrder = ['rightColumn' => $resourceOrders['right'], 'leftColumn' => $resourceOrders['left'], 'hiddenSections' => $resourceOrders['hidden']];
         }
         $customLogoUrl = $templateConfig->logo_url;
 
@@ -273,12 +278,16 @@ class LandingPagePreviewController extends Controller
         ];
 
         return Inertia::render("LandingPages/{$template}", [
+            'usage' => app(CounterReadService::class)->landingPage($resource->landingPage, $resource->resourceType?->slug === 'physical-object'),
             'resource' => $resourceData,
             'documentTitle' => $documentMetadata['title'],
             'citationStyles' => $citationService->format($resource),
             'landingPage' => $tempLandingPage,
             'hasDataPublicationTeamRecipient' => $dataPublicationTeamRecipientService->isAvailable(),
             'supportsIso19115' => $isoProfile->supports($resource),
+            'supportsIso19115Json' => $isoProfile->supportsJson($resource),
+            'supportsDcatAp' => app(DcatApResourceProfileService::class)->supports($resource),
+            'supportsEposDcatAp' => app(DcatApResourceProfileService::class)->supports($resource, DcatApFormat::Epos),
             'isPreview' => true,
             'embargoPending' => $embargoPending,
             'embargoDate' => $embargoPending ? app(EmbargoService::class)->availableDate($resource) : null,

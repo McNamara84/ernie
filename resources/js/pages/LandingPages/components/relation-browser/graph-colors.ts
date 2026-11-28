@@ -21,6 +21,7 @@ const NODE_COLOR_MAP: Record<string, string> = {
     ISSN: '#84CC16',
     URN: '#EC4899',
     RAiD: '#06B6D4',
+    SWHID: '#CA8A04',
     Creator: CREATOR_COLOR,
     Contributor: CONTRIBUTOR_COLOR,
     Institution: INSTITUTION_COLOR,

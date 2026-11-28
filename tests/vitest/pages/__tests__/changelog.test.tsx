@@ -1,11 +1,14 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, render as rawRender, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 import Changelog, { browserNavigation } from '@/pages/changelog';
+
+const render = settleRender(rawRender);
 
 type TimelineNavProps = {
     releases: Array<{ version: string; date: string }>;
@@ -278,7 +281,7 @@ describe('Changelog', () => {
 
     it('renders releases on a timeline, expands the latest by default, and toggles grouped details', async () => {
         const user = userEvent.setup();
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const list = await screen.findByRole('list', { name: /changelog timeline/i });
         expect(list).toBeInTheDocument();
@@ -289,6 +292,7 @@ describe('Changelog', () => {
         expect(firstButton).toHaveAttribute('aria-expanded', 'true');
         expect(await screen.findByText(/Resources workspace/i)).toBeInTheDocument();
         expect(screen.getByText(/Dashboard overview/i)).toBeInTheDocument();
+        expect(screen.queryByText('No changes have been recorded for this version yet.')).not.toBeInTheDocument();
         await user.click(lastButton);
         expect(lastButton).toHaveAttribute('aria-expanded', 'true');
         expect(firstButton).toHaveAttribute('aria-expanded', 'false');
@@ -300,9 +304,34 @@ describe('Changelog', () => {
         });
     });
 
+    it.each([
+        { name: 'empty change arrays', sections: { features: [], improvements: [], fixes: [] } },
+        { name: 'omitted change arrays', sections: {} },
+    ])('shows an empty state for a version with $name', async ({ sections }) => {
+        vi.mocked(fetch).mockResolvedValueOnce({
+            ok: true,
+            json: async () => [{ version: '1.2.0dev', date: '2026-10-20', ...sections }],
+        } as Response);
+
+        const user = userEvent.setup();
+        await render(<Changelog />);
+
+        const button = await screen.findByRole('button', { name: /version 1\.2\.0dev/i });
+        expect(button).toHaveAttribute('aria-expanded', 'true');
+        const panel = screen.getByRole('region', { name: /version 1\.2\.0dev/i });
+        expect(within(panel).getByText('No changes have been recorded for this version yet.')).toBeVisible();
+        expect(within(panel).queryByRole('heading')).not.toBeInTheDocument();
+
+        await user.click(button);
+        expect(button).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByRole('region', { name: /version 1\.2\.0dev/i })).not.toBeInTheDocument();
+        await user.click(button);
+        expect(screen.getByText('No changes have been recorded for this version yet.')).toBeVisible();
+    });
+
     it('renders optional GitHub references as safe external links with accessible labels', async () => {
         const user = userEvent.setup();
-        render(<Changelog />);
+        await render(<Changelog />);
 
         await screen.findByRole('list', { name: /changelog timeline/i });
 
@@ -341,7 +370,7 @@ describe('Changelog', () => {
     });
 
     it('colors anchors based on version changes', async () => {
-        render(<Changelog />);
+        await render(<Changelog />);
         const anchors = await screen.findAllByTestId('version-anchor');
         expect(anchors[0]).toHaveClass('ring-red-500');
         expect(anchors[1]).toHaveClass('ring-blue-500');
@@ -350,7 +379,7 @@ describe('Changelog', () => {
 
     it('shows an error message when fetch fails', async () => {
         (global.fetch as unknown as Mock).mockRejectedValueOnce(new Error('fail'));
-        render(<Changelog />);
+        await render(<Changelog />);
         const alert = await screen.findByRole('alert');
         expect(alert.textContent).toMatch(/unable to load changelog/i);
     });
@@ -364,7 +393,7 @@ describe('Changelog', () => {
         const reloadSpy = vi.spyOn(browserNavigation, 'reload').mockImplementation(() => undefined);
         const user = userEvent.setup();
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const alert = await screen.findByRole('alert');
         expect(alert.textContent).toMatch(/unable to load changelog/i);
@@ -380,7 +409,7 @@ describe('Changelog', () => {
     ])('explains a %i response from the protected changelog API', async (status, message) => {
         (global.fetch as unknown as Mock).mockResolvedValueOnce({ ok: false, status, json: vi.fn() });
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const alert = await screen.findByRole('alert');
         expect(alert.textContent).toMatch(message);
@@ -389,7 +418,7 @@ describe('Changelog', () => {
     it('fetches releases from /api/changelog', async () => {
         const fetchSpy = global.fetch as unknown as Mock;
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         await screen.findByRole('list', { name: /changelog timeline/i });
 
@@ -401,7 +430,7 @@ describe('Changelog', () => {
     it('does not refetch changelog data when reduced motion preference changes', async () => {
         const fetchSpy = global.fetch as unknown as Mock;
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         await screen.findByRole('list', { name: /changelog timeline/i });
         expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -416,7 +445,7 @@ describe('Changelog', () => {
     it('opens the hash-targeted release on initial load', async () => {
         window.history.replaceState(null, '', '/changelog#v0.1.1');
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
         const targetButton = screen.getByRole('button', { name: /version 0.1.1/i });
@@ -428,7 +457,7 @@ describe('Changelog', () => {
     it('falls back to the first release for a missing version hash', async () => {
         window.history.replaceState(null, '', '/changelog#v9.9.9');
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
         const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
@@ -440,7 +469,7 @@ describe('Changelog', () => {
     it('ignores non-version hashes and keeps the default release open', async () => {
         window.history.replaceState(null, '', '/changelog#notes');
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
         const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
@@ -450,7 +479,7 @@ describe('Changelog', () => {
     });
 
     it('opens the hash-targeted release when the hash changes', async () => {
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
         const targetButton = screen.getByRole('button', { name: /version 0.2.0/i });
@@ -473,7 +502,7 @@ describe('Changelog', () => {
     it('keeps the open release stable when scroll-based highlighting changes', async () => {
         Object.defineProperty(window, 'innerHeight', { value: 1000, writable: true });
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const list = await screen.findByRole('list', { name: /changelog timeline/i });
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
@@ -516,7 +545,7 @@ describe('Changelog', () => {
     it('announces release expansion and collapse in English', async () => {
         const user = userEvent.setup();
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
         const status = screen.getByRole('status');
@@ -531,7 +560,7 @@ describe('Changelog', () => {
     it('updates the hash when opening a release by click and keeps it when collapsing', async () => {
         const user = userEvent.setup();
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const secondButton = await screen.findByRole('button', { name: /version 0.1.1/i });
 
@@ -552,7 +581,7 @@ describe('Changelog', () => {
         window.history.replaceState(null, '', '/changelog#v0.1.1');
         const user = userEvent.setup();
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
 
@@ -600,7 +629,7 @@ describe('Changelog', () => {
         };
 
         it('waits for the target panel animation and layout after timeline navigation', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
             const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
             const targetButton = screen.getByRole('button', { name: /version 0.1.1/i });
             const oldCompletion = pageMocks.panelAnimations.get(firstButton.getAttribute('aria-controls')!);
@@ -624,7 +653,7 @@ describe('Changelog', () => {
 
         it('scrolls to an initial deep link without waiting for its disabled enter animation', async () => {
             window.history.replaceState(null, '', '/changelog#v0.1.1');
-            render(<Changelog />);
+            await render(<Changelog />);
             const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
 
             expect(targetButton).toHaveAttribute('aria-expanded', 'true');
@@ -636,7 +665,7 @@ describe('Changelog', () => {
         });
 
         it('ignores a completed or queued scroll after another release is selected', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
             const secondButton = await screen.findByRole('button', { name: /version 0.1.1/i });
             const thirdButton = screen.getByRole('button', { name: /version 0.2.0/i });
 
@@ -656,7 +685,7 @@ describe('Changelog', () => {
 
         it('does not scroll to a release collapsed before the layout frame', async () => {
             const user = userEvent.setup();
-            render(<Changelog />);
+            await render(<Changelog />);
             const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
             act(() => pageMocks.timelineNavProps?.onNavigate(1));
             completePanel(targetButton);
@@ -668,7 +697,7 @@ describe('Changelog', () => {
         });
 
         it('cancels the pending layout frame when the page is unmounted', async () => {
-            const page = render(<Changelog />);
+            const page = await render(<Changelog />);
             const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
             act(() => pageMocks.timelineNavProps?.onNavigate(1));
             completePanel(targetButton);
@@ -682,7 +711,7 @@ describe('Changelog', () => {
     });
 
     it('ignores navigation requests for an out-of-range release index', async () => {
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
 
@@ -697,7 +726,7 @@ describe('Changelog', () => {
         setReducedMotion(true);
         window.history.replaceState(null, '', '/changelog#v0.1.1');
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
 
@@ -712,7 +741,7 @@ describe('Changelog', () => {
 
         const user = userEvent.setup();
 
-        render(<Changelog />);
+        await render(<Changelog />);
 
         const secondButton = await screen.findByRole('button', { name: /version 0.1.1/i });
 
@@ -732,7 +761,7 @@ describe('Changelog', () => {
         });
 
         it('moves to next release with ArrowDown', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
             });
@@ -745,7 +774,7 @@ describe('Changelog', () => {
         });
 
         it('moves to previous release with ArrowUp', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
             });
@@ -764,7 +793,7 @@ describe('Changelog', () => {
         });
 
         it('moves down with j key', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
             });
@@ -777,7 +806,7 @@ describe('Changelog', () => {
         });
 
         it('goes to first release with Home', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toBeInTheDocument();
             });
@@ -799,7 +828,7 @@ describe('Changelog', () => {
         });
 
         it('goes to last release with End', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toBeInTheDocument();
             });
@@ -812,7 +841,7 @@ describe('Changelog', () => {
         });
 
         it('does not move past the last release with ArrowDown', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
 
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
@@ -837,7 +866,7 @@ describe('Changelog', () => {
         });
 
         it('does not move above the first release with ArrowUp', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
             });
@@ -850,7 +879,7 @@ describe('Changelog', () => {
         });
 
         it('toggles the current release with Enter and Space', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
 
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
@@ -880,7 +909,7 @@ describe('Changelog', () => {
         it('opens the currently highlighted release with Enter and synchronizes the hash', async () => {
             Object.defineProperty(window, 'innerHeight', { value: 1000, writable: true });
 
-            render(<Changelog />);
+            await render(<Changelog />);
 
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
@@ -932,7 +961,7 @@ describe('Changelog', () => {
         });
 
         it('ignores shortcut handling for interactive timeline buttons', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
 
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
@@ -967,7 +996,7 @@ describe('Changelog', () => {
         });
 
         it('ignores shortcuts when the keyboard event is already prevented', async () => {
-            render(<Changelog />);
+            await render(<Changelog />);
 
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
@@ -995,7 +1024,7 @@ describe('Changelog', () => {
                 json: () => Promise.resolve([]),
             });
 
-            render(<Changelog />);
+            await render(<Changelog />);
             expect(screen.getByRole('heading', { name: /changelog/i })).toBeInTheDocument();
 
             await vi.waitFor(() => {
@@ -1026,7 +1055,7 @@ describe('Changelog', () => {
                     ]),
             });
 
-            render(<Changelog />);
+            await render(<Changelog />);
             await screen.findByRole('button', { name: /version 2.0.0/i });
 
             expect(screen.getByText('New')).toBeInTheDocument();
@@ -1045,7 +1074,7 @@ describe('Changelog', () => {
                     ]),
             });
 
-            render(<Changelog />);
+            await render(<Changelog />);
             await screen.findByRole('button', { name: /version 1.0.0/i });
 
             expect(screen.queryByText('New')).not.toBeInTheDocument();
@@ -1064,7 +1093,7 @@ describe('Changelog', () => {
                     ]),
             });
 
-            render(<Changelog />);
+            await render(<Changelog />);
             await screen.findByRole('button', { name: /version 1.0.0/i });
 
             // First 3 releases (index 0,1,2) get the badge; 4th (index 3) does not
@@ -1076,7 +1105,7 @@ describe('Changelog', () => {
     describe('section icons', () => {
         it('renders sparkles icon for features section', async () => {
             const user = userEvent.setup();
-            render(<Changelog />);
+            await render(<Changelog />);
             // First release should be expanded by default; click to ensure it's open
             const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
             if (firstButton.getAttribute('aria-expanded') !== 'true') {
@@ -1088,7 +1117,7 @@ describe('Changelog', () => {
 
         it('renders bug icon for fixes section', async () => {
             const user = userEvent.setup();
-            render(<Changelog />);
+            await render(<Changelog />);
             const fixesButton = await screen.findByRole('button', { name: /version 0.1.1/i });
             await user.click(fixesButton);
 
@@ -1097,7 +1126,7 @@ describe('Changelog', () => {
 
         it('renders trending-up icon for improvements section', async () => {
             const user = userEvent.setup();
-            render(<Changelog />);
+            await render(<Changelog />);
             const improvementsButton = await screen.findByRole('button', { name: /version 0.2.0/i });
             // Ensure it's collapsed first, then open it
             if (improvementsButton.getAttribute('aria-expanded') === 'true') {

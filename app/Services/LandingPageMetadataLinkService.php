@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\DcatApFormat;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Services\DcatAp\DcatApReadinessService;
+use App\Services\Igsn\Export\IgsnCoreSchemaResolver;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 
 /**
@@ -16,6 +19,7 @@ class LandingPageMetadataLinkService
     public function __construct(
         private readonly Iso19115ResourceProfileService $isoProfile,
         private readonly SchemaOrgResourceTypeMappingService $typeMapping,
+        private readonly DcatApReadinessService $dcatReadiness,
     ) {}
 
     /**
@@ -41,6 +45,17 @@ class LandingPageMetadataLinkService
             $this->link('datacite-jsonld', 'DataCite', 'DataCite JSON-LD', "{$baseUrl}/datacite.jsonld", 'application/ld+json'),
         ];
 
+        if ($resource->isIgsn()) {
+            $links[] = $this->link(
+                'igsn-core-2.0',
+                'IGSN 2.0 Core',
+                'IGSN Core 2.0 XML',
+                "{$baseUrl}/igsn-core-2.0.xml",
+                'application/xml',
+                app(IgsnCoreSchemaResolver::class)->url(),
+            );
+        }
+
         if ($this->isoProfile->supports($resource)) {
             $links[] = $this->link(
                 'iso19115-3',
@@ -50,6 +65,24 @@ class LandingPageMetadataLinkService
                 'application/xml',
                 (string) config('iso19115.profile'),
             );
+        }
+
+        if ($this->isoProfile->supportsJson($resource)) {
+            $links[] = $this->link(
+                'iso19115-4',
+                'ISO/TR 19115-4',
+                (string) config('iso19115.json.label'),
+                "{$baseUrl}/iso-19115-4.json",
+                'application/json',
+                (string) config('iso19115.json.schema'),
+            );
+        }
+
+        foreach (DcatApFormat::enabledFormats() as $format) {
+            if ($this->dcatReadiness->available($resource, $format)) {
+                $slug = $format->slug();
+                $links[] = $this->link($slug, strtoupper($slug), $format->label().' RDF/XML', "{$baseUrl}/{$slug}.rdf", 'application/rdf+xml', (string) config($format->configKey().'.profile'));
+            }
         }
 
         return $links;

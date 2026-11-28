@@ -211,6 +211,9 @@ final class SubjectDuplicateCleanupService
         bool $includeFree,
         bool $delete,
     ): array {
+        if ($delete) {
+            Resource::query()->whereKey($resourceId)->lockForUpdate()->firstOrFail();
+        }
         $query = Subject::query()
             ->select(array_merge(['id', 'resource_id'], self::IDENTITY_FIELDS))
             ->where('resource_id', $resourceId);

@@ -1,11 +1,15 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render as rawRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { settleRender } from '@tests/vitest/helpers/settled-render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { warmupSession } from '@/lib/session-warmup';
 import Editor from '@/pages/editor';
 import type { DateType, Language, License, ResourceType, TitleType } from '@/types';
+
+const render = settleRender(rawRender);
 
 const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
 const titleTypes: TitleType[] = [{ id: 1, name: 'Main Title', slug: 'main-title' }];
@@ -39,7 +43,7 @@ vi.mock('@/layouts/app-layout', () => ({
 }));
 
 vi.mock('@/lib/session-warmup', () => ({
-    warmupSession: vi.fn(async () => ({ success: false })),
+    warmupSession: vi.fn(async () => ({ success: true })),
 }));
 
 vi.mock('@/components/curation/datacite-form', () => ({
@@ -51,6 +55,7 @@ vi.mock('@/components/curation/datacite-form', () => ({
 
 describe('Editor page', () => {
     beforeEach(() => {
+        vi.mocked(warmupSession).mockResolvedValue({ success: true, data: resourceTypes });
         renderForm.mockClear();
         vi.stubGlobal(
             'fetch',
@@ -78,22 +83,28 @@ describe('Editor page', () => {
         vi.unstubAllGlobals();
     });
 
-    it('requests an editor workspace without the global footer', () => {
-        render(<Editor googleMapsApiKey="test-api-key" />);
+    it('requests an editor workspace without the global footer', async () => {
+        await render(<Editor googleMapsApiKey="test-api-key" />);
 
         expect(screen.getByTestId('app-layout')).toHaveAttribute('data-show-footer', 'false');
     });
 
     it('fetches resource types and passes data to DataCiteForm', async () => {
-        render(<Editor googleMapsApiKey="test-api-key" />);
+        await render(<Editor googleMapsApiKey="test-api-key" />);
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ resourceTypes, titleTypes, dateTypes, licenses, languages })),
         );
     });
 
-    it('shows loading state before types load', () => {
+    it('passes server-derived format popularity to the live editor form', async () => {
+        const formatUsage = { 'text/csv': 12, 'application/json': 3 };
+        await render(<Editor googleMapsApiKey="test-api-key" formatUsage={formatUsage} />);
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ formatUsage })));
+    });
+
+    it('shows loading state before types load', async () => {
         vi.mocked(fetch).mockImplementation(() => new Promise(() => {}));
-        render(<Editor googleMapsApiKey="test-api-key" />);
+        await render(<Editor googleMapsApiKey="test-api-key" />);
         expect(screen.getByTestId('editor-loading-state')).toBeInTheDocument();
         expect(screen.getByRole('status').textContent).toMatch(
             /loading resource types, title types, description types, date types, licenses, languages, and role options/i,
@@ -107,13 +118,15 @@ describe('Editor page', () => {
                 ? Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) } as Response)
                 : unresolved,
         );
-        render(<Editor googleMapsApiKey="test-api-key" />);
+        await render(<Editor googleMapsApiKey="test-api-key" />);
         expect(screen.getByRole('status').textContent).toMatch(
             /loading resource types, title types, description types, date types, licenses, languages, and role options/i,
         );
     });
 
     it('shows a retryable error state when bootstrap data loading fails', async () => {
+        vi.mocked(warmupSession).mockResolvedValueOnce({ success: false, data: null });
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
         let failResourceTypes = true;
         const fetchMock = vi.fn().mockImplementation((url: RequestInfo) => {
             if (failResourceTypes && url.toString().includes('resource-types')) {
@@ -137,7 +150,7 @@ describe('Editor page', () => {
         });
         vi.stubGlobal('fetch', fetchMock);
 
-        render(<Editor googleMapsApiKey="test-api-key" />);
+        await render(<Editor googleMapsApiKey="test-api-key" />);
 
         expect(await screen.findByTestId('editor-error-state')).toBeInTheDocument();
 
@@ -147,6 +160,9 @@ describe('Editor page', () => {
         await waitFor(() => {
             expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ resourceTypes, titleTypes, dateTypes, licenses, languages }));
         });
+
+        expect(diagnostic).toHaveBeenCalledTimes(1);
+        expect(diagnostic).toHaveBeenCalledWith('[Editor] Failed to load editor data:', expect.any(Error));
     });
 
     it('keeps the progress modal open for an existing resource until every client vocabulary is ready', async () => {
@@ -159,7 +175,7 @@ describe('Editor page', () => {
             return new Promise<Response>((resolve) => vocabularyResolvers.push(resolve));
         });
 
-        render(
+        await render(
             <Editor
                 googleMapsApiKey="test-api-key"
                 resourceId="42"
@@ -192,6 +208,7 @@ describe('Editor page', () => {
     });
 
     it('uses the modal error state when client initialization fails for an existing resource', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
         vi.mocked(fetch).mockImplementation((url) => {
             if (url.toString().includes('resource-types')) {
                 return Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) } as Response);
@@ -200,7 +217,7 @@ describe('Editor page', () => {
             return Promise.reject(new Error('vocabulary unavailable'));
         });
 
-        render(
+        await render(
             <Editor
                 googleMapsApiKey="test-api-key"
                 resourceId="42"
@@ -216,35 +233,38 @@ describe('Editor page', () => {
         expect((await screen.findByTestId('editor-loading-error')).textContent).toMatch(/unable to load the editor workspace/i);
         expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
         expect(screen.queryByTestId('editor-error-state')).not.toBeInTheDocument();
+
+        expect(diagnostic).toHaveBeenCalledTimes(1);
+        expect(diagnostic).toHaveBeenCalledWith('[Editor] Failed to load editor data:', expect.any(Error));
     });
 
     it('passes doi to DataCiteForm when provided', async () => {
-        render(<Editor googleMapsApiKey="test-api-key" doi="10.1234/xyz" />);
+        await render(<Editor googleMapsApiKey="test-api-key" doi="10.1234/xyz" />);
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialDoi: '10.1234/xyz' })));
     });
 
     it('passes the server-provided DOI edit capability to DataCiteForm', async () => {
-        render(<Editor googleMapsApiKey="test-api-key" canEditDoi={true} />);
+        await render(<Editor googleMapsApiKey="test-api-key" canEditDoi={true} />);
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ canEditDoi: true })));
     });
 
     it('passes year to DataCiteForm when provided', async () => {
-        render(<Editor googleMapsApiKey="test-api-key" year="2024" />);
+        await render(<Editor googleMapsApiKey="test-api-key" year="2024" />);
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialYear: '2024' })));
     });
 
     it('passes version to DataCiteForm when provided', async () => {
-        render(<Editor googleMapsApiKey="test-api-key" version="2.0" />);
+        await render(<Editor googleMapsApiKey="test-api-key" version="2.0" />);
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialVersion: '2.0' })));
     });
 
     it('passes language to DataCiteForm when provided', async () => {
-        render(<Editor googleMapsApiKey="test-api-key" language="de" />);
+        await render(<Editor googleMapsApiKey="test-api-key" language="de" />);
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialLanguage: 'de' })));
     });
 
     it('passes resource type to DataCiteForm when provided', async () => {
-        render(<Editor googleMapsApiKey="test-api-key" resourceType="1" />);
+        await render(<Editor googleMapsApiKey="test-api-key" resourceType="1" />);
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialResourceType: '1' })));
     });
 
@@ -253,7 +273,7 @@ describe('Editor page', () => {
             { title: 'Main', titleType: 'main-title' },
             { title: 'Alt', titleType: 'alternative-title' },
         ];
-        render(<Editor googleMapsApiKey="test-api-key" titles={titles} />);
+        await render(<Editor googleMapsApiKey="test-api-key" titles={titles} />);
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialTitles: titles })));
     });
 
@@ -267,13 +287,19 @@ describe('Editor page', () => {
             external_url: null,
         };
 
-        render(<Editor googleMapsApiKey="test-api-key" landingPage={landingPage} />);
+        await render(<Editor googleMapsApiKey="test-api-key" landingPage={landingPage} />);
 
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialLandingPage: landingPage })));
     });
     it('passes initial licenses to DataCiteForm when provided', async () => {
         const initialLicenses = ['MIT'];
-        render(<Editor googleMapsApiKey="test-api-key" initialLicenses={initialLicenses} />);
+        await render(<Editor googleMapsApiKey="test-api-key" initialLicenses={initialLicenses} />);
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialLicenses })));
+    });
+    it('reports an unsuccessful session warmup', async () => {
+        using diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.mocked(warmupSession).mockResolvedValueOnce({ success: false, data: null });
+        await render(<Editor googleMapsApiKey="test-api-key" />);
+        expect(diagnostic).toHaveBeenCalledExactlyOnceWith('[Editor] Session warmup failed - CSRF errors may occur on first form submission');
     });
 });

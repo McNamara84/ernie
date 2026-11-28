@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { PORTAL_WORLD_BOUNDS } from '@/lib/portal-map-bounds';
 import type { GeoBounds } from '@/types/portal';
 
 interface PortalGeoFilterProps {
@@ -30,19 +31,12 @@ export function PortalGeoFilter({ enabled, onToggle, bounds, onBoundsChange, hid
 
     // Sync local fields when bounds change from map viewport
     useEffect(() => {
-        if (bounds) {
-            setNorth(bounds.north.toFixed(4));
-            setSouth(bounds.south.toFixed(4));
-            setEast(bounds.east.toFixed(4));
-            setWest(bounds.west.toFixed(4));
-            setError(null);
-        } else if (!enabled) {
-            setNorth('');
-            setSouth('');
-            setEast('');
-            setWest('');
-            setError(null);
-        }
+        const area = enabled ? (bounds ?? PORTAL_WORLD_BOUNDS) : null;
+        setNorth(area?.north.toFixed(4) ?? '');
+        setSouth(area?.south.toFixed(4) ?? '');
+        setEast(area?.east.toFixed(4) ?? '');
+        setWest(area?.west.toFixed(4) ?? '');
+        setError(null);
     }, [bounds, enabled]);
 
     const handleApply = useCallback(() => {

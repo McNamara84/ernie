@@ -6,11 +6,8 @@ namespace App\Http\Requests\LandingPage;
 
 use App\Enums\TombstoneReason;
 use App\Http\Controllers\LandingPageController;
-use App\Http\Requests\LandingPage\Concerns\ValidatesLandingPageContentDescriptors;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
-use App\Rules\ResourceDigitalSize;
-use App\Rules\ResourceMimeType;
 use App\Rules\SafeUrl;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -22,8 +19,6 @@ use Illuminate\Validation\Rule;
  */
 class StoreLandingPagePreviewRequest extends FormRequest
 {
-    use ValidatesLandingPageContentDescriptors;
-
     public function authorize(): bool
     {
         return $this->user() !== null;
@@ -50,8 +45,8 @@ class StoreLandingPagePreviewRequest extends FormRequest
             'landing_page_template_id' => ['nullable', 'integer'],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'primary_download_label' => ['nullable', 'string', 'max:255'],
-            'ftp_format_id' => ['nullable', 'integer', new ResourceMimeType($resource)],
-            'ftp_size_id' => ['nullable', 'integer', new ResourceDigitalSize($resource)],
+            'ftp_format_id' => ['exclude'],
+            'ftp_size_id' => ['exclude'],
             'is_tombstone' => ['sometimes', 'boolean'],
             'tombstone_reason' => ['required_if:is_tombstone,true', Rule::enum(TombstoneReason::class)],
             'tombstone_statement' => ['required_if:is_tombstone,true', 'string', 'max:5000'],
@@ -67,8 +62,8 @@ class StoreLandingPagePreviewRequest extends FormRequest
                     $landingPageId,
                 ),
             ],
-            'files.*.format_id' => ['nullable', 'integer', new ResourceMimeType($resource)],
-            'files.*.size_id' => ['nullable', 'integer', new ResourceDigitalSize($resource)],
+            'files.*.format_id' => ['exclude'],
+            'files.*.size_id' => ['exclude'],
             'files.*.label' => ['nullable', 'string', 'max:255'],
         ];
 
@@ -78,11 +73,12 @@ class StoreLandingPagePreviewRequest extends FormRequest
 
         if ($supportsLinks) {
             $rules['links'] = ['nullable', 'array', 'max:10'];
+            $rules['links.*.id'] = ['sometimes', 'integer', 'distinct', Rule::exists('landing_page_links', 'id')->where('landing_page_id', $landingPageId)];
             $rules['links.*.url'] = ['required', new SafeUrl, 'max:2048'];
             $rules['links.*.label'] = ['required', 'string', 'max:255'];
             $rules['links.*.kind'] = ['sometimes', 'string', Rule::in(LandingPageLink::KINDS)];
-            $rules['links.*.format_id'] = ['nullable', 'integer', new ResourceMimeType($resource)];
-            $rules['links.*.size_id'] = ['nullable', 'integer', new ResourceDigitalSize($resource)];
+            $rules['links.*.format_id'] = ['exclude'];
+            $rules['links.*.size_id'] = ['exclude'];
             $rules['links.*.position'] = ['required', 'integer', 'min:0', 'max:9', 'distinct'];
         }
 

@@ -123,14 +123,12 @@ abstract class GenericTableAssistant extends AbstractAssistant
             $query->whereIn('assistant_suggestions.id', $suggestionIds);
         }
 
-        return array_values($query
+        return array_values($this->presentMany($query
             ->select('assistant_suggestions.*')
             ->orderByDesc('resources.created_at')
             ->orderByDesc('assistant_suggestions.discovered_at')
             ->orderByDesc('assistant_suggestions.id')
-            ->get()
-            ->map(fn (AssistantSuggestion $suggestion): array => $this->present($suggestion))
-            ->all());
+            ->get()->all()));
     }
 
     #[\Override]

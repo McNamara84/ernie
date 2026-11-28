@@ -584,6 +584,11 @@ export default function Changelog() {
                                                             role="region"
                                                             aria-labelledby={buttonId}
                                                         >
+                                                            {!release.features?.length && !release.improvements?.length && !release.fixes?.length && (
+                                                                <p className="py-2 text-gray-600 dark:text-gray-400">
+                                                                    No changes have been recorded for this version yet.
+                                                                </p>
+                                                            )}
                                                             {(Object.keys(sectionConfig) as Array<keyof typeof sectionConfig>).map((key) => {
                                                                 const items = release[key];
                                                                 if (!items || items.length === 0) return null;

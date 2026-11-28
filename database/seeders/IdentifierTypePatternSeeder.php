@@ -170,13 +170,6 @@ class IdentifierTypePatternSeeder extends Seeder
                 ['type' => 'detection', 'pattern' => '^rrid:?\\s*[a-z]+[_:]?[a-z0-9_:-]+$', 'priority' => 20],
             ],
 
-            'SWHID' => [
-                // Validation
-                ['type' => 'validation', 'pattern' => '^swh:1:(?:cnt|dir|rel|rev|snp):[0-9a-f]{40}(?:;.*)?$', 'priority' => 10],
-                // Detection
-                ['type' => 'detection', 'pattern' => '^swh:1:(?:cnt|dir|rel|rev|snp):[0-9a-f]{40}', 'priority' => 30],
-            ],
-
             'UPC' => [
                 // Validation
                 ['type' => 'validation', 'pattern' => '^\\d{12}$', 'priority' => 10],
@@ -235,6 +228,15 @@ class IdentifierTypePatternSeeder extends Seeder
                         ];
                     }
                 }
+            }
+        }
+
+        /** @var list<array{type: string, patterns: list<array{pattern: string, priority: int}>}> $swhidGroups */
+        $swhidGroups = require database_path('data/identifier-patterns/2026-10-30-swhid.php');
+        $patterns['SWHID'] = [];
+        foreach ($swhidGroups as $group) {
+            foreach ($group['patterns'] as $pattern) {
+                $patterns['SWHID'][] = ['type' => $group['type'], ...$pattern];
             }
         }
 

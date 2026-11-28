@@ -162,7 +162,7 @@ test('raw dataset HTML and GET HEAD responses expose complete machine metadata',
 
     $response->assertInertia(fn ($page) => $page
         ->missing('schemaOrgJsonLd')
-        ->has('metadataLinks', 4)
+        ->has('metadataLinks', 5)
         ->where('metadataLinks.0.mediaType', 'application/vnd.datacite.datacite+xml')
         ->where('metadataLinks.1.mediaType', 'application/vnd.datacite.datacite+json')
     );

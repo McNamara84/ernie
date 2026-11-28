@@ -18,6 +18,11 @@ const defaultProps = {
         name: 'EPOS-MSL Project',
         description: 'Published resources with the complete free keyword EPOS or MSL (or both).',
     },
+    icgemSet: {
+        spec: 'icgem',
+        name: 'ICGEM Models',
+        description: 'Published resources of any type whose own DOI starts with 10.5880/icgem, ignoring ASCII letter case.',
+    },
     adminEmail: 'datapub@gfz.de',
     metadataFormats: {
         oai_dc: {
@@ -41,6 +46,24 @@ const defaultProps = {
 };
 
 describe('OaiPmhDocs', () => {
+    it('documents DCAT-AP only when the server advertises it', () => {
+        render(
+            <OaiPmhDocs
+                {...defaultProps}
+                metadataFormats={{
+                    ...defaultProps.metadataFormats,
+                    dcat_ap: {
+                        namespace: 'http://data.europa.eu/r5r/',
+                        schema: 'https://example.org/schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd',
+                    },
+                }}
+            />,
+        );
+        expect(screen.getByText('DCAT-AP 3.0.1 RDF/XML (selective)')).toBeInTheDocument();
+        expect(screen.getByText(/IGSNs are excluded/)).toBeInTheDocument();
+        expect(screen.getByText('https://ernie.gfz.de/oai-pmh?verb=ListRecords&metadataPrefix=dcat_ap')).toBeInTheDocument();
+    });
+
     it('renders the page heading', () => {
         render(<OaiPmhDocs {...defaultProps} />);
         expect(screen.getByRole('heading', { name: /oai-pmh harvesting endpoint/i })).toBeInTheDocument();
@@ -102,6 +125,34 @@ describe('OaiPmhDocs', () => {
         expect(screen.getByText(`${defaultProps.identifierPrefix}:10.5880/GFZ.1.2.2024.001`)).toBeInTheDocument();
     });
 
+    it('keeps the persistent identifier namespace independent of the current endpoint hostname', () => {
+        const baseUrl = 'https://dataservices.gfz.de/oai-pmh';
+        const identifierPrefix = 'oai:ernie.rz-vm499.gfz.de';
+        render(<OaiPmhDocs {...defaultProps} baseUrl={baseUrl} identifierPrefix={identifierPrefix} />);
+
+        expect(screen.getByText(baseUrl)).toBeInTheDocument();
+        const format = screen.getByLabelText('OAI identifier format');
+        expect(format).toHaveTextContent(`${identifierPrefix}:{DOI}`);
+        expect(format).toHaveTextContent(`${identifierPrefix}:10.5880/GFZ.1.2.2024.001`);
+        expect(format).toHaveTextContent('persistent repository namespace, independent of the endpoint');
+        expect(format).toHaveTextContent('Keep harvested identifiers unchanged and use the current Base URL');
+        expect(format).not.toHaveTextContent('oai:dataservices.gfz.de');
+    });
+
+    it.each(['ICGEM', 'EPOS-MSL'])('documents bounded and unbounded checkpoints with overlap for %s', (setName) => {
+        render(<OaiPmhDocs {...defaultProps} />);
+
+        const guidance = screen.getByLabelText(`${setName} harvesting guidance`);
+        expect(guidance).toHaveTextContent('until=2026-10-05T00:00:00Z');
+        expect(guidance).toHaveTextContent("Without an until boundary, use the first response's responseDate as the checkpoint");
+        expect(guidance).toHaveTextContent("With an explicit until, use the earlier of that boundary and the first response's responseDate");
+        expect(guidance).toHaveTextContent('Never advance the checkpoint beyond the requested upper boundary');
+        expect(guidance).toHaveTextContent('responseDate of 2026-11-02T12:00:00Z means a checkpoint of 2026-10-05T00:00:00Z');
+        expect(guidance).toHaveTextContent('from=2026-10-04T23:59:55Z for a five-second overlap');
+        expect(guidance).toHaveTextContent('for day-granularity requests, use at least one day');
+        expect(guidance).toHaveTextContent('only after every page succeeds');
+    });
+
     it('documents the project keyword rules and complete inventory formats', () => {
         render(<OaiPmhDocs {...defaultProps} />);
         const project = screen.getByLabelText('EPOS-MSL project set');
@@ -128,13 +179,51 @@ describe('OaiPmhDocs', () => {
         render(<OaiPmhDocs {...defaultProps} />);
         expect(screen.getByText('Keeping an EPOS-MSL Harvest in Sync')).toBeInTheDocument();
         expect(screen.getByText(/daily incremental updates and a weekly complete/)).toBeInTheDocument();
-        expect(screen.getByText(/Never remove local records based on an incomplete or failed harvest/)).toBeInTheDocument();
-        expect(screen.getByText(/Technical errors do not confirm removal/)).toBeInTheDocument();
+        expect(screen.getAllByText(/Never remove local records based on an incomplete or failed harvest/)).toHaveLength(2);
+        expect(screen.getAllByText(/Technical errors do not confirm removal/)).toHaveLength(2);
         expect(screen.getByText(/Keyword removal does not generate a deleted header/)).toBeInTheDocument();
         expect(screen.getByText(/later pages do not extend it/)).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'OAI-PMH 2.0 sets' })).toHaveAttribute(
             'href',
             'https://www.openarchives.org/OAI/openarchivesprotocol.html#Set',
         );
+    });
+
+    it('documents ICGEM membership, withdrawals and the first harvest', () => {
+        render(<OaiPmhDocs {...defaultProps} />);
+        const set = screen.getByLabelText('ICGEM set');
+        for (const text of [
+            defaultProps.icgemSet.name,
+            defaultProps.icgemSet.description,
+            'a Dataset with DOI 10.5880/ICGEM.2015.1',
+            'noRecordsMatch',
+            '<setSpec>icgem</setSpec>',
+            'stored DOI even when the saved type is missing',
+            'original deletion datestamp',
+            'oai_datacite or oai_dc to harvest all resource types',
+            'records eligible for each enabled format',
+        ]) {
+            expect(set).toHaveTextContent(text);
+        }
+        expect(screen.getByText('Keeping an ICGEM Harvest in Sync')).toBeInTheDocument();
+        const guidance = screen.getByLabelText('ICGEM harvesting guidance');
+        expect(guidance).toHaveTextContent('For the first harvest, request the entire set without date filters');
+        expect(guidance).toHaveTextContent('For incremental updates, use overlapping UTC date ranges');
+        expect(guidance.textContent).not.toMatch(/after\s+the\s+(?:set\s+change|switch)/i);
+        expect(guidance).toHaveTextContent('Changing a Model to a Dataset keeps it in ICGEM');
+        expect(screen.getByText(/An invalid or expired token requires/)).toBeInTheDocument();
+    });
+
+    it('uses the configured ICGEM definition and base URL in initial and incremental examples', () => {
+        const baseUrl = 'https://example.org/harvest';
+        render(<OaiPmhDocs {...defaultProps} baseUrl={baseUrl} icgemSet={{ ...defaultProps.icgemSet, spec: 'custom-icgem' }} />);
+        for (const query of [
+            'verb=ListRecords&metadataPrefix=oai_datacite&set=custom-icgem',
+            'verb=ListIdentifiers&metadataPrefix=oai_dc&set=custom-icgem',
+            'verb=ListRecords&metadataPrefix=oai_datacite&set=custom-icgem&from=2026-10-01T00:00:00Z&until=2026-10-05T00:00:00Z',
+        ]) {
+            expect(screen.getByText(`${baseUrl}?${query}`)).toBeInTheDocument();
+        }
+        expect(screen.getByLabelText('ICGEM set')).toHaveTextContent('<setSpec>custom-icgem</setSpec>');
     });
 });

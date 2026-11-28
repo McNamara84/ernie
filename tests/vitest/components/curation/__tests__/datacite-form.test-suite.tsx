@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
+import { act, fireEvent, render as rawRender, screen, waitFor, within } from '@tests/vitest/utils/render';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { describe as vitestDescribe, it as vitestIt } from 'vitest';
@@ -87,7 +87,11 @@ vi.mock('sonner', () => ({
     },
 }));
 
+import { settleRender } from '@tests/vitest/helpers/settled-render';
+
 import { getTagifyInstance, type TagifyEnabledInput } from '../../../tagify-helpers';
+
+const render = settleRender(rawRender);
 
 const { createTagifyMock } = await vi.hoisted(() => import('@test-helpers/tagify-mock'));
 vi.mock('@yaireo/tagify', () => createTagifyMock());
@@ -507,10 +511,14 @@ describe('DataCiteForm', () => {
             headers: {},
             config: {},
         });
-        mockedAxios.get = vi.fn().mockImplementation((url: string) => Promise.resolve({
-            data: url.endsWith('/datacite-status') ? { state: 'registered', mode: 'test', can_update: true, can_publish: true, publication: null } : { test: ['10.83279'], production: ['10.5880'], test_mode: true },
-            status: 200,
-        }));
+        mockedAxios.get = vi.fn().mockImplementation((url: string) =>
+            Promise.resolve({
+                data: url.endsWith('/datacite-status')
+                    ? { state: 'registered', mode: 'test', can_update: true, can_publish: true, publication: null }
+                    : { test: ['10.83279'], production: ['10.5880'], test_mode: true },
+                status: 200,
+            }),
+        );
         mockedAxios.put = vi.fn().mockResolvedValue({
             data: undefined,
             status: 204,
@@ -596,8 +604,8 @@ describe('DataCiteForm', () => {
 
     const availableDatacenters = [{ id: 1, name: 'Test Datacenter' }];
 
-    const renderDataCiteForm = (props: Partial<DataCiteFormProps> = {}) =>
-        render(
+    const renderDataCiteForm = async (props: Partial<DataCiteFormProps> = {}) =>
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -613,12 +621,340 @@ describe('DataCiteForm', () => {
             />,
         );
 
+    const createPreopenedPreviewWindow = () => {
+        const close = vi.fn();
+        const documentClose = vi.fn();
+        const documentOpen = vi.fn();
+        const documentWrite = vi.fn();
+        const previewWindow = {
+            location: { href: 'about:blank' },
+            close,
+            document: {
+                close: documentClose,
+                open: documentOpen,
+                write: documentWrite,
+            },
+            opener: { source: 'test-opener' },
+        } as unknown as Window;
+
+        return { close, documentClose, documentOpen, documentWrite, previewWindow };
+    };
+
+    describe('resource formats and sizes', () => {
+        it('uses resource popularity for readable format choices while posting the MIME type', async () => {
+            const user = userEvent.setup();
+            await renderDataCiteForm({
+                initialTitles: [{ title: 'Readable formats', titleType: 'main-title' }],
+                formatUsage: { 'text/csv': 100 },
+            });
+            const section = getAccordionTrigger(/Format & Size/);
+            if (section.getAttribute('aria-expanded') === 'false') await user.click(section);
+            await user.click(screen.getByRole('button', { name: 'Add format' }));
+            await user.click(screen.getByTestId('format-select-0'));
+            const csv = await screen.findByRole('option', { name: 'CSV (text/csv)' });
+            expect(screen.getAllByRole('option')[0]).toBe(csv);
+            await user.click(csv);
+            expect(screen.getByTestId('format-select-0')).toHaveTextContent('CSV');
+            await user.click(screen.getByTestId('save-draft-button'));
+            expect(axios.post).toHaveBeenCalledWith(
+                '/editor/resources/draft',
+                expect.objectContaining({ formats: [{ value: 'text/csv' }] }),
+                expect.any(Object),
+            );
+        });
+
+        it('keeps client errors and focus on the second size when the first new row is empty', async () => {
+            const user = userEvent.setup();
+            await renderDataCiteForm({
+                initialTitles: [{ title: 'Size validation indexes', titleType: 'main-title' }],
+                initialContentMetadata: {
+                    formats: [],
+                    sizes: [
+                        { numeric_value: '', unit: '', type: null },
+                        { numeric_value: '-2', unit: 'MB', type: null },
+                    ],
+                    fingerprint: null,
+                },
+            });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(screen.getByTestId('size-value-1')).toHaveAttribute('aria-invalid', 'true'));
+            expect(screen.getByTestId('size-value-0')).not.toHaveAttribute('aria-invalid', 'true');
+            await user.click(within(screen.getByTestId('global-validation-alert')).getByRole('button', { name: /Enter a positive number/ }));
+            await waitFor(() => expect(screen.getByTestId('size-value-1')).toHaveFocus());
+            expect(axios.post).not.toHaveBeenCalled();
+        });
+
+        it('renders compacted server errors on their submitted format and size rows', async () => {
+            const user = userEvent.setup();
+            vi.mocked(axios.post).mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    status: 422,
+                    data: {
+                        errors: { 'formats.0.value': ['Format rejected by server'], 'sizes.0.unit': ['Unit rejected by server'] },
+                    },
+                },
+            });
+            await renderDataCiteForm({
+                initialTitles: [{ title: 'Server validation indexes', titleType: 'main-title' }],
+                initialContentMetadata: {
+                    formats: [{ value: '' }, { value: 'text/csv' }],
+                    sizes: [
+                        { numeric_value: '', unit: '', type: null },
+                        { numeric_value: '2', unit: 'MB', type: null },
+                    ],
+                    fingerprint: null,
+                },
+            });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(screen.getByTestId('format-select-1')).toHaveAttribute('aria-invalid', 'true'));
+            expect(screen.getByTestId('format-select-0')).not.toHaveAttribute('aria-invalid', 'true');
+            expect(screen.getByTestId('size-unit-1')).toHaveAttribute('aria-invalid', 'true');
+            expect(screen.getByTestId('size-unit-0')).not.toHaveAttribute('aria-invalid', 'true');
+            await user.click(within(screen.getByTestId('global-validation-alert')).getByRole('button', { name: /Unit rejected by server/ }));
+            await waitFor(() => expect(screen.getByTestId('size-unit-1')).toHaveFocus());
+        });
+
+        it('rebases server error locations when an earlier placeholder is removed while the request is in flight', async () => {
+            const user = userEvent.setup();
+            const response = createDeferred<never>();
+            vi.mocked(axios.post).mockReturnValueOnce(response.promise);
+            await renderDataCiteForm({
+                initialTitles: [{ title: 'Rows moved during saving', titleType: 'main-title' }],
+                initialContentMetadata: { formats: [{ value: '' }, { value: 'text/csv' }], sizes: [], fingerprint: null },
+            });
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(axios.post).toHaveBeenCalledTimes(1));
+            await user.click(screen.getByRole('button', { name: 'Remove format 1' }));
+            await act(async () =>
+                response.reject({
+                    isAxiosError: true,
+                    response: {
+                        status: 422,
+                        data: {
+                            errors: { 'formats.0.value': ['Review this MIME type'] },
+                        },
+                    },
+                }),
+            );
+            await waitFor(() => expect(screen.getByTestId('format-select-0')).toHaveAttribute('aria-invalid', 'true'));
+            expect(screen.getByTestId('format-select-0')).toHaveTextContent('CSV');
+            expect(screen.queryByTestId('format-select-1')).not.toBeInTheDocument();
+        });
+
+        it('pauses autosave for deleted size conflicts until the curator discards the local edit', async () => {
+            vi.useFakeTimers();
+            const response = createDeferred<{
+                data: { resource: { id: number }; contentMetadata: NonNullable<DataCiteFormProps['initialContentMetadata']> };
+                status: number;
+            }>();
+            vi.mocked(axios.post)
+                .mockReturnValueOnce(response.promise)
+                .mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
+            const view = await renderDataCiteForm({
+                initialResourceId: '42',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Conflict autosave', titleType: 'main-title' }],
+                initialContentMetadata: {
+                    formats: [{ id: 1, value: 'application/x-netcdf' }],
+                    sizes: [{ id: 2, numeric_value: '1.0000', unit: 'GB', type: 'Primary Data Size' }],
+                    fingerprint: 'a'.repeat(64),
+                },
+            });
+            try {
+                fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unrelated title edit' } });
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(axios.post).toHaveBeenCalledTimes(1);
+                fireEvent.change(screen.getByTestId('size-value-0'), { target: { value: '2' } });
+                await act(async () =>
+                    response.resolve({
+                        data: {
+                            resource: { id: 42 },
+                            contentMetadata: {
+                                formats: [{ id: 3, value: 'application/x-netcdf' }],
+                                sizes: [],
+                                fingerprint: 'b'.repeat(64),
+                            },
+                        },
+                        status: 200,
+                    }),
+                );
+                expect(screen.getByText(/This entry was removed elsewhere/)).toBeInTheDocument();
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                fireEvent.click(screen.getByTestId('save-draft-button'));
+                expect(axios.post).toHaveBeenCalledTimes(1);
+                expect(screen.queryByRole('button', { name: 'Keep as new size' })).not.toBeInTheDocument();
+                fireEvent.click(screen.getByRole('button', { name: 'Discard local size change' }));
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(axios.post).toHaveBeenCalledTimes(2);
+                expect(vi.mocked(axios.post).mock.calls[1][1]).toMatchObject({
+                    formats: [{ id: 3, value: 'application/x-netcdf' }],
+                    sizes: [],
+                    contentMetadataFingerprint: 'b'.repeat(64),
+                });
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('saves resource metadata independently of landing-page setup with assistant size meanings', async () => {
+            const user = userEvent.setup();
+            await renderDataCiteForm({
+                initialResourceId: '42',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Assistant metadata', titleType: 'main-title' }],
+                initialContentMetadata: {
+                    formats: [{ id: 1, value: 'application/x-netcdf' }],
+                    sizes: [{ id: 2, numeric_value: '2048.0000', unit: 'bytes', type: 'Uncompressed Primary Data Size', editable: true }],
+                    fingerprint: 'a'.repeat(64),
+                },
+            });
+            const section = getAccordionTrigger(/Format & Size/);
+            if (section.getAttribute('aria-expanded') === 'false') await user.click(section);
+            await user.clear(screen.getByTestId('size-value-0'));
+            await user.type(screen.getByTestId('size-value-0'), '4096');
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() =>
+                expect(axios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({
+                        resourceId: 42,
+                        formats: [{ id: 1, value: 'application/x-netcdf' }],
+                        sizes: [{ id: 2, numeric_value: '4096', unit: 'bytes', type: 'Uncompressed Primary Data Size' }],
+                        contentMetadataFingerprint: 'a'.repeat(64),
+                        contentMetadataChanged: true,
+                    }),
+                    expect.any(Object),
+                ),
+            );
+        });
+
+        it('opens the new section and blocks invalid digital sizes before saving a draft', async () => {
+            const user = userEvent.setup();
+            await renderDataCiteForm({
+                initialTitles: [{ title: 'Invalid size', titleType: 'main-title' }],
+                initialContentMetadata: { formats: [], sizes: [{ numeric_value: '-2', unit: 'MB', type: null }], fingerprint: null },
+            });
+            const section = getAccordionTrigger(/Format & Size/);
+            if (section.getAttribute('aria-expanded') === 'true') await user.click(section);
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(section).toHaveAttribute('aria-expanded', 'true'));
+            expect(screen.getByTestId('size-value-0')).toHaveAttribute('aria-invalid', 'true');
+            expect(axios.post).not.toHaveBeenCalled();
+        });
+    });
+
     describe('unsaved editor changes', () => {
         const unloadIsBlocked = () => {
             const event = new Event('beforeunload', { cancelable: true });
             window.dispatchEvent(event);
             return event.defaultPrevented;
         };
+
+        it.each(['autosave', 'save-draft', 'validate', 'landing-page-preview'] as const)(
+            'accepts returned citation labels without a leave warning or a second autosave after %s',
+            async (mode) => {
+                vi.useFakeTimers();
+                const post = vi.mocked(axios.post).mockResolvedValue({
+                    data: {
+                        resource: { id: 42 },
+                        relatedWorkLabels: [
+                            { id: 11, citation_label: 'Generated APA citation', citation_label_hash: 'new' },
+                            { id: 12, citation_label: 'Concurrent correction', citation_label_hash: 'corrected' },
+                        ],
+                    },
+                });
+                const open = vi.spyOn(window, 'open').mockReturnValue(createPreopenedPreviewWindow().previewWindow);
+                const view = await renderDataCiteForm({
+                    initialResourceId: '42',
+                    initialTitles: [{ title: 'Citation changes', titleType: 'main-title' }],
+                    initialYear: '2025',
+                    initialResourceType: '1',
+                    initialLicenses: ['MIT'],
+                    initialAuthors: [{ type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true, email: 'jane@example.org' }],
+                    initialDescriptions: [{ type: 'Abstract', description: 'A complete abstract describing this dataset for validation.' }],
+                    availableDatacenters,
+                    initialDatacenterId: 1,
+                    initialLandingPage: {
+                        id: 7,
+                        is_published: false,
+                        status: 'draft',
+                        public_url: 'https://example.test/public',
+                        preview_url: 'https://example.test/preview',
+                    },
+                    initialRelatedWorks: [
+                        { identifier: '10.1234/one', identifier_type: 'DOI', relation_type: 'Cites', source: 'relation_suggestion_assistant' },
+                        { identifier: '10.1234/two', identifier_type: 'DOI', relation_type: 'References', citation_label: 'Earlier text' },
+                    ],
+                });
+                try {
+                    const section = screen.getByTestId('related-work-accordion-trigger');
+                    if (section.getAttribute('aria-expanded') === 'false') fireEvent.click(section);
+                    fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Changed title' } });
+                    await act(async () => {
+                        if (mode === 'autosave') vi.advanceTimersByTime(60_000);
+                        else if (mode === 'validate') fireEvent.click(screen.getByRole('button', { name: /^validate$/i }));
+                        else fireEvent.click(screen.getByTestId(mode === 'save-draft' ? 'save-draft-button' : 'show-lp-preview-button'));
+                    });
+                    expect(post).toHaveBeenCalledTimes(1);
+                    expect(post.mock.calls[0][0]).toBe(mode === 'validate' ? '/editor/resources' : '/editor/resources/draft');
+                    if (mode !== 'validate') expect(post.mock.calls[0][1]).toMatchObject({ intent: mode });
+                    expect(screen.getByDisplayValue('Generated APA citation')).toBeInTheDocument();
+                    expect(screen.getByDisplayValue('Concurrent correction')).toBeInTheDocument();
+                    expect(unloadIsBlocked()).toBe(false);
+                    await act(async () => {
+                        vi.advanceTimersByTime(60_000);
+                    });
+                    expect(post).toHaveBeenCalledTimes(1);
+                } finally {
+                    open.mockRestore();
+                    view.unmount();
+                    vi.useRealTimers();
+                }
+            },
+        );
+
+        it('keeps a citation edited during a draft request dirty until that edit is saved', async () => {
+            vi.useFakeTimers();
+            const saved = (label: string) => ({
+                data: { resource: { id: 42 }, relatedWorkLabels: [{ id: 11, citation_label: label, citation_label_hash: 'hash' }] },
+            });
+            const first = createDeferred<ReturnType<typeof saved>>();
+            const post = vi.mocked(axios.post).mockReturnValueOnce(first.promise).mockResolvedValue(saved('Edited while saving'));
+            const view = await renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'Concurrent edits', titleType: 'main-title' }],
+                initialRelatedWorks: [{ identifier: '10.1234/one', identifier_type: 'DOI', relation_type: 'Cites', citation_label: 'Stored label' }],
+            });
+            try {
+                const section = screen.getByTestId('related-work-accordion-trigger');
+                if (section.getAttribute('aria-expanded') === 'false') fireEvent.click(section);
+                fireEvent.click(screen.getByTestId('save-draft-button'));
+                expect(post).toHaveBeenCalledTimes(1);
+                fireEvent.change(screen.getByDisplayValue('Stored label'), { target: { value: 'Edited while saving' } });
+                await act(async () => first.resolve(saved('Stored label')));
+                expect(screen.getByDisplayValue('Edited while saving')).toBeInTheDocument();
+                expect(unloadIsBlocked()).toBe(true);
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                });
+                expect(post.mock.calls[1][1]).toMatchObject({
+                    intent: 'autosave',
+                    relatedIdentifiers: [{ id: 11, citationLabel: 'Edited while saving', originalCitationLabelHash: 'hash' }],
+                });
+                expect(unloadIsBlocked()).toBe(false);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
 
         it('drains an in-flight embargo autosave and pauses new writes until release finishes', async () => {
             vi.useFakeTimers();
@@ -629,7 +965,7 @@ describe('DataCiteForm', () => {
                 .mockReturnValueOnce(autosave.promise)
                 .mockReturnValueOnce(release.promise)
                 .mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
-            const view = renderDataCiteForm({
+            const view = await renderDataCiteForm({
                 initialResourceId: '42',
                 initialAccessLevel: 'embargoed',
                 initialTitles: [{ title: 'Embargo data', titleType: 'main-title' }],
@@ -676,7 +1012,7 @@ describe('DataCiteForm', () => {
         });
 
         it('warns only while a metadata edit differs from the last saved state', async () => {
-            renderDataCiteForm();
+            await renderDataCiteForm();
             expect(unloadIsBlocked()).toBe(false);
 
             fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unsaved title' } });
@@ -688,7 +1024,7 @@ describe('DataCiteForm', () => {
         it('treats imported initial metadata as unsaved until the first successful draft save', async () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Imported title', titleType: 'main-title' }],
                 hasUnpersistedPrefill: true,
             });
@@ -704,7 +1040,7 @@ describe('DataCiteForm', () => {
             const response = createDeferred<{ data: { resource: { id: number } }; status: number }>();
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockReturnValue(response.promise);
-            const view = renderDataCiteForm();
+            const view = await renderDataCiteForm();
 
             try {
                 fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'First title' } });
@@ -735,7 +1071,7 @@ describe('DataCiteForm', () => {
             vi.useFakeTimers();
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
-            const view = renderDataCiteForm();
+            const view = await renderDataCiteForm();
 
             try {
                 fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Autosaved title' } });
@@ -760,7 +1096,7 @@ describe('DataCiteForm', () => {
             const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockRejectedValue(new Error('Network error'));
-            const view = renderDataCiteForm();
+            const view = await renderDataCiteForm();
 
             try {
                 fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unsaved title' } });
@@ -785,7 +1121,7 @@ describe('DataCiteForm', () => {
             const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.' }, status: 201 });
-            const view = renderDataCiteForm();
+            const view = await renderDataCiteForm();
 
             try {
                 fireEvent.change(screen.getByTestId('main-title-input'), { target: { value: 'Unsaved title' } });
@@ -807,7 +1143,7 @@ describe('DataCiteForm', () => {
 
         it('warns while Tagify contains uncommitted text and clears after discarding it', async () => {
             const user = userEvent.setup();
-            renderDataCiteForm();
+            await renderDataCiteForm();
             await ensureFreeKeywordsOpen(user);
             const keywordInput = screen.getByTestId('free-keywords-input') as TagifyEnabledInput;
             const pendingInput = keywordInput.parentElement?.querySelector<HTMLInputElement>('.tagify__input');
@@ -823,7 +1159,7 @@ describe('DataCiteForm', () => {
         it('protects a retained landing-page draft even when the setup modal is closed', async () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
-            renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Saved resource', titleType: 'main-title' }] });
+            await renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Saved resource', titleType: 'main-title' }] });
             expect(unloadIsBlocked()).toBe(false);
 
             await userEvent.click(screen.getByTestId('show-lp-preview-button'));
@@ -838,7 +1174,7 @@ describe('DataCiteForm', () => {
         it('clears the landing-page warning after the setup is saved', async () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
-            renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Saved resource', titleType: 'main-title' }] });
+            await renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Saved resource', titleType: 'main-title' }] });
 
             await userEvent.click(screen.getByTestId('show-lp-preview-button'));
             const modal = mockSetupLandingPageModal.mock.calls.at(-1)?.[0] as MockSetupLandingPageModalProps;
@@ -848,9 +1184,9 @@ describe('DataCiteForm', () => {
             expect(unloadIsBlocked()).toBe(false);
         });
 
-        it('restores the landing-page warning from session storage for an existing resource', () => {
+        it('restores the landing-page warning from session storage for an existing resource', async () => {
             window.sessionStorage.setItem('setup-landing-page-modal:draft:42', '{"template":"default_gfz"}');
-            renderDataCiteForm({ initialResourceId: '42' });
+            await renderDataCiteForm({ initialResourceId: '42' });
             expect(unloadIsBlocked()).toBe(true);
         });
     });
@@ -874,7 +1210,7 @@ describe('DataCiteForm', () => {
         for (const action of ['save-draft-button', 'save-resource-button', 'show-lp-preview-button', 'datacite-action-button']) {
             it(`blocks ${action} while a ROR input is unconfirmed`, async () => {
                 mockUsePageProps.mockReturnValue({ auth: { user: { can_register_doi: true } } });
-                renderDataCiteForm(rorInitialValues);
+                await renderDataCiteForm(rorInitialValues);
                 const trigger = getAccordionTrigger(/Funding References/i);
                 if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
                 fireEvent.change(screen.getByLabelText(/Funder Name/), { target: { value: 'Unknown (012345678)' } });
@@ -885,8 +1221,10 @@ describe('DataCiteForm', () => {
             });
         }
         it('pauses autosave for a pending ROR and resumes after explicitly choosing an unlinked name', async () => {
+            vi.mocked(axios.post).mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
+
             vi.useFakeTimers();
-            const view = renderDataCiteForm(rorInitialValues);
+            const view = await renderDataCiteForm(rorInitialValues);
             try {
                 const trigger = getAccordionTrigger(/Funding References/i);
                 if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
@@ -914,7 +1252,7 @@ describe('DataCiteForm', () => {
             }
         });
         it('removes a pending ROR guard when its funding entry is deleted', async () => {
-            renderDataCiteForm(rorInitialValues);
+            await renderDataCiteForm(rorInitialValues);
             const trigger = getAccordionTrigger(/Funding References/i);
             if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
             fireEvent.change(screen.getByLabelText(/Funder Name/), { target: { value: '012345678' } });
@@ -931,18 +1269,18 @@ describe('DataCiteForm', () => {
     });
 
     describe('metadata upload when creating a resource', () => {
-        it('shows the upload group only for a new editor session', () => {
-            const { unmount } = renderDataCiteForm();
+        it('shows the upload group only for a new editor session', async () => {
+            const { unmount } = await renderDataCiteForm();
             expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
             unmount();
-            renderDataCiteForm({ initialResourceId: '42' });
+            await renderDataCiteForm({ initialResourceId: '42' });
             expect(screen.queryByTestId('editor-metadata-upload')).not.toBeInTheDocument();
         });
 
         it('hides the upload group after saving the first draft', async () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
-            renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+            await renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
             expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
 
             await userEvent.click(screen.getByTestId('save-draft-button'));
@@ -959,7 +1297,7 @@ describe('DataCiteForm', () => {
             vi.useFakeTimers();
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.', resource: { id: 42 } }, status: 201 });
-            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+            const view = await renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
 
             try {
                 expect(screen.getByTestId('editor-metadata-upload')).toBeInTheDocument();
@@ -991,7 +1329,7 @@ describe('DataCiteForm', () => {
             mockedAxios.post.mockReturnValue(autosaveResponse.promise);
             const fetchMock = vi.fn((input: RequestInfo | URL) => createDefaultFetchResponse(input.toString()));
             global.fetch = fetchMock;
-            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+            const view = await renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
 
             try {
                 await act(async () => {
@@ -1027,7 +1365,7 @@ describe('DataCiteForm', () => {
             );
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
-            const view = renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
+            const view = await renderDataCiteForm({ initialTitles: [{ title: 'New dataset', titleType: 'main-title' }] });
             const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Imported citation' }] }];
 
             try {
@@ -1061,7 +1399,7 @@ describe('DataCiteForm', () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
             const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Original citation' }] }];
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'New dataset', titleType: 'main-title' }],
                 initialRelatedItems: relatedItems,
             });
@@ -1083,7 +1421,7 @@ describe('DataCiteForm', () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft autosaved.', resource: { id: 42 } }, status: 201 });
             const relatedItems = [{ related_item_type: 'JournalArticle', relation_type_slug: 'Cites', titles: [{ title: 'Original citation' }] }];
-            const view = renderDataCiteForm({
+            const view = await renderDataCiteForm({
                 initialTitles: [{ title: 'New dataset', titleType: 'main-title' }],
                 initialRelatedItems: relatedItems,
             });
@@ -1136,7 +1474,7 @@ describe('DataCiteForm', () => {
             });
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
-            renderDataCiteForm({ initialTitles: [{ title: 'Entered title', titleType: 'main-title' }] });
+            await renderDataCiteForm({ initialTitles: [{ title: 'Entered title', titleType: 'main-title' }] });
 
             fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['xml'], 'import.xml')] } });
             await waitFor(() => {
@@ -1166,7 +1504,7 @@ describe('DataCiteForm', () => {
                       )
                     : createDefaultFetchResponse(input.toString()),
             );
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialDoi: null as unknown as string,
                 initialYear: null as unknown as string,
                 initialResourceType: null as unknown as string,
@@ -1205,7 +1543,7 @@ describe('DataCiteForm', () => {
                     ? Promise.resolve(createJsonResponse({ success: true, metadata }))
                     : createDefaultFetchResponse(input.toString()),
             );
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialDoi: '10.5880/typed',
                 initialYear: '2024',
                 initialResourceType: '1',
@@ -1262,7 +1600,7 @@ describe('DataCiteForm', () => {
                       )
                     : createDefaultFetchResponse(input.toString()),
             );
-            renderDataCiteForm();
+            await renderDataCiteForm();
             fireEvent.change(screen.getByTestId('editor-metadata-file-input'), { target: { files: [new File(['json'], 'rights.json')] } });
             await waitFor(() =>
                 expect(within(screen.getByTestId('editor-metadata-upload')).getByRole('status')).toHaveTextContent('rights.json was added'),
@@ -1280,8 +1618,8 @@ describe('DataCiteForm', () => {
     });
 
     describe('Floating editor actions (Issue #969)', () => {
-        it('keeps the editor action buttons in a fixed bottom-right action cluster', () => {
-            renderDataCiteForm();
+        it('keeps the editor action buttons in a fixed bottom-right action cluster', async () => {
+            await renderDataCiteForm();
 
             const floatingActions = screen.getByTestId('editor-floating-actions');
             const floatingPanel = screen.getByTestId('editor-floating-actions-panel');
@@ -1305,14 +1643,14 @@ describe('DataCiteForm', () => {
             expect(screen.getAllByTestId('save-resource-button')).toHaveLength(1);
         });
 
-        it('opens editor action guidance in a new tab so unsaved form values remain available', () => {
+        it('opens editor action guidance in a new tab so unsaved form values remain available', async () => {
             mockUsePageProps.mockReturnValue({
                 auth: { user: { can_register_doi: true } },
                 curationAccordionOpenItems: null,
                 curationAccordionRevision: null,
             });
 
-            const { unmount } = renderDataCiteForm();
+            const { unmount } = await renderDataCiteForm();
             const draftActions = within(screen.getByTestId('editor-floating-actions'));
             const validateHelp = draftActions.getByRole('link', { name: 'Details (opens in a new tab)' });
             const registerHelp = draftActions.getByRole('link', { name: 'What happens? (opens in a new tab)' });
@@ -1325,7 +1663,18 @@ describe('DataCiteForm', () => {
             }
 
             unmount();
-            renderDataCiteForm({ initialDoi: '10.5880/existing.001', initialPublicStatus: 'published', initialLandingPage: { id: 7, is_published: true, status: 'published', public_url: 'https://example.test/page', preview_url: null, external_url: null } });
+            await renderDataCiteForm({
+                initialDoi: '10.5880/existing.001',
+                initialPublicStatus: 'published',
+                initialLandingPage: {
+                    id: 7,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/page',
+                    preview_url: null,
+                    external_url: null,
+                },
+            });
             const updateHelp = within(screen.getByTestId('editor-floating-actions')).getByRole('link', {
                 name: 'What happens? (opens in a new tab)',
             });
@@ -1334,8 +1683,8 @@ describe('DataCiteForm', () => {
             expect(updateHelp).toHaveAttribute('rel', 'noopener noreferrer');
         });
 
-        it('uses transparent small-screen idle state with hover, focus, and touch reveal fallbacks', () => {
-            renderDataCiteForm();
+        it('uses transparent small-screen idle state with hover, focus, and touch reveal fallbacks', async () => {
+            await renderDataCiteForm();
 
             const floatingPanel = screen.getByTestId('editor-floating-actions-panel');
 
@@ -1347,8 +1696,8 @@ describe('DataCiteForm', () => {
             expect(floatingPanel.className).toContain('[@media(hover:none)]:opacity-100');
         });
 
-        it('keeps actions compact and preserves form submit semantics', () => {
-            renderDataCiteForm();
+        it('keeps actions compact and preserves form submit semantics', async () => {
+            await renderDataCiteForm();
 
             const draftButton = screen.getByTestId('save-draft-button');
             const previewButton = screen.getByTestId('show-lp-preview-button');
@@ -1370,7 +1719,7 @@ describe('DataCiteForm', () => {
 
         it('only makes action tooltip wrappers tabbable while their disabled tooltip is available', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            renderDataCiteForm();
+            await renderDataCiteForm();
 
             const draftButton = screen.getByTestId('save-draft-button');
             const previewButton = screen.getByTestId('show-lp-preview-button');
@@ -1389,8 +1738,8 @@ describe('DataCiteForm', () => {
             expect(previewButton.parentElement).not.toHaveAttribute('tabindex');
         });
 
-        it('keeps the Save & Validate wrapper tabbable only for the legacy-keywords tooltip state', () => {
-            renderDataCiteForm({
+        it('keeps the Save & Validate wrapper tabbable only for the legacy-keywords tooltip state', async () => {
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Legacy Keyword Dataset', titleType: 'main-title' }],
                 initialGcmdKeywords: [
                     {
@@ -1410,8 +1759,8 @@ describe('DataCiteForm', () => {
         });
     });
     describe('Consolidated form section headers', () => {
-        it('renders Resource Information as a permanently visible non-collapsible section', () => {
-            renderDataCiteForm();
+        it('renders Resource Information as a permanently visible non-collapsible section', async () => {
+            await renderDataCiteForm();
 
             const resourceSection = getResourceInfoSection();
 
@@ -1433,8 +1782,8 @@ describe('DataCiteForm', () => {
             expect(helpButton.closest('[data-slot="accordion-trigger"]')).toBeNull();
         });
 
-        it('marks Resource Information complete without a language selection', () => {
-            renderDataCiteForm({
+        it('marks Resource Information complete without a language selection', async () => {
+            await renderDataCiteForm({
                 initialYear: '2024',
                 initialResourceType: '1',
                 initialTitles: [{ title: 'Dataset without language metadata', titleType: 'main-title' }],
@@ -1449,8 +1798,8 @@ describe('DataCiteForm', () => {
             expect(within(resourceSection).getByLabelText('Language of Data', { exact: false })).toHaveTextContent('Select language');
         });
 
-        it('keeps counters and status indicators in accordion triggers without duplicate content headings', () => {
-            renderDataCiteForm();
+        it('keeps counters and status indicators in accordion triggers without duplicate content headings', async () => {
+            await renderDataCiteForm();
 
             const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
             const authorsTrigger = getAccordionTrigger(/Authors/i);
@@ -1471,8 +1820,8 @@ describe('DataCiteForm', () => {
             expect(within(contributorsTrigger).getByLabelText('Optional section')).toBeInTheDocument();
         });
 
-        it('keeps help actions outside accordion trigger buttons', () => {
-            renderDataCiteForm();
+        it('keeps help actions outside accordion trigger buttons', async () => {
+            await renderDataCiteForm();
 
             const resourceSection = getResourceInfoSection();
             const resourceHelp = screen.getByRole('button', { name: /Help for Resource Information/i });
@@ -1486,7 +1835,7 @@ describe('DataCiteForm', () => {
 
     describe('Accordion bulk controls', () => {
         it('renders collapse-all actions next to visible field group triggers and hides expand-all while all are open', async () => {
-            renderDataCiteForm();
+            await renderDataCiteForm();
 
             await waitFor(() => {
                 expect(screen.getAllByTestId('collapse-all-field-groups').length).toBeGreaterThanOrEqual(12);
@@ -1499,13 +1848,13 @@ describe('DataCiteForm', () => {
             expect(firstCollapseAllButton.closest('[data-slot="accordion-trigger"]')).toBeNull();
         });
 
-        it('ignores a legacy saved resource-info preference while keeping the static section visible', () => {
+        it('ignores a legacy saved resource-info preference while keeping the static section visible', async () => {
             mockUsePageProps.mockReturnValue({
                 curationAccordionOpenItems: ['resource-info'],
                 curationAccordionRevision: null,
             });
 
-            renderDataCiteForm();
+            await renderDataCiteForm();
 
             expect(getResourceInfoSection()).toBeVisible();
             expect(within(getResourceInfoSection()).getByLabelText('DOI')).toBeVisible();
@@ -1516,7 +1865,7 @@ describe('DataCiteForm', () => {
         });
 
         it('collapses every visible field group and persists an empty open item list', async () => {
-            renderDataCiteForm();
+            await renderDataCiteForm();
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             await user.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
@@ -1551,7 +1900,7 @@ describe('DataCiteForm', () => {
                 return createDefaultFetchResponse(url);
             });
 
-            renderDataCiteForm();
+            await renderDataCiteForm();
 
             fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
 
@@ -1572,7 +1921,7 @@ describe('DataCiteForm', () => {
                 curationAccordionOpenItems: [],
                 curationAccordionRevision: null,
             });
-            renderDataCiteForm();
+            await renderDataCiteForm();
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             expect(getResourceInfoSection()).toBeVisible();
@@ -1612,7 +1961,7 @@ describe('DataCiteForm', () => {
                 return createDefaultFetchResponse(url);
             });
 
-            renderDataCiteForm();
+            await renderDataCiteForm();
 
             fireEvent.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
 
@@ -1642,7 +1991,7 @@ describe('DataCiteForm', () => {
                 return createDefaultFetchResponse(url);
             });
 
-            renderDataCiteForm();
+            await renderDataCiteForm();
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             await user.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
@@ -1671,7 +2020,7 @@ describe('DataCiteForm', () => {
                 return createDefaultFetchResponse(url);
             });
 
-            renderDataCiteForm();
+            await renderDataCiteForm();
             vi.useFakeTimers();
 
             try {
@@ -1690,7 +2039,7 @@ describe('DataCiteForm', () => {
         });
 
         it('debounces rapid individual toggles and persists only the latest complete state', async () => {
-            renderDataCiteForm();
+            await renderDataCiteForm();
             vi.useFakeTimers();
 
             try {
@@ -1717,7 +2066,7 @@ describe('DataCiteForm', () => {
                 curationAccordionOpenItems: null,
                 curationAccordionRevision: serverRevision,
             });
-            renderDataCiteForm();
+            await renderDataCiteForm();
 
             fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
 
@@ -1737,7 +2086,7 @@ describe('DataCiteForm', () => {
                 headers: { 'x-curation-accordion-revision': String(serverRevision) },
                 config: {},
             } as Awaited<ReturnType<typeof axios.put>>);
-            renderDataCiteForm();
+            await renderDataCiteForm();
 
             fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
             await waitFor(() => {
@@ -1758,7 +2107,7 @@ describe('DataCiteForm', () => {
         it('serializes immediate preference writes so the newest state is persisted last', async () => {
             const firstRequest = createDeferred<unknown>();
             vi.mocked(axios.put).mockReturnValueOnce(firstRequest.promise as ReturnType<typeof axios.put>);
-            renderDataCiteForm();
+            await renderDataCiteForm();
 
             fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
             await waitFor(() => {
@@ -1785,7 +2134,7 @@ describe('DataCiteForm', () => {
         it('keeps the local accordion state and reports background persistence failures', async () => {
             const feedbackErrorSpy = vi.spyOn(feedback, 'error');
             vi.mocked(axios.put).mockRejectedValueOnce(new Error('Network error'));
-            renderDataCiteForm();
+            await renderDataCiteForm();
 
             fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
 
@@ -1806,7 +2155,7 @@ describe('DataCiteForm', () => {
     });
 
     it('renders fields, title options and supports adding/removing titles', { timeout: 60000 }, async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -1943,10 +2292,10 @@ describe('DataCiteForm', () => {
         expect(screen.getAllByRole('textbox', { name: /Title/ })).toHaveLength(1);
     });
 
-    it('uses complete responsive resource information rows and keeps long selected datacenter badges wrapped', () => {
+    it('uses complete responsive resource information rows and keeps long selected datacenter badges wrapped', async () => {
         const longDatacenterName = 'DEKORP - German Continental Seismic Reflection Program';
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2001,7 +2350,7 @@ describe('DataCiteForm', () => {
 
     it('announces available author roles for accessible guidance', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2032,7 +2381,7 @@ describe('DataCiteForm', () => {
     });
 
     it('lets curators add and remove contributors without losing existing entries', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2104,19 +2453,18 @@ describe('DataCiteForm', () => {
             initialLicenses: ['MIT'],
             initialAuthors: [{ type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true, email: 'jane@example.org' }],
             initialDescriptions: [{ type: 'Abstract', description: 'A complete abstract describing this dataset for validation.' }],
-            initialContributors: type === 'person'
-                ? [{ type: 'person', firstName: 'Ada', lastName: 'Lovelace', roles: ['Researcher'] }]
-                : [{ type: 'institution', institutionName: 'Example Institute', roles: ['HostingInstitution'] }],
+            initialContributors:
+                type === 'person'
+                    ? [{ type: 'person', firstName: 'Ada', lastName: 'Lovelace', roles: ['Researcher'] }]
+                    : [{ type: 'institution', institutionName: 'Example Institute', roles: ['HostingInstitution'] }],
             availableDatacenters,
             initialDatacenterId: 1,
         };
-        const view = renderDataCiteForm(props);
+        const view = await renderDataCiteForm(props);
         await ensureContributorsOpen(user);
         await user.click(screen.getByRole('button', { name: 'Remove contributor 1' }));
 
-        await user.click(saveMode === 'draft'
-            ? screen.getByTestId('save-draft-button')
-            : screen.getByRole('button', { name: /^validate$/i }));
+        await user.click(saveMode === 'draft' ? screen.getByTestId('save-draft-button') : screen.getByRole('button', { name: /^validate$/i }));
 
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
         const endpoint = saveMode === 'draft' ? '/editor/resources/draft' : '/editor/resources';
@@ -2128,14 +2476,14 @@ describe('DataCiteForm', () => {
         ]);
 
         view.unmount();
-        renderDataCiteForm({ ...props, initialContributors: payload.contributors });
+        await renderDataCiteForm({ ...props, initialContributors: payload.contributors });
         await ensureContributorsOpen(user);
         expect(screen.getByTestId('contributors-empty-state')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Remove contributor/ })).not.toBeInTheDocument();
     });
 
     it('save button is always enabled regardless of required fields (Issue #538)', { timeout: 60000 }, async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2158,7 +2506,7 @@ describe('DataCiteForm', () => {
     });
 
     it('shows the used instruments section when PID4INST is enabled', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2194,7 +2542,7 @@ describe('DataCiteForm', () => {
             return createDefaultFetchResponse(url);
         });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2243,7 +2591,7 @@ describe('DataCiteForm', () => {
             return createDefaultFetchResponse(url);
         });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2280,7 +2628,7 @@ describe('DataCiteForm', () => {
             return createDefaultFetchResponse(url);
         });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2300,6 +2648,8 @@ describe('DataCiteForm', () => {
     });
 
     it('keeps the used instruments section visible when the PID availability check throws', async () => {
+        using diagnostic = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
         vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
             const url = input.toString();
 
@@ -2310,7 +2660,7 @@ describe('DataCiteForm', () => {
             return createDefaultFetchResponse(url);
         });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2327,6 +2677,11 @@ describe('DataCiteForm', () => {
 
         expect(await screen.findByTestId('used-instruments-section')).toBeInTheDocument();
         expect(await screen.findByText('Add Instrument')).toBeInTheDocument();
+
+        expect(diagnostic).toHaveBeenCalledExactlyOnceWith(
+            'Failed to check PID availability, keeping PID-dependent fields visible',
+            expect.objectContaining({ message: 'network down' }),
+        );
     });
 
     it('does not warn about PID availability after the form unmounts', async () => {
@@ -2343,7 +2698,7 @@ describe('DataCiteForm', () => {
             return createDefaultFetchResponse(url);
         });
 
-        const { unmount } = render(
+        const { unmount } = await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2373,7 +2728,7 @@ describe('DataCiteForm', () => {
     });
 
     it('shows validation error list when saving with missing required fields (Issue #538)', { timeout: 60000 }, async () => {
-        const { container } = render(
+        const { container } = await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2407,7 +2762,7 @@ describe('DataCiteForm', () => {
     });
 
     it('shows validation error list on every save attempt, not just the first (Issue #538)', { timeout: 60000 }, async () => {
-        const { container } = render(
+        const { container } = await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2445,7 +2800,7 @@ describe('DataCiteForm', () => {
     });
 
     it('supports managing person and institution authors with affiliations', { timeout: 60000 }, async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2536,7 +2891,7 @@ describe('DataCiteForm', () => {
             error: null,
         });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2587,7 +2942,7 @@ describe('DataCiteForm', () => {
     });
 
     it('does not display ROR badges when affiliations have no identifier', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2627,7 +2982,7 @@ describe('DataCiteForm', () => {
     });
 
     it('shows ROR badges for initial authors passed to the form', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2662,7 +3017,7 @@ describe('DataCiteForm', () => {
     });
 
     it('supports adding, removing and managing multiple authors independently', { timeout: 60000 }, async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2813,7 +3168,7 @@ describe('DataCiteForm', () => {
     });
 
     it('applies responsive layout for author inputs', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2871,7 +3226,7 @@ describe('DataCiteForm', () => {
     });
 
     it('aligns contact fields alongside affiliations when marked as CP', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2908,8 +3263,8 @@ describe('DataCiteForm', () => {
         expect(websiteContainer).toHaveClass('md:col-span-3');
     });
 
-    it('places the Authors section after Licenses and Rights', () => {
-        render(
+    it('places the Authors section after Licenses and Rights', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2935,7 +3290,7 @@ describe('DataCiteForm', () => {
     });
 
     it('shows contact guidance on hover while keeping the label compact', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2973,7 +3328,7 @@ describe('DataCiteForm', () => {
 
     // TODO: Test skipped due to flaky timeout issues - needs investigation
     it.skip('requires an email address when a person author is marked as contact', { timeout: 60000 }, async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3032,8 +3387,8 @@ describe('DataCiteForm', () => {
         );
     });
 
-    it('prefills DOI when initialDoi is provided', () => {
-        render(
+    it('prefills DOI when initialDoi is provided', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3054,7 +3409,7 @@ describe('DataCiteForm', () => {
     describe('saved DOI editing (Issue #1315)', () => {
         it.each(['draft', 'curation', 'review'] as const)('keeps an authorized DOI editable in %s status', async (publicStatus) => {
             const user = userEvent.setup();
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialDoi: '10.5880/original.001',
                 initialPublicStatus: publicStatus,
@@ -3072,7 +3427,7 @@ describe('DataCiteForm', () => {
 
         it('locks a saved DOI when the user lacks edit permission before publication', async () => {
             const user = userEvent.setup();
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialDoi: '10.5880/beginner.001',
                 initialPublicStatus: 'draft',
@@ -3087,7 +3442,7 @@ describe('DataCiteForm', () => {
 
         it('locks an empty DOI field on a persisted resource when the user lacks edit permission', async () => {
             const user = userEvent.setup();
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialPublicStatus: 'curation',
                 canEditDoi: false,
@@ -3101,7 +3456,7 @@ describe('DataCiteForm', () => {
 
         it('allows an authorized user to enter the first DOI on a persisted resource', async () => {
             const user = userEvent.setup();
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialPublicStatus: 'review',
                 canEditDoi: true,
@@ -3116,7 +3471,7 @@ describe('DataCiteForm', () => {
 
         it('locks a published DOI for a non-admin even if an earlier capability is stale', async () => {
             const user = userEvent.setup();
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialDoi: '10.5880/published.001',
                 initialPublicStatus: 'published',
@@ -3132,7 +3487,7 @@ describe('DataCiteForm', () => {
 
         it('allows an admin to edit a published DOI and warns about broken links', async () => {
             const user = userEvent.setup();
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialDoi: '10.5880/admin.001',
                 initialPublicStatus: 'published',
@@ -3148,8 +3503,8 @@ describe('DataCiteForm', () => {
             ).toBeInTheDocument();
         });
 
-        it('keeps first-time DOI entry editable for an unsaved resource', () => {
-            renderDataCiteForm({
+        it('keeps first-time DOI entry editable for an unsaved resource', async () => {
+            await renderDataCiteForm({
                 initialDoi: '10.5880/imported.001',
                 canEditDoi: false,
             });
@@ -3158,8 +3513,8 @@ describe('DataCiteForm', () => {
         });
     });
 
-    it('prefills Year when initialYear is provided', () => {
-        render(
+    it('prefills Year when initialYear is provided', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3177,8 +3532,8 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Year', { exact: false })).toHaveValue(2024);
     });
 
-    it('prefills Version when initialVersion is provided', () => {
-        render(
+    it('prefills Version when initialVersion is provided', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3197,7 +3552,7 @@ describe('DataCiteForm', () => {
     });
 
     it('accepts DataCite-style version 1.0 without inline validation errors', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3225,7 +3580,7 @@ describe('DataCiteForm', () => {
     });
 
     it('applies the native 50 character limit on the Version input', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3248,7 +3603,7 @@ describe('DataCiteForm', () => {
     it('prefills authors when initialAuthors are provided', async () => {
         const user = userEvent.setup();
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3312,7 +3667,7 @@ describe('DataCiteForm', () => {
     it('prefills contributors when initialContributors are provided', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3385,7 +3740,7 @@ describe('DataCiteForm', () => {
     it('prefills contributor role inputs with multiple roles', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3418,7 +3773,7 @@ describe('DataCiteForm', () => {
     it('treats research group contributors as institutions when roles require it', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3472,7 +3827,7 @@ describe('DataCiteForm', () => {
     it('loads multiple affiliations for authors from old datasets correctly', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3529,7 +3884,7 @@ describe('DataCiteForm', () => {
     it('loads multiple affiliations for contributors from old datasets correctly', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3601,8 +3956,8 @@ describe('DataCiteForm', () => {
         expect(canAddTitle([{ id: '1', title: 'First', titleType: 'main-title' }])).toBe(true);
     });
 
-    it('prefills Language when initialLanguage code is provided', () => {
-        render(
+    it('prefills Language when initialLanguage code is provided', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3623,7 +3978,7 @@ describe('DataCiteForm', () => {
     it('allows an imported language selection to be cleared', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3651,8 +4006,8 @@ describe('DataCiteForm', () => {
         expect(screen.queryByRole('option', { name: 'Clear language selection' })).not.toBeInTheDocument();
     });
 
-    it('leaves Language empty when initialLanguage is missing', () => {
-        render(
+    it('leaves Language empty when initialLanguage is missing', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3669,14 +4024,14 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('Select language');
     });
 
-    it('does not default Language when English is not the first option', () => {
+    it('does not default Language when English is not the first option', async () => {
         const shuffledLanguages: Language[] = [
             { id: 2, code: 'de', name: 'German' },
             { id: 3, code: 'fr', name: 'French' },
             { id: 1, code: 'en', name: 'English' },
         ];
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3691,8 +4046,8 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('Select language');
     });
 
-    it('prefills Language when initialLanguage name is provided', () => {
-        render(
+    it('prefills Language when initialLanguage name is provided', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3710,8 +4065,8 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('German');
     });
 
-    it('prefills French when initialLanguage indicates French', () => {
-        render(
+    it('prefills French when initialLanguage indicates French', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3729,13 +4084,13 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('French');
     });
 
-    it('does not fall back to the first language when English is unavailable', () => {
+    it('does not fall back to the first language when English is unavailable', async () => {
         const limitedLanguages = [
             { id: 4, code: 'de', name: 'German' },
             { id: 5, code: 'fr', name: 'French' },
         ] satisfies Language[];
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3750,14 +4105,14 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('Select language');
     });
 
-    it('leaves Language empty when languages include incomplete entries', () => {
+    it('leaves Language empty when languages include incomplete entries', async () => {
         const incompleteLanguages = [
             { id: 1, code: ' ', name: ' ' },
             { id: 2, code: 'en', name: 'English' },
             { id: 3, code: 'de', name: 'German' },
         ] satisfies Language[];
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3772,8 +4127,8 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('Select language');
     });
 
-    it('prefills Resource Type when initialResourceType is provided', () => {
-        render(
+    it('prefills Resource Type when initialResourceType is provided', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3791,8 +4146,8 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Resource Type', { exact: false })).toHaveTextContent('Dataset');
     });
 
-    it('prefills licenses when initialLicenses are provided', () => {
-        render(
+    it('prefills licenses when initialLicenses are provided', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3812,8 +4167,8 @@ describe('DataCiteForm', () => {
         expect(triggers[1]).toHaveTextContent('Apache License 2.0');
     });
 
-    it('marks year, resource type and license as required', () => {
-        render(
+    it('marks year, resource type and license as required', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3843,7 +4198,7 @@ describe('DataCiteForm', () => {
     });
 
     it('marks title type as required for all titles', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3887,7 +4242,7 @@ describe('DataCiteForm', () => {
     });
 
     it('marks only main title as required', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3929,8 +4284,8 @@ describe('DataCiteForm', () => {
         expect(labels[1]).toHaveTextContent('*');
     });
 
-    it('prefills titles when initialTitles are provided', () => {
-        render(
+    it('prefills titles when initialTitles are provided', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3962,8 +4317,8 @@ describe('DataCiteForm', () => {
         expect(selects[3]).toHaveTextContent('Alternative Title');
     });
 
-    it('prefills a single main title', () => {
-        render(
+    it('prefills a single main title', async () => {
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -3983,7 +4338,7 @@ describe('DataCiteForm', () => {
     });
 
     it('allows title rows beyond the former configured limit', async () => {
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4067,7 +4422,7 @@ describe('DataCiteForm', () => {
 
         (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4180,7 +4535,7 @@ describe('DataCiteForm', () => {
             status: 200,
         });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4223,7 +4578,7 @@ describe('DataCiteForm', () => {
     it('submits user-entered custom licenses in the payload', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4279,7 +4634,7 @@ describe('DataCiteForm', () => {
     it('restores an imported catalog license and excludes the inactive custom draft from the payload', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4330,7 +4685,7 @@ describe('DataCiteForm', () => {
     it('indexes custom license inputs by custom payload order when catalog rows come first', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4370,7 +4725,7 @@ describe('DataCiteForm', () => {
     it('accepts a complete later license when the first license row is blank', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4406,7 +4761,7 @@ describe('DataCiteForm', () => {
     it('preserves imported raw rights without a URL as raw rights', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4467,7 +4822,7 @@ describe('DataCiteForm', () => {
     it('round-trips imported raw rights as custom licenses with source row IDs', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4530,7 +4885,7 @@ describe('DataCiteForm', () => {
         const responseData = { message: 'Resource updated!' };
         (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4597,7 +4952,7 @@ describe('DataCiteForm', () => {
             statusText: 'OK',
         });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4689,7 +5044,7 @@ describe('DataCiteForm', () => {
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
         mockedAxios.post.mockResolvedValue({ data: { message: 'Stored' }, status: 200 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4744,7 +5099,7 @@ describe('DataCiteForm', () => {
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
         mockedAxios.post.mockResolvedValue({ data: { message: 'Stored' }, status: 200 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4813,7 +5168,7 @@ describe('DataCiteForm', () => {
             isAxiosError: true,
         });
 
-        render(
+        const view = await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4843,14 +5198,9 @@ describe('DataCiteForm', () => {
         await fillRequiredAbstract(user);
 
         vi.mocked(axios.put).mockClear();
-        vi.useFakeTimers();
 
         try {
-            await act(async () => {
-                fireEvent.click(saveButton);
-                await Promise.resolve();
-                await Promise.resolve();
-            });
+            await user.click(saveButton);
 
             expect(axios.post).toHaveBeenCalledWith(
                 '/editor/resources',
@@ -4887,17 +5237,23 @@ describe('DataCiteForm', () => {
                 ],
             });
 
+            await waitFor(() => expect(screen.getByTestId('global-validation-alert')).toHaveFocus());
             expect(screen.getByText('Validation failed')).toBeInTheDocument();
             const alert = screen.getByTestId('global-validation-alert');
             expect(alert).not.toBeNull();
             expect(screen.getByRole('button', { name: /^A main title is required\.$/i })).toBeInTheDocument();
             // Should NOT redirect on validation failure (Issue #624)
             expect(mockRouterVisit).not.toHaveBeenCalled();
-            await advanceAccordionPreferenceDebounce();
+            // Observe beyond the preference debounce: validation-driven expansion must not be persisted.
+            await act(async () => {
+                await new Promise((resolve) => setTimeout(resolve, 450));
+            });
             expect(axios.put).not.toHaveBeenCalled();
             expect(mockRouterPut).not.toHaveBeenCalled();
         } finally {
-            vi.useRealTimers();
+            await act(async () => {
+                view.unmount();
+            });
         }
     });
 
@@ -4922,7 +5278,7 @@ describe('DataCiteForm', () => {
             isAxiosError: true,
         });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -4975,7 +5331,7 @@ describe('DataCiteForm', () => {
 
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -5028,7 +5384,7 @@ describe('DataCiteForm', () => {
     it('clears the inline required datacenter error after a datacenter is selected', { timeout: 20000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -5078,7 +5434,7 @@ describe('DataCiteForm', () => {
 
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -5138,7 +5494,7 @@ describe('DataCiteForm', () => {
 
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -5235,7 +5591,7 @@ describe('DataCiteForm', () => {
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
         mockedAxios.post.mockRejectedValue(new Error('Network Error'));
 
-        render(
+        await render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -5277,8 +5633,8 @@ describe('DataCiteForm', () => {
     });
 
     describe('Descriptions', () => {
-        it('renders the Descriptions accordion section', () => {
-            render(
+        it('renders the Descriptions accordion section', async () => {
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5298,7 +5654,7 @@ describe('DataCiteForm', () => {
 
         it('shows Abstract validation error when saving without Abstract (Issue #538)', async () => {
             const user = userEvent.setup();
-            const { container } = render(
+            const { container } = await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5335,7 +5691,7 @@ describe('DataCiteForm', () => {
         });
 
         it('attaches the required error to the first Abstract after other description types', async () => {
-            const { container } = render(
+            const { container } = await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5372,7 +5728,7 @@ describe('DataCiteForm', () => {
         });
 
         it('shows the required error at group level when no Abstract entry exists', async () => {
-            const { container } = render(
+            const { container } = await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5420,7 +5776,7 @@ describe('DataCiteForm', () => {
                 isAxiosError: true,
             });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5480,7 +5836,7 @@ describe('DataCiteForm', () => {
                 isAxiosError: true,
             });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5527,7 +5883,7 @@ describe('DataCiteForm', () => {
 
         it('save button remains enabled when Abstract is filled', { timeout: 60000 }, async () => {
             const user = userEvent.setup();
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5559,7 +5915,7 @@ describe('DataCiteForm', () => {
 
         it('accepts a non-empty Abstract shorter than 50 characters', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5611,7 +5967,7 @@ describe('DataCiteForm', () => {
 
         it('accepts short Abstracts when repeated Abstracts are validated', async () => {
             const user = userEvent.setup();
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5655,7 +6011,7 @@ describe('DataCiteForm', () => {
 
         it('blocks Save & Validate when an Abstract exceeds 17,500 characters', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5692,7 +6048,7 @@ describe('DataCiteForm', () => {
             const responseData = { message: 'Success', resource: { id: 1 } };
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5800,7 +6156,7 @@ describe('DataCiteForm', () => {
             const responseData = { message: 'Success', resource: { id: 1 } };
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5856,7 +6212,7 @@ describe('DataCiteForm', () => {
             const responseData = { message: 'Success', resource: { id: 1 } };
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -5902,12 +6258,80 @@ describe('DataCiteForm', () => {
     });
 
     describe('Dates Form Group', () => {
+        it.each(['draft', 'validate'] as const)(
+            'saves the reported historical and projected date rows through %s',
+            { timeout: 60000 },
+            async (mode) => {
+                const user = userEvent.setup({ pointerEventsCheck: 0 });
+                const dates: DataCiteFormProps['initialDates'] = [
+                    { dateType: 'other', dateMode: 'range', startDate: '2006', endDate: '2099' },
+                    { dateType: 'collected', dateMode: 'range', startDate: '2100', endDate: '2299' },
+                    { dateType: 'collected', dateMode: 'range', startDate: '1861', endDate: '2005' },
+                    { dateType: 'collected', dateMode: 'range', startDate: '1661', endDate: '1860' },
+                    { dateType: 'created', dateMode: 'single', startDate: '2017', endDate: '' },
+                ];
+                await renderDataCiteForm({
+                    initialResourceId: '42',
+                    initialYear: '2019',
+                    initialResourceType: '1',
+                    initialAccessLevel: 'open',
+                    initialTitles: [{ title: 'Historical and projected dataset dates', titleType: 'main-title' }],
+                    initialLicenses: ['MIT'],
+                    initialAuthors: [{ type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true, email: 'jane@example.org' }],
+                    initialDescriptions: [
+                        { type: 'Abstract', description: 'A complete abstract describing historical observations and projected model results.' },
+                    ],
+                    availableDatacenters,
+                    initialDatacenterId: 1,
+                    initialDates: dates,
+                });
+                await ensureDatesOpen(user);
+                await user.click(mode === 'draft' ? screen.getByTestId('save-draft-button') : screen.getByRole('button', { name: /^validate$/i }));
+                const endpoint = mode === 'draft' ? '/editor/resources/draft' : '/editor/resources';
+                await waitFor(() => expect(axios.post).toHaveBeenCalledWith(endpoint, expect.any(Object), expect.any(Object)));
+                const payload = vi.mocked(axios.post).mock.calls.find(([url]) => url === endpoint)![1] as { dates: unknown[]; accessLevel: string };
+                expect(payload.dates).toEqual(dates.map((date) => ({ ...date, endDate: date.endDate || null })));
+                expect(payload.accessLevel).toBe('open');
+                expect(screen.queryByText('Date validation issues')).not.toBeInTheDocument();
+            },
+        );
+
+        it.each(['Collected', 'Valid', 'Other'])(
+            'serializes both future %s timestamps without enabling an embargo',
+            { timeout: 60000 },
+            async (dateType) => {
+                const user = userEvent.setup({ pointerEventsCheck: 0 });
+                await renderDataCiteForm({
+                    initialTitles: [{ title: 'Future model results', titleType: 'main-title' }],
+                    initialAccessLevel: 'open',
+                    initialDates: [{ dateType, dateMode: 'range', startDate: '2299-01-01T09:30:45+02:00', endDate: '9999-12-31T23:59:59Z' }],
+                });
+                await user.click(screen.getByTestId('save-draft-button'));
+                await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+                const payload = vi.mocked(axios.post).mock.calls.find(([url]) => url === '/editor/resources/draft')![1] as {
+                    dates: unknown[];
+                    accessLevel: string;
+                };
+                expect(payload).toMatchObject({
+                    accessLevel: 'open',
+                    dates: [
+                        {
+                            dateType: dateType.toLowerCase(),
+                            dateMode: 'range',
+                            startDate: '2299-01-01T09:30:45+02:00',
+                            endDate: '9999-12-31T23:59:59Z',
+                        },
+                    ],
+                });
+            },
+        );
+
         const getEditorDateInputs = () =>
             Array.from(document.querySelectorAll<HTMLInputElement>('input[id$="-date"], input[id$="-startDate"], input[id$="-endDate"]'));
 
         it.each([true, false])('locks stored Submitted dates even when the type is inactive (active: %s)', async (isActive) => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialDates: [{ dateType: 'SUBMITTED', startDate: '2020-01-15T09:30:00+01:00', endDate: '' }],
                 dateTypes: [
@@ -5933,7 +6357,7 @@ describe('DataCiteForm', () => {
 
         it('does not add a duplicate when Submitted is the only enabled date type', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialDates: [{ dateType: 'Submitted', startDate: '2020', endDate: '' }],
                 dateTypes: [{ id: 1, name: 'Submitted', slug: 'Submitted', description: '' }],
@@ -5949,7 +6373,7 @@ describe('DataCiteForm', () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 200 });
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialTitles: [{ title: 'Resource without submission date', titleType: 'main-title' }],
                 initialDates: [{ dateType: 'Created', startDate: '2020', endDate: '' }],
@@ -5977,10 +6401,12 @@ describe('DataCiteForm', () => {
         });
 
         it('keeps an imported Submitted value editable after a failed save and locks it after a successful retry', async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockRejectedValueOnce(new Error('Save failed'));
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'XML-imported resource', titleType: 'main-title' }],
                 hasUnpersistedPrefill: true,
                 initialDates: [{ dateType: 'Submitted', startDate: '2020-01-15', endDate: '' }],
@@ -5997,6 +6423,8 @@ describe('DataCiteForm', () => {
             await user.click(screen.getByTestId('save-draft-button'));
             await waitFor(() => expect(dateInput).toBeDisabled());
             expect(dateInput).toHaveValue('2020-01-15');
+
+            expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to save draft', expect.objectContaining({ message: 'Save failed' }));
         });
 
         it('restores and locks the saved Submitted value if it was edited while a save was in flight', async () => {
@@ -6004,7 +6432,7 @@ describe('DataCiteForm', () => {
             const response = createDeferred<{ data: { resource: { id: number } }; status: number }>();
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockReturnValue(response.promise);
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Submission snapshot', titleType: 'main-title' }],
                 initialDates: [{ dateType: 'Submitted', startDate: '2020-01-15', endDate: '' }],
             });
@@ -6025,7 +6453,7 @@ describe('DataCiteForm', () => {
             vi.useFakeTimers();
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { resource: { id: 42 } }, status: 201 });
-            const view = renderDataCiteForm({
+            const view = await renderDataCiteForm({
                 initialTitles: [{ title: 'Autosaved submission', titleType: 'main-title' }],
                 initialDates: [{ dateType: 'Submitted', startDate: '2020-01-15', endDate: '' }],
                 hasUnpersistedPrefill: true,
@@ -6050,7 +6478,7 @@ describe('DataCiteForm', () => {
         });
 
         it('renders the Dates accordion section', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6071,8 +6499,8 @@ describe('DataCiteForm', () => {
             expect(datesTrigger).toHaveAttribute('aria-expanded', 'true');
         });
 
-        it('starts with an empty dates array when no editable dates are provided', () => {
-            render(
+        it('starts with an empty dates array when no editable dates are provided', async () => {
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6094,7 +6522,7 @@ describe('DataCiteForm', () => {
 
         it('preserves date type usage order and defaults new rows to the first editable type', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 dateTypes: [
                     { id: 1, name: 'Accepted', slug: 'Accepted', description: '' },
                     { id: 2, name: 'Issued', slug: 'Issued', description: '' },
@@ -6135,7 +6563,7 @@ describe('DataCiteForm', () => {
                 ],
                 initialDates: [{ dateType: 'Created', startDate: '2020-01-01', endDate: '' }],
             };
-            const view = renderDataCiteForm(props);
+            const view = await renderDataCiteForm(props);
             await ensureDatesOpen(user);
             expect(screen.getByRole('combobox', { name: 'Date Type' })).toHaveTextContent('Created');
 
@@ -6167,7 +6595,7 @@ describe('DataCiteForm', () => {
         });
 
         it('supports adding date types (excludes accepted, issued, updated, and coverage)', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6213,7 +6641,7 @@ describe('DataCiteForm', () => {
             const futureYear = new Date().getFullYear() + 2;
             const futureIso = `${futureYear}-10-12`;
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialYear: String(new Date().getFullYear()),
                 initialResourceType: '1',
                 initialTitles: [{ title: 'Embargo Dataset', titleType: 'main-title' }],
@@ -6250,7 +6678,7 @@ describe('DataCiteForm', () => {
             vi.spyOn(window.navigator, 'language', 'get').mockReturnValue('en-US');
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const futureYear = new Date().getFullYear() + 2;
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialAccessLevel: 'embargoed',
                 initialDates: [{ dateType: 'Available', startDate: `${futureYear}-10-12`, endDate: '' }],
             });
@@ -6269,7 +6697,7 @@ describe('DataCiteForm', () => {
         it('automatically selects Embargoed access for a future Available date', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const futureYear = new Date().getFullYear() + 2;
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialYear: String(new Date().getFullYear()),
                 initialResourceType: '1',
                 initialTitles: [{ title: 'Open Dataset', titleType: 'main-title' }],
@@ -6292,7 +6720,7 @@ describe('DataCiteForm', () => {
         it('rejects a future Created date with seeded slugs', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const futureYear = new Date().getFullYear() + 2;
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Future Created Dataset', titleType: 'main-title' }],
                 initialDates: [{ dateType: 'Created', startDate: `${futureYear}-10-12`, endDate: '' }],
             });
@@ -6307,7 +6735,7 @@ describe('DataCiteForm', () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const futureYear = new Date().getFullYear() + 2;
             const futureIso = `${futureYear}-10-12`;
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Existing Embargo Dataset', titleType: 'main-title' }],
                 initialAccessLevel: 'embargoed',
                 initialDates: [{ dateType, startDate: futureIso, endDate: '' }],
@@ -6325,7 +6753,7 @@ describe('DataCiteForm', () => {
         });
 
         it('supports removing date fields', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6358,7 +6786,7 @@ describe('DataCiteForm', () => {
         });
 
         it('allows a date type to be used more than once', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6400,8 +6828,8 @@ describe('DataCiteForm', () => {
             expect(coverageOption).not.toBeInTheDocument();
         });
 
-        it('displays description for selected date type', () => {
-            render(
+        it('displays description for selected date type', async () => {
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6422,7 +6850,7 @@ describe('DataCiteForm', () => {
         });
 
         it('shows period mode only after selecting it for supported date types', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6453,7 +6881,7 @@ describe('DataCiteForm', () => {
         });
 
         it('clears endDate when switching from "valid" to another date type', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6492,8 +6920,8 @@ describe('DataCiteForm', () => {
             expect(datePickerComboboxes[0]).toHaveValue('2024-01-01');
         });
 
-        it('hydrates space-separated datetime values into date, time, and timezone controls', () => {
-            render(
+        it('hydrates space-separated datetime values into date, time, and timezone controls', async () => {
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6520,8 +6948,8 @@ describe('DataCiteForm', () => {
             expect(timezoneTrigger).toHaveTextContent('UTC');
         });
 
-        it('filters out accepted, issued, updated, and coverage dates from initialDates', () => {
-            render(
+        it('filters out accepted, issued, updated, and coverage dates from initialDates', async () => {
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6560,7 +6988,7 @@ describe('DataCiteForm', () => {
         it('should show toast notification when MSL trigger keyword is added', async () => {
             const { toast } = await import('sonner');
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6607,7 +7035,7 @@ describe('DataCiteForm', () => {
         it('should not unlock the section for the old free-keyword alias MSL', async () => {
             const { toast } = await import('sonner');
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6648,7 +7076,7 @@ describe('DataCiteForm', () => {
         it('should NOT show toast notification when initial data contains MSL keywords', async () => {
             const { toast } = await import('sonner');
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6676,7 +7104,7 @@ describe('DataCiteForm', () => {
         it('should NOT show toast notification when MSL keyword from old dataset', async () => {
             const { toast } = await import('sonner');
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6702,7 +7130,7 @@ describe('DataCiteForm', () => {
         });
 
         it('should show MSL Laboratories section when EPOS keyword is added', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6751,7 +7179,7 @@ describe('DataCiteForm', () => {
         it('accepts exact free keywords after trimming and case normalization', async () => {
             const { toast } = await import('sonner');
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6783,7 +7211,7 @@ describe('DataCiteForm', () => {
         it.each(['depositional', 'MSL', 'Multi Scale Laboratories', 'EPOS dataset'])(
             'does not unlock laboratories for the non-exact free keyword %s',
             async (keyword) => {
-                render(
+                await render(
                     <DataCiteForm
                         resourceTypes={resourceTypes}
                         titleTypes={titleTypes}
@@ -6820,7 +7248,7 @@ describe('DataCiteForm', () => {
                 return createDefaultFetchResponse(url);
             });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6851,7 +7279,7 @@ describe('DataCiteForm', () => {
         });
 
         it('treats an empty triggered laboratory section as optional and has no artificial maximum', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6875,7 +7303,7 @@ describe('DataCiteForm', () => {
         });
 
         it('should show MSL tab in Controlled Vocabularies when triggered', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6923,7 +7351,7 @@ describe('DataCiteForm', () => {
         it('should show MSL tab when initial controlled MSL keywords exist', async () => {
             const { toast } = await import('sonner');
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -6963,7 +7391,7 @@ describe('DataCiteForm', () => {
         it('should only notify once when multiple MSL keywords are added', async () => {
             const { toast } = await import('sonner');
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -7011,7 +7439,7 @@ describe('DataCiteForm', () => {
         });
 
         it('should hide MSL section when all MSL keywords are removed', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -7062,7 +7490,7 @@ describe('DataCiteForm', () => {
         });
 
         it('does not remove or hide an existing selection when its trigger is removed', async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -7103,29 +7531,10 @@ describe('DataCiteForm', () => {
     });
 
     describe('Landing page preview (Issue #968)', () => {
-        const createPreopenedPreviewWindow = () => {
-            const close = vi.fn();
-            const documentClose = vi.fn();
-            const documentOpen = vi.fn();
-            const documentWrite = vi.fn();
-            const previewWindow = {
-                location: { href: 'about:blank' },
-                close,
-                document: {
-                    close: documentClose,
-                    open: documentOpen,
-                    write: documentWrite,
-                },
-                opener: { source: 'test-opener' },
-            } as unknown as Window;
-
-            return { close, documentClose, documentOpen, documentWrite, previewWindow };
-        };
-
         it('renders the preview button and enables it after a Main Title is entered', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            renderDataCiteForm();
+            await renderDataCiteForm();
 
             const previewButton = screen.getByTestId('show-lp-preview-button');
             expect(previewButton).toBeDisabled();
@@ -7147,9 +7556,9 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Invalid Preview Date Dataset', titleType: 'main-title' }],
-                initialDates: [{ dateType: 'collected', dateMode: 'single', startDate: '2999-01-01', endDate: '' }],
+                initialDates: [{ dateType: 'created', dateMode: 'single', startDate: '2999-01-01', endDate: '' }],
             });
 
             const previewButton = screen.getByTestId('show-lp-preview-button');
@@ -7175,7 +7584,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialTitles: [{ title: 'Preview Dataset', titleType: 'main-title' }],
                 initialLandingPage: {
@@ -7221,7 +7630,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '43',
                 initialPublicStatus: 'embargo',
                 initialAccessLevel: 'embargoed',
@@ -7259,7 +7668,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '43',
                 initialTitles: [{ title: 'Blocked Popup Dataset', titleType: 'main-title' }],
                 initialLandingPage: {
@@ -7291,7 +7700,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 resourceTypes: [
                     { id: 1, name: 'Dataset' },
                     { id: 2, name: 'PhysicalObject' },
@@ -7332,7 +7741,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Close Setup Dataset', titleType: 'main-title' }],
             });
 
@@ -7364,7 +7773,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'New LP Dataset', titleType: 'main-title' }],
             });
 
@@ -7411,7 +7820,7 @@ describe('DataCiteForm', () => {
                     config: {},
                 });
 
-                renderDataCiteForm({
+                await renderDataCiteForm({
                     initialResourceId: '42',
                     initialDoi: '10.5880/publish-transition.001',
                     initialPublicStatus: 'review',
@@ -7462,7 +7871,7 @@ describe('DataCiteForm', () => {
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockReturnValue(draftSave.promise);
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '102',
                 initialTitles: [{ title: 'Preparing Preview Dataset', titleType: 'main-title' }],
                 initialGcmdKeywords: [
@@ -7529,7 +7938,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '44',
                 initialTitles: [{ title: 'External Dataset', titleType: 'main-title' }],
                 initialLandingPage: {
@@ -7562,7 +7971,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '45',
                 initialTitles: [{ title: 'Draft Without Preview URL', titleType: 'main-title' }],
                 initialLandingPage: {
@@ -7599,7 +8008,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '46',
                 initialTitles: [{ title: 'Published Without URL', titleType: 'main-title' }],
                 initialLandingPage: {
@@ -7633,7 +8042,7 @@ describe('DataCiteForm', () => {
                 response: { status: 419, data: {} },
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '47',
                 initialTitles: [{ title: 'Existing Preview Save Failure', titleType: 'main-title' }],
                 initialLandingPage: {
@@ -7667,7 +8076,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Missing Resource ID Dataset', titleType: 'main-title' }],
             });
 
@@ -7686,7 +8095,7 @@ describe('DataCiteForm', () => {
                 response: { status: 419, data: {} },
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Expired Session Dataset', titleType: 'main-title' }],
             });
 
@@ -7708,7 +8117,7 @@ describe('DataCiteForm', () => {
                 },
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Backend Message Dataset', titleType: 'main-title' }],
             });
 
@@ -7734,7 +8143,7 @@ describe('DataCiteForm', () => {
                 },
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Validation Error Dataset', titleType: 'main-title' }],
             });
 
@@ -7751,7 +8160,7 @@ describe('DataCiteForm', () => {
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockRejectedValue(new Error('Network Error'));
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Network Error Dataset', titleType: 'main-title' }],
             });
 
@@ -7777,7 +8186,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Setup Removed Dataset', titleType: 'main-title' }],
             });
 
@@ -7801,7 +8210,7 @@ describe('DataCiteForm', () => {
     });
     describe('Save Draft (Issue #548)', () => {
         it('disables the draft button when no Main Title is entered', { timeout: 30000 }, async () => {
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -7823,7 +8232,7 @@ describe('DataCiteForm', () => {
         it('enables the draft button when a Main Title is entered', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -7851,7 +8260,7 @@ describe('DataCiteForm', () => {
         it('disables the draft button when Main Title is only whitespace', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -7885,7 +8294,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -7922,7 +8331,7 @@ describe('DataCiteForm', () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Legacy contributor roles', titleType: 'main-title' }],
                 initialContributors: [
                     {
@@ -7977,7 +8386,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialAccessLevel: '',
                 initialTitles: [{ title: 'Unresolved Access Dataset', titleType: 'main-title' }],
             });
@@ -8000,7 +8409,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Coverage Instant Dataset', titleType: 'main-title' }],
                 initialSpatialTemporalCoverages: [
                     {
@@ -8048,7 +8457,7 @@ describe('DataCiteForm', () => {
                 isAxiosError: true,
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Draft Dataset', titleType: 'main-title' }],
                 availableDatacenters,
             });
@@ -8079,7 +8488,7 @@ describe('DataCiteForm', () => {
                 isAxiosError: true,
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Dated Dataset', titleType: 'main-title' }],
                 initialDates: [
                     { dateType: 'available', startDate: '', endDate: '' },
@@ -8104,7 +8513,7 @@ describe('DataCiteForm', () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post = vi.fn();
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -8139,7 +8548,7 @@ describe('DataCiteForm', () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post = vi.fn();
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -8152,7 +8561,7 @@ describe('DataCiteForm', () => {
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialTitles={[{ title: 'Draft Dataset', titleType: 'main-title' }]}
-                    initialDates={[{ dateType: 'collected', dateMode: 'single', startDate: '2999-01-01', endDate: '' }]}
+                    initialDates={[{ dateType: 'created', dateMode: 'single', startDate: '2999-01-01', endDate: '' }]}
                 />,
             );
 
@@ -8169,7 +8578,7 @@ describe('DataCiteForm', () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Timed Dataset', titleType: 'main-title' }],
                 initialDates: [
                     {
@@ -8199,7 +8608,7 @@ describe('DataCiteForm', () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Historic Dataset', titleType: 'main-title' }],
                 initialDates: [{ dateType: 'collected', dateMode: 'range', startDate: '2020-06', endDate: '2020-09-24' }],
             });
@@ -8224,7 +8633,7 @@ describe('DataCiteForm', () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Timed Dataset', titleType: 'main-title' }],
                 initialDates: [
                     {
@@ -8269,7 +8678,7 @@ describe('DataCiteForm', () => {
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post = vi.fn();
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Historic Dataset', titleType: 'main-title' }],
                 initialDates: [{ dateType: 'available', startDate: '2020-09-24', endDate: '' }],
             });
@@ -8297,7 +8706,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -8352,7 +8761,7 @@ describe('DataCiteForm', () => {
             window.history.replaceState(window.history.state, '', '/editor?resourceId=42');
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft updated.', resource: { id: 42 } }, status: 200 });
-            renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Existing draft', titleType: 'main-title' }] });
+            await renderDataCiteForm({ initialResourceId: '42', initialTitles: [{ title: 'Existing draft', titleType: 'main-title' }] });
 
             await userEvent.click(screen.getByTestId('save-draft-button'));
             await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Draft updated.'));
@@ -8371,7 +8780,7 @@ describe('DataCiteForm', () => {
             vi.useFakeTimers();
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 201 });
-            const view = renderDataCiteForm({ initialTitles: [{ title: 'Autosaved draft', titleType: 'main-title' }] });
+            const view = await renderDataCiteForm({ initialTitles: [{ title: 'Autosaved draft', titleType: 'main-title' }] });
 
             try {
                 await act(async () => {
@@ -8406,7 +8815,7 @@ describe('DataCiteForm', () => {
             mockedAxios.post
                 .mockReturnValueOnce(autosaveResponse.promise)
                 .mockResolvedValueOnce({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
-            const view = renderDataCiteForm({ initialTitles: [{ title: 'Concurrent draft', titleType: 'main-title' }] });
+            const view = await renderDataCiteForm({ initialTitles: [{ title: 'Concurrent draft', titleType: 'main-title' }] });
 
             try {
                 const draftButton = screen.getByTestId('save-draft-button');
@@ -8447,7 +8856,7 @@ describe('DataCiteForm', () => {
             const manualSaveResponse = createDeferred<{ data: { resource: { id: number } }; status: number }>();
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
             mockedAxios.post.mockReturnValueOnce(manualSaveResponse.promise);
-            const view = renderDataCiteForm({ initialTitles: [{ title: 'Concurrent draft', titleType: 'main-title' }] });
+            const view = await renderDataCiteForm({ initialTitles: [{ title: 'Concurrent draft', titleType: 'main-title' }] });
 
             try {
                 await act(async () => {
@@ -8481,7 +8890,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            const view = renderDataCiteForm();
+            const view = await renderDataCiteForm();
 
             try {
                 const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
@@ -8525,9 +8934,13 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            const view = renderDataCiteForm({
+            const view = await renderDataCiteForm({
                 initialResourceId: '42',
                 initialTitles: [{ title: 'Initial Draft', titleType: 'main-title' }],
+                initialRelatedWorks: [
+                    { identifier: 'ark:/z', identifier_type: 'ARK', relation_type: 'Cites', citation_label: 'Zulu' },
+                    { identifier: 'ark:/a', identifier_type: 'ARK', relation_type: 'References', citation_label: 'Alpha' },
+                ],
             });
 
             try {
@@ -8551,6 +8964,10 @@ describe('DataCiteForm', () => {
                         resourceId: 42,
                         intent: 'autosave',
                         titles: [{ title: 'Changed Draft', titleType: 'main-title', language: null }],
+                        relatedIdentifiers: [
+                            { identifier: 'ark:/z', identifierType: 'ARK', relationType: 'Cites', citationLabel: 'Zulu' },
+                            { identifier: 'ark:/a', identifierType: 'ARK', relationType: 'References', citationLabel: 'Alpha' },
+                        ],
                     }),
                     expect.objectContaining({
                         headers: expect.objectContaining({
@@ -8582,9 +8999,13 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            const view = renderDataCiteForm({
+            const view = await renderDataCiteForm({
                 initialResourceId: '42',
                 initialTitles: [{ title: 'Initial Draft', titleType: 'main-title' }],
+                initialRelatedWorks: [
+                    { identifier: 'ark:/z', identifier_type: 'ARK', relation_type: 'Cites', citation_label: 'Zulu' },
+                    { identifier: 'ark:/a', identifier_type: 'ARK', relation_type: 'References', citation_label: 'Alpha' },
+                ],
             });
 
             try {
@@ -8603,8 +9024,8 @@ describe('DataCiteForm', () => {
     });
 
     describe('Local validation actions (Issues #1162 and #1163)', () => {
-        const renderFormWithDefaults = (overrides = {}) =>
-            render(
+        const renderFormWithDefaults = async (overrides = {}) =>
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -8643,7 +9064,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            renderFormWithDefaults();
+            await renderFormWithDefaults();
 
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
@@ -8677,7 +9098,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            renderFormWithDefaults();
+            await renderFormWithDefaults();
 
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
@@ -8709,7 +9130,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            renderFormWithDefaults();
+            await renderFormWithDefaults();
 
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
@@ -8737,7 +9158,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            renderFormWithDefaults();
+            await renderFormWithDefaults();
 
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
@@ -8764,7 +9185,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            renderFormWithDefaults();
+            await renderFormWithDefaults();
 
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
@@ -8823,7 +9244,7 @@ describe('DataCiteForm', () => {
                     },
                 },
             });
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialTitles: [{ title: 'Location draft', titleType: 'main-title' }],
                 initialSpatialTemporalCoverages: [entry, { ...entry, id: 'new-copy' }],
             });
@@ -8855,7 +9276,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -8904,7 +9325,7 @@ describe('DataCiteForm', () => {
         it('does not redirect on client-side validation failure', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -8943,7 +9364,7 @@ describe('DataCiteForm', () => {
                 isAxiosError: true,
             });
 
-            renderFormWithDefaults();
+            await renderFormWithDefaults();
 
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
@@ -8965,7 +9386,7 @@ describe('DataCiteForm', () => {
 
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockRejectedValue(new Error('Network Error'));
 
-            renderFormWithDefaults();
+            await renderFormWithDefaults();
 
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
@@ -8982,6 +9403,8 @@ describe('DataCiteForm', () => {
         });
 
         it('does not redirect on CSRF 419 error', { timeout: 60000 }, async () => {
+            using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockRejectedValue({
@@ -8989,7 +9412,7 @@ describe('DataCiteForm', () => {
                 isAxiosError: true,
             });
 
-            renderFormWithDefaults();
+            await renderFormWithDefaults();
 
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
@@ -9003,6 +9426,8 @@ describe('DataCiteForm', () => {
                 expect(screen.getByText('Your session has expired. Please refresh the page and try again.')).toBeInTheDocument();
             });
             expect(mockRouterVisit).not.toHaveBeenCalled();
+
+            expect(diagnostic).toHaveBeenCalledExactlyOnceWith('CSRF token mismatch detected');
         });
 
         it('uses the local-validation default success message when the backend returns none', { timeout: 60000 }, async () => {
@@ -9013,7 +9438,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            renderFormWithDefaults();
+            await renderFormWithDefaults();
 
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
@@ -9034,7 +9459,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            renderFormWithDefaults();
+            await renderFormWithDefaults();
 
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
@@ -9088,7 +9513,7 @@ describe('DataCiteForm', () => {
                 throw new Error(`Unexpected POST ${url}`);
             });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialYear: '2024',
                 initialResourceType: '1',
                 initialTitles: [{ title: 'Registration Dataset', titleType: 'main-title' }],
@@ -9146,14 +9571,17 @@ describe('DataCiteForm', () => {
             });
 
             await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(3));
-            expect(mockedAxios.post.mock.calls[2]).toEqual(['/resources/42/publish-doi', { prefix: '10.83279', force: false, confirm_publication: true }]);
+            expect(mockedAxios.post.mock.calls[2]).toEqual([
+                '/resources/42/publish-doi',
+                { prefix: '10.83279', force: false, confirm_publication: true },
+            ]);
             expect(await screen.findByTestId('doi-registration-success-dialog')).toBeInTheDocument();
             expect(screen.getByTestId('published-record-total')).toHaveTextContent('125');
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it.each(['published', 'dead'] as const)('shows only Update Metadata and Show LP for a %s record', (publicStatus) => {
-            renderDataCiteForm({
+        it.each(['published', 'dead'] as const)('shows only Update Metadata and Show LP for a %s record', async (publicStatus) => {
+            await renderDataCiteForm({
                 initialDoi: '10.5880/example',
                 initialPublicStatus: publicStatus,
                 initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
@@ -9173,8 +9601,8 @@ describe('DataCiteForm', () => {
             expect(screen.queryByTestId('save-resource-button')).not.toBeInTheDocument();
         });
 
-        it.each(['draft', 'curation', 'review'] as const)('offers explicit publication for a preassigned DOI in %s status', (publicStatus) => {
-            renderDataCiteForm({
+        it.each(['draft', 'curation', 'review'] as const)('offers explicit publication for a preassigned DOI in %s status', async (publicStatus) => {
+            await renderDataCiteForm({
                 initialDoi: ' 10.5880/legacy-resource ',
                 initialPublicStatus: publicStatus,
                 initialTitles: [{ title: 'Imported legacy dataset', titleType: 'main-title' }],
@@ -9189,7 +9617,7 @@ describe('DataCiteForm', () => {
         it('opens publication confirmation without requiring a prefix for an imported review resource', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialDoi: '10.5880/legacy-resource',
                 initialPublicStatus: 'review',
@@ -9225,7 +9653,7 @@ describe('DataCiteForm', () => {
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
 
-            renderDataCiteForm({
+            await renderDataCiteForm({
                 initialResourceId: '42',
                 initialDoi: '10.5880/example',
                 initialPublicStatus: publicStatus,
@@ -9253,6 +9681,8 @@ describe('DataCiteForm', () => {
             'confirms, saves, and updates a published record after %s',
             { timeout: 60000 },
             async (outcome) => {
+                using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+
                 const user = userEvent.setup({ pointerEventsCheck: 0 });
                 const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
                 const busyMessage =
@@ -9264,7 +9694,11 @@ describe('DataCiteForm', () => {
                 mockedAxios.post.mockImplementation((url: string) => {
                     if (url === '/editor/resources') {
                         return Promise.resolve({
-                            data: { message: 'Validated', resource: { id: 42, publicStatus: 'published' } },
+                            data: {
+                                message: 'Validated',
+                                resource: { id: 42, publicStatus: 'published' },
+                                relatedWorkLabels: [{ id: 11, citation_label: 'Accepted citation', citation_label_hash: 'accepted' }],
+                            },
                             status: 200,
                         });
                     }
@@ -9297,13 +9731,14 @@ describe('DataCiteForm', () => {
                     throw new Error(`Unexpected POST ${url}`);
                 });
 
-                renderDataCiteForm({
+                await renderDataCiteForm({
                     initialResourceId: '42',
                     initialDoi: '10.5880/example',
                     initialPublicStatus: 'published',
                     initialYear: '2024',
                     initialResourceType: '1',
                     initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
+                    initialRelatedWorks: [{ identifier: '10.1234/related', identifier_type: 'DOI', relation_type: 'Cites' }],
                     initialLicenses: ['MIT'],
                     availableDatacenters,
                     initialDatacenterId: 1,
@@ -9341,13 +9776,26 @@ describe('DataCiteForm', () => {
                 }
                 expect(mockRouterVisit).toHaveBeenCalledWith('/resources');
                 expect(screen.queryByTestId('doi-registration-success-dialog')).not.toBeInTheDocument();
+                const unload = new Event('beforeunload', { cancelable: true });
+                window.dispatchEvent(unload);
+                expect(unload.defaultPrevented).toBe(false);
+
+                expect(diagnostic).toHaveBeenCalledTimes(outcome === 'success' ? 0 : 1);
+                if (outcome !== 'success')
+                    expect(diagnostic).toHaveBeenCalledWith(
+                        'Editor DataCite action failed',
+                        expect.objectContaining({
+                            isAxiosError: true,
+                            response: expect.objectContaining({ status: outcome === 'superseded' ? 409 : 503 }),
+                        }),
+                    );
             },
         );
     });
 
     describe('Section-level validation alerts suppressed until submit (Issue #625)', () => {
-        const renderForm = (overrides = {}) =>
-            render(
+        const renderForm = async (overrides = {}) =>
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -9364,7 +9812,7 @@ describe('DataCiteForm', () => {
             );
 
         it('does not show author validation alert on initial render', { timeout: 30000 }, async () => {
-            renderForm();
+            await renderForm();
 
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             await ensureAuthorsOpen(user);
@@ -9374,7 +9822,7 @@ describe('DataCiteForm', () => {
         });
 
         it('does not show author validation alert after adding an empty author', { timeout: 30000 }, async () => {
-            renderForm();
+            await renderForm();
 
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             await ensureAuthorsOpen(user);
@@ -9387,7 +9835,7 @@ describe('DataCiteForm', () => {
         });
 
         it('shows author validation alert after submit attempt with empty authors', { timeout: 60000 }, async () => {
-            renderForm({
+            await renderForm({
                 initialYear: '2024',
                 initialResourceType: '1',
                 initialTitles: [{ title: 'Test', titleType: 'main-title' }],
@@ -9417,7 +9865,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            renderForm({
+            await renderForm({
                 initialYear: '2024',
                 initialResourceType: '1',
                 initialTitles: [{ title: 'Test', titleType: 'main-title' }],
@@ -9443,7 +9891,7 @@ describe('DataCiteForm', () => {
         });
 
         it('does not show date validation alert on initial render', { timeout: 30000 }, async () => {
-            renderForm();
+            await renderForm();
 
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             await ensureDatesOpen(user);
@@ -9461,7 +9909,7 @@ describe('DataCiteForm', () => {
                 config: {},
             });
 
-            renderForm();
+            await renderForm();
 
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -9483,7 +9931,7 @@ describe('DataCiteForm', () => {
         it('keeps an empty Related Work card when the section is collapsed and reopened', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            renderForm();
+            await renderForm();
 
             const relatedWorkTrigger = await ensureRelatedWorkOpen(user);
             await user.click(screen.getByRole('button', { name: 'Add Related Work' }));
@@ -9504,7 +9952,7 @@ describe('DataCiteForm', () => {
         it('keeps Related Work card values when the section is collapsed and reopened', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            renderForm();
+            await renderForm();
 
             const relatedWorkTrigger = await ensureRelatedWorkOpen(user);
             await user.click(screen.getByRole('button', { name: 'Add Related Work' }));
@@ -9519,10 +9967,94 @@ describe('DataCiteForm', () => {
             expect(screen.getByRole('textbox', { name: /Citation label/i })).toHaveValue('Curated related work');
         });
 
+        it(
+            'preserves canonical Related Work payload order after editing, collapsing, saving and deleting sorted cards',
+            { timeout: 60000 },
+            async () => {
+                const user = userEvent.setup({ pointerEventsCheck: 0 });
+                const post = vi.mocked(axios.post).mockResolvedValue({ data: { resource: { id: 42 }, message: 'Draft saved.' }, status: 200 });
+                await renderDataCiteForm({
+                    initialResourceId: '42',
+                    initialTitles: [{ title: 'Sorted related works', titleType: 'main-title' }],
+                    initialRelatedWorks: [
+                        {
+                            id: 30,
+                            identifier: 'ark:/z',
+                            identifier_type: 'ARK',
+                            relation_type: 'Cites',
+                            citation_label: 'Zulu',
+                            source: 'relation_suggestion_assistant',
+                        },
+                        { id: 10, identifier: 'ark:/a', identifier_type: 'ARK', relation_type: 'References', citation_label: 'Alpha' },
+                        { id: 20, identifier: 'ark:/b', identifier_type: 'ARK', relation_type: 'Documents', citation_label: 'Beta' },
+                    ],
+                });
+                const trigger = await ensureRelatedWorkOpen(user);
+                expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/a');
+                expect(screen.getByTestId('related-work-1-identifier-input')).toHaveValue('ark:/b');
+                expect(screen.getByTestId('related-work-2-identifier-input')).toHaveValue('ark:/z');
+                fireEvent.change(screen.getAllByRole('textbox', { name: 'Citation label' })[0], { target: { value: 'ZZZ edited' } });
+                await user.click(trigger);
+                await user.click(trigger);
+                expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/a');
+                expect(screen.getAllByRole('textbox', { name: 'Citation label' })[0]).toHaveValue('ZZZ edited');
+                await user.click(screen.getByTestId('save-draft-button'));
+                await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+                const expected = [
+                    {
+                        id: 30,
+                        identifier: 'ark:/z',
+                        identifierType: 'ARK',
+                        relationType: 'Cites',
+                        citationLabel: 'Zulu',
+                        source: 'relation_suggestion_assistant',
+                    },
+                    { id: 10, identifier: 'ark:/a', identifierType: 'ARK', relationType: 'References', citationLabel: 'ZZZ edited' },
+                    { id: 20, identifier: 'ark:/b', identifierType: 'ARK', relationType: 'Documents', citationLabel: 'Beta' },
+                ];
+                expect((post.mock.calls[0][1] as { relatedIdentifiers: unknown[] }).relatedIdentifiers).toEqual(expected);
+                expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/a');
+                await waitFor(() => expect(screen.getByTestId('save-draft-button')).toBeEnabled());
+                await user.click(screen.getAllByRole('button', { name: 'Remove related work' })[1]);
+                await user.click(screen.getByTestId('save-draft-button'));
+                await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+                expect((post.mock.calls[1][1] as { relatedIdentifiers: unknown[] }).relatedIdentifiers).toEqual(expected.slice(0, 2));
+            },
+        );
+
+        it('sorts new Related Works only on a fresh saved-editor mount, not on the first save or section remount', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            vi.mocked(axios.post).mockResolvedValue({ data: { resource: { id: 42 }, message: 'Draft saved.' }, status: 201 });
+            const values: DataCiteFormProps['initialRelatedWorks'] = [
+                { identifier: 'ark:/z', identifier_type: 'ARK', relation_type: 'Cites', citation_label: 'Zulu' },
+                { identifier: 'ark:/a', identifier_type: 'ARK', relation_type: 'References', citation_label: 'Alpha' },
+            ];
+            const view = await renderDataCiteForm({
+                initialTitles: [{ title: 'First save', titleType: 'main-title' }],
+                initialRelatedWorks: values,
+            });
+            let trigger = await ensureRelatedWorkOpen(user);
+            expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/z');
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockRouterReplace).toHaveBeenCalled());
+            await user.click(trigger);
+            await user.click(trigger);
+            expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/z');
+            view.unmount();
+            await renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'First save', titleType: 'main-title' }],
+                initialRelatedWorks: values,
+            });
+            trigger = await ensureRelatedWorkOpen(user);
+            expect(trigger).toHaveAttribute('aria-expanded', 'true');
+            expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:/a');
+        });
+
         it('excludes an empty Related Work card from the draft payload', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            renderForm({
+            await renderForm({
                 initialTitles: [{ title: 'Draft with empty Related Work card', titleType: 'main-title' }],
                 initialRelatedWorks: [
                     {
@@ -9552,7 +10084,7 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
 
-            render(
+            await render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
@@ -9636,7 +10168,7 @@ describe('DataCiteForm', () => {
                 : createDefaultFetchResponse(input.toString()),
         );
         global.fetch = fetchMock;
-        renderDataCiteForm({ initialResourceType: '1' });
+        await renderDataCiteForm({ initialResourceType: '1' });
         await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/v1/licenses/ernie?resource_type_id=1', expect.any(Object)));
         const section = getAccordionTrigger(/Licenses and Rights/i);
         if (section.getAttribute('aria-expanded') === 'false') await user.click(section);
@@ -9653,7 +10185,7 @@ describe('DataCiteForm', () => {
                 ? Promise.resolve(createJsonResponse([licenses[1]]))
                 : createDefaultFetchResponse(input.toString()),
         );
-        renderDataCiteForm({
+        await renderDataCiteForm({
             initialResourceType: '1',
             initialLicenses: ['MIT'],
             initialTitles: [{ title: 'Existing licensed resource', titleType: 'main-title' }],

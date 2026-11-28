@@ -114,6 +114,7 @@ class LandingPageTemplate extends Model
         'keywords',
         'metadata_download',
         'location',
+        'usage',
     ];
 
     /**
@@ -170,6 +171,7 @@ class LandingPageTemplate extends Model
         'location',
         'acquisition',
         'funders',
+        'usage',
     ];
 
     /** Modules hidden by default on IGSN landing pages. */
@@ -474,10 +476,11 @@ class LandingPageTemplate extends Model
      *
      * @param  array<int, string>  $left
      * @param  array<int, string>  $right
+     * @param  array<int, string>  $hidden
      */
-    public static function isValidResourceSectionLayout(array $left, array $right): bool
+    public static function isValidResourceSectionLayout(array $left, array $right, array $hidden = []): bool
     {
-        return self::isValidSectionOrder([...$left, ...$right], self::RESOURCE_SECTIONS)
+        return self::isValidSectionOrder([...$left, ...$right, ...$hidden], self::RESOURCE_SECTIONS)
             && self::hasContiguousResourceMetadataBlock($left)
             && self::hasContiguousResourceMetadataBlock($right);
     }
@@ -623,6 +626,11 @@ class LandingPageTemplate extends Model
             $seen['version_notice'] = true;
         }
 
+        if (! isset($seen['usage'])) {
+            $normalizedRight[] = 'usage';
+            $seen['usage'] = true;
+        }
+
         foreach (self::IGSN_SECTIONS as $key) {
             if (! isset($seen[$key])) {
                 $seen[$key] = true;
@@ -642,17 +650,20 @@ class LandingPageTemplate extends Model
      *
      * @param  array<int, string>  $left
      * @param  array<int, string>  $right
-     * @return array{left: list<string>, right: list<string>}
+     * @param  array<int, string>  $hidden
+     * @return array{left: list<string>, right: list<string>, hidden: list<string>}
      */
-    public static function normalizeResourceSectionOrders(array $left, array $right): array
+    public static function normalizeResourceSectionOrders(array $left, array $right, array $hidden = []): array
     {
         $valid = array_fill_keys(self::RESOURCE_SECTIONS, true);
         $seen = [];
         $normalizedLeft = [];
         $normalizedRight = [];
+        $normalizedHidden = [];
 
         self::appendKnownResourceSections($normalizedLeft, $left, $valid, $seen);
         self::appendKnownResourceSections($normalizedRight, $right, $valid, $seen);
+        self::appendKnownResourceSections($normalizedHidden, $hidden, $valid, $seen);
 
         $hasStoredCitation = isset($seen['citation']);
 
@@ -692,6 +703,7 @@ class LandingPageTemplate extends Model
         return [
             'left' => self::groupResourceMetadataSections($normalizedLeft),
             'right' => self::groupResourceMetadataSections($normalizedRight),
+            'hidden' => $normalizedHidden,
         ];
     }
 

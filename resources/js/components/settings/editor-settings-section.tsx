@@ -142,14 +142,28 @@ export function EditorSettingsSection({
 
     useEffect(() => {
         if (!focusOnOpen || !isOpen || didFocus.current) return;
-        const frame = requestAnimationFrame(() => {
-            const trigger = triggerRef.current;
-            if (!trigger) return;
-            didFocus.current = true;
-            trigger.focus({ preventScroll: true });
-            trigger.scrollIntoView({ block: 'start', behavior: 'instant' });
+        let cancelled = false;
+        let frame = 0;
+        const previouslyFocused = document.activeElement;
+        // Font loading can change the height of every preceding card. WebKit
+        // may keep the old scroll offset after that layout change.
+        void (document.fonts?.ready ?? Promise.resolve()).then(() => {
+            if (cancelled) return;
+            frame = requestAnimationFrame(() => {
+                const trigger = triggerRef.current;
+                if (!trigger) return;
+                didFocus.current = true;
+                // A user may have moved on while the fonts were loading.
+                if (document.activeElement !== document.body && document.activeElement !== previouslyFocused && document.activeElement !== trigger)
+                    return;
+                trigger.focus({ preventScroll: true });
+                trigger.scrollIntoView({ block: 'start', behavior: 'instant' });
+            });
         });
-        return () => cancelAnimationFrame(frame);
+        return () => {
+            cancelled = true;
+            cancelAnimationFrame(frame);
+        };
     }, [focusOnOpen, isOpen]);
 
     return (

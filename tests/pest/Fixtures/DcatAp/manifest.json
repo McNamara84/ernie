@@ -1,0 +1,17 @@
+{
+  "retrieved": "2026-11-09",
+  "files": {
+    "collection.json": {
+      "source": "https://api.datacite.org/dois/10.5880/gfz_orbit/rso",
+      "sha256": "1d134e00d35d2eb73512361f46a81dca85ac0c901fb855153625a4cfced3f9be"
+    },
+    "energy.json": {
+      "source": "https://api.datacite.org/dois/10.5880/gfz.b103-15021.1",
+      "sha256": "40bf9fdb382bed0f71659cebe16e6c7808ae2621808947561a50f4ae04d3e4d0"
+    },
+    "intermagnet.json": {
+      "source": "https://api.datacite.org/dois/10.5880/intermagnet.1991.2016",
+      "sha256": "6d0364314e881807c645caccae2aaf636b92939122514569ac0453108d0390f3"
+    }
+  }
+}

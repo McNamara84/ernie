@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DcatApFormat;
 use App\Enums\PublicTrafficSurface;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
@@ -13,6 +14,7 @@ use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataPublicationTeamRecipientService;
+use App\Services\DcatAp\DcatApResourceProfileService;
 use App\Services\EmbargoService;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\LandingPageDocumentMetadataService;
@@ -22,6 +24,8 @@ use App\Services\LandingPageMetadataLinkService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
 use App\Services\PublicTraffic\PublicTrafficRecorderService;
+use App\Services\Usage\CounterEventRecorderService;
+use App\Services\Usage\CounterReadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -118,12 +122,12 @@ class LandingPagePublicController extends Controller
         // This catches cases where database data is inconsistent (e.g., landing page has
         // doi_prefix='10.5880/A' but resource.doi='10.5880/B'). Such inconsistency would
         // mean the landing page is accessible via an incorrect DOI path.
-        // We load only the doi column to minimize query overhead.
+        // CSV samples can still store the handle used to derive their canonical DOI.
         //
         // Note: We only log this as an error for monitoring, but still serve the page.
         // The landing_page.doi_prefix is the source of truth for URL routing.
         // In production, this helps detect sync issues between resources and landing pages.
-        $resourceDoi = $landingPage->resource()->value('doi');
+        $resourceDoi = $landingPage->resource()->first(['id', 'doi'])?->doiForLandingPage();
         if ($resourceDoi !== null && $resourceDoi !== $doiPrefix) {
             Log::error(
                 'LandingPagePublicController: DOI mismatch between landing page and resource',
@@ -384,8 +388,9 @@ class LandingPagePublicController extends Controller
                 $resourceOrders = LandingPageTemplate::normalizeResourceSectionOrders(
                     $templateConfig->left_column_order,
                     $templateConfig->right_column_order,
+                    $templateConfig->hidden_sections ?? [],
                 );
-                $sectionOrder = ['rightColumn' => $resourceOrders['right'], 'leftColumn' => $resourceOrders['left']];
+                $sectionOrder = ['rightColumn' => $resourceOrders['right'], 'leftColumn' => $resourceOrders['left'], 'hiddenSections' => $resourceOrders['hidden']];
             }
             $customLogoUrl = $templateConfig->logo_url;
 
@@ -415,11 +420,15 @@ class LandingPagePublicController extends Controller
                 'template' => $effectiveTemplate,
                 'props' => [
                     'resource' => $resourceData,
+                    'usage' => app(CounterReadService::class)->landingPage($landingPage),
                     'documentTitle' => $documentMetadata['title'],
                     'citationStyles' => $citationService->format($resource),
                     'landingPage' => $landingPageData,
                     'metadataLinks' => $machineMetadata['metadataLinks'] ?? [],
                     'supportsIso19115' => $isoProfile->supports($resource),
+                    'supportsIso19115Json' => $isoProfile->supportsJson($resource),
+                    'supportsDcatAp' => app(DcatApResourceProfileService::class)->supports($resource),
+                    'supportsEposDcatAp' => app(DcatApResourceProfileService::class)->supports($resource, DcatApFormat::Epos),
                     'isPreview' => $isPreview,
                     'embargoDate' => $embargoDate,
                     'embargoPending' => $embargoPending,
@@ -456,6 +465,34 @@ class LandingPagePublicController extends Controller
         $renderData['props']['embargoDue'] = is_string($date) && $date <= app(EmbargoService::class)->today();
 
         $renderData['props']['hasDataPublicationTeamRecipient'] = $dataPublicationTeamRecipientService->isAvailable();
+
+        // Keep review-specific URLs outside the shared public render cache.
+        if (app(CounterEventRecorderService::class)->isPreview($request, $landingPage)) {
+            $appendPreview = static fn (string $url): string => $url.(str_contains($url, '?') ? '&' : '?').'preview='.rawurlencode((string) $previewToken);
+            $payload = $renderData['props']['landingPage'];
+            if (is_array($payload)) {
+                if (is_string($payload['tracked_ftp_url'] ?? null)) {
+                    $payload['tracked_ftp_url'] = $appendPreview($payload['tracked_ftp_url']);
+                }
+                foreach (['files', 'links'] as $collection) {
+                    $payload[$collection] = array_map(static function (array $item) use ($appendPreview): array {
+                        if (is_string($item['tracked_url'] ?? null)) {
+                            $item['tracked_url'] = $appendPreview($item['tracked_url']);
+                        }
+
+                        return $item;
+                    }, $payload[$collection] ?? []);
+                }
+                $renderData['props']['landingPage'] = $payload;
+            }
+            $renderData['props']['metadataLinks'] = array_map(static function (array $link) use ($appendPreview): array {
+                $link['url'] = $appendPreview($link['url']);
+
+                return $link;
+            }, $renderData['props']['metadataLinks'] ?? []);
+        } elseif ($isPublished) {
+            $renderData['props']['usage']['publicMethodologyUrl'] = route('usage-statistics', ['landing_page' => $landingPage->id], absolute: false);
+        }
 
         $inertiaResponse = Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);
         $viewData = $renderData['viewData'] ?? [];
@@ -544,6 +581,16 @@ class LandingPagePublicController extends Controller
 
             return $file;
         }, $files);
+
+        $landingPageData['links'] = array_map(function (mixed $link) use ($landingPage): mixed {
+            if (is_array($link) && ($link['kind'] ?? null) === 'download' && isset($link['id'])) {
+                $link['tracked_url'] = route('landing-page.download.link', [
+                    'landingPage' => $landingPage->id, 'landingPageLink' => $link['id'],
+                ]);
+            }
+
+            return $link;
+        }, is_array($landingPageData['links'] ?? null) ? $landingPageData['links'] : []);
 
         return $landingPageData;
     }

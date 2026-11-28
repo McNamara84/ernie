@@ -15,6 +15,8 @@ use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
 use App\Services\ResourceStorageService;
+use App\Services\SizeFormat\ContentMetadataImportEvidenceService;
+use App\Services\Subjects\SubjectEquivalenceService;
 use App\Services\UserActivityService;
 use App\Support\GeoLocations\GeoLocationWriteReport;
 use App\Support\PortalSubjectNormalizer;
@@ -49,6 +51,7 @@ final class UploadedResourceDraftService
         }
 
         try {
+            $storagePayload = app(ContentMetadataImportEvidenceService::class)->issue($storagePayload, $userId);
             [$resource, , $changes] = $this->resourceStorageService->store($storagePayload, $userId);
             if ($geoReport !== null) {
                 $geoReport->removedCount += $changes['removedCount'];
@@ -101,6 +104,8 @@ final class UploadedResourceDraftService
             'mslLaboratories' => $this->mslLaboratoryList($payload['mslLaboratories'] ?? []),
             'instruments' => $this->positionedList($payload['instruments'] ?? []),
             'datacenter_id' => null,
+            'formats' => $this->arrayList($payload['formats'] ?? []),
+            'sizes' => $this->arrayList($payload['sizes'] ?? []),
         ];
     }
 
@@ -285,7 +290,7 @@ final class UploadedResourceDraftService
             }
         }
 
-        return $keywords;
+        return app(SubjectEquivalenceService::class)->keywords($keywords);
     }
 
     /**
@@ -413,6 +418,7 @@ final class UploadedResourceDraftService
                 'relationType' => $relationType,
                 'relationTypeInformation' => $this->stringOrNull($item['relationTypeInformation'] ?? $item['relation_type_information'] ?? null),
                 'citationLabel' => $this->stringOrNull($item['citationLabel'] ?? $item['citation_label'] ?? null),
+                ...(isset($item['citation_proof']) ? ['citationProof' => $item['citation_proof']] : []),
                 'position' => $item['position'] ?? $index,
             ];
         }

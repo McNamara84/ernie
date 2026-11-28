@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\DataCiteController;
+use App\Http\Controllers\Api\IdentifierValidationController;
 use App\Http\Controllers\Api\RorResolveController;
 use App\Http\Controllers\ApiDocController;
 use App\Http\Controllers\DateTypeController;
@@ -43,6 +44,7 @@ Route::get('/v1/relation-types/ernie', [RelationTypeController::class, 'ernie'])
 Route::get('/v1/identifier-types', [RelatedIdentifierTypeController::class, 'index']);
 Route::middleware('ernie.api-key')->get('/v1/identifier-types/elmo', [RelatedIdentifierTypeController::class, 'elmo']);
 Route::get('/v1/identifier-types/ernie', [RelatedIdentifierTypeController::class, 'ernie']);
+Route::middleware(['ernie.api-key', 'throttle:identifier-validation'])->post('/v1/identifiers/validate', IdentifierValidationController::class);
 Route::get('/v1/roles/authors/ernie', [RoleController::class, 'authorRolesForErnie']);
 Route::middleware('ernie.api-key')->get('/v1/roles/authors/elmo', [RoleController::class, 'authorRolesForElmo']);
 Route::get(
@@ -71,6 +73,12 @@ Route::middleware(['throttle:orcid-api', PrioritizeInteractiveApiRequests::class
     Route::get('/v1/orcid/validate/{orcid}', [OrcidController::class, 'validate']);
     Route::get('/v1/orcid/{orcid}', [OrcidController::class, 'show']);
 });
+Route::middleware('ernie.api-key')->group(function () {
+    Route::get('/v1/elmo/vocabularies/visibility', [VocabularyController::class, 'visibility'])->defaults('editor', 'elmo');
+    Route::get('/v1/elmo-msl/vocabularies/visibility', [VocabularyController::class, 'visibility'])->defaults('editor', 'elmo-msl');
+    Route::get('/v1/vocabularies/data/{vocab}', [VocabularyController::class, 'data']);
+});
+
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords'])->defaults('editor', 'elmo');
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms'])->defaults('editor', 'elmo');
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments'])->defaults('editor', 'elmo');

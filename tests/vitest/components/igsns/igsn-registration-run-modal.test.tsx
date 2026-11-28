@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { act, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -76,6 +77,112 @@ describe('IgsnRegistrationRunModal', () => {
         expect(screen.getByText('Registering at DataCite')).toBeInTheDocument();
         expect(screen.getByText('725')).toBeInTheDocument();
         expect(mockGet).toHaveBeenCalledWith(`/igsns/batch-register/${baseRun.id}`);
+    });
+
+    it('renders the exact formatted JSON, copies it and confirms the batch on Escape', async () => {
+        const user = userEvent.setup();
+        const run = { ...baseRun, status: 'completed' as const, is_simulation: true, total: 2, processed: 2, failed: 0, cancelled: 0 };
+        const items = ['sample-A', 'sample-B'].map((identifier, id) => ({ id, identifier, status: 'preview_ready', operation: 'register' }));
+        const firstPayload = { data: { id: 'sample-A' } };
+        const payload = {
+            data: { id: 'sample-B', attributes: { titles: ['<sample>', 'A "quoted" title'], value: -1.5, checked: true, missing: null } },
+        };
+        mockGet.mockImplementation(async (url: string) => {
+            if (url.endsWith('/items')) return { data: { items, pagination: { last_page: 1 } } };
+            if (url.endsWith('/items/0/preview')) return { data: { payload: firstPayload } };
+            if (url.endsWith('/items/1/preview')) return { data: { payload } };
+            return { data: { run } };
+        });
+        mockPost.mockResolvedValue({ data: { run: { ...run, preview_confirmed_at: '2026-11-27' } } });
+        const close = vi.fn();
+        const refresh = vi.fn();
+        render(<IgsnRegistrationRunModal open onOpenChange={close} onTerminal={refresh} initialRun={run} />);
+        expect(
+            await screen.findByText('Test successful! With test mode off, ERNIE would send this JSON to DataCite to register this IGSN.'),
+        ).toBeVisible();
+        const samples = screen.getByRole('combobox', { name: 'IGSN' });
+        expect(samples).toHaveTextContent('sample-A');
+        expect(screen.getByLabelText('DataCite JSON request').textContent).toBe(JSON.stringify(firstPayload, null, 2));
+        await user.click(samples);
+        expect(await screen.findByRole('option', { name: 'sample-B' })).toBeVisible();
+        await user.keyboard('{Escape}');
+        await waitFor(() => expect(samples).toHaveFocus());
+        expect(close).not.toHaveBeenCalled();
+        await user.keyboard('{Enter}');
+        await user.keyboard('{ArrowDown}');
+        await waitFor(() => expect(screen.getByRole('option', { name: 'sample-B' })).toHaveFocus());
+        await user.keyboard('{Enter}');
+        expect(samples).toHaveTextContent('sample-B');
+        const code = await screen.findByLabelText('DataCite JSON request');
+        expect(code.textContent).toBe(JSON.stringify(payload, null, 2));
+        expect(code.querySelectorAll('span[class]').length).toBeGreaterThan(5);
+        expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('/items/1/preview'), expect.anything());
+        await user.click(screen.getByRole('button', { name: 'Copy JSON' }));
+        expect(await navigator.clipboard.readText()).toBe(code.textContent);
+        expect(mockPost).not.toHaveBeenCalled();
+        await user.keyboard('{Escape}');
+        await waitFor(() => expect(close).toHaveBeenCalledWith(false));
+        expect(mockPost).toHaveBeenCalledWith(`/igsns/batch-register/${run.id}/confirm-preview`, {}, expect.anything());
+        expect(refresh).toHaveBeenCalledOnce();
+    });
+
+    it('selects a ready preview first and shows the error when a failed sample is picked', async () => {
+        const user = userEvent.setup();
+        const run = { ...baseRun, status: 'completed' as const, is_simulation: true, total: 2, processed: 2, failed: 1 };
+        const items = [
+            { id: 1, identifier: 'sample-A', status: 'failed', operation: 'register', error_message: 'No landing page configured.' },
+            { id: 2, identifier: 'sample-B', status: 'preview_ready', operation: 'update', error_message: null },
+        ];
+        mockGet.mockImplementation(async (url: string) => {
+            if (url.endsWith('/items')) return { data: { items, pagination: { last_page: 1 } } };
+            if (url.endsWith('/items/2/preview')) return { data: { payload: { data: { id: 'sample-B' } } } };
+            return { data: { run } };
+        });
+        render(<IgsnRegistrationRunModal open onOpenChange={vi.fn()} initialRun={run} />);
+
+        expect(await screen.findByLabelText('DataCite JSON request')).toHaveTextContent('sample-B');
+        const samples = screen.getByRole('combobox', { name: 'IGSN' });
+        expect(samples).toHaveTextContent('sample-B');
+        await user.click(samples);
+        await user.click(await screen.findByRole('option', { name: 'sample-A (failed)' }));
+        expect(samples).toHaveTextContent('sample-A (failed)');
+        expect(screen.getByRole('alert')).toHaveTextContent('No landing page configured.');
+        expect(screen.queryByLabelText('DataCite JSON request')).not.toBeInTheDocument();
+        expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining('/items/1/preview'), expect.anything());
+    });
+
+    it('keeps a finished preview open when confirmation fails and allows retry', async () => {
+        const run = { ...baseRun, status: 'completed' as const, is_simulation: true, processed: 1, failed: 0, cancelled: 0 };
+        mockGet.mockImplementation(async (url: string) => (url.endsWith('/items') ? { data: emptyIssues } : { data: { run } }));
+        mockPost.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ data: { run: { ...run, preview_confirmed_at: 'now' } } });
+        const close = vi.fn();
+        render(<IgsnRegistrationRunModal open onOpenChange={close} initialRun={run} />);
+        await userEvent.click(screen.getByRole('button', { name: 'Close preview' }));
+        expect(await screen.findByText(/simulation could not be saved/i)).toBeVisible();
+        expect(close).not.toHaveBeenCalled();
+        await userEvent.click(screen.getByRole('button', { name: 'Close preview' }));
+        await waitFor(() => expect(close).toHaveBeenCalledWith(false));
+    });
+
+    it('keeps the newly selected run when a slower response for the preceding run arrives', async () => {
+        const newer = { ...baseRun, id: 'second-run' };
+        let finishEarlier: (value: { data: { run: IgsnRegistrationRun } }) => void = () => {};
+        mockGet
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishEarlier = resolve;
+                }),
+            )
+            .mockResolvedValueOnce({ data: { run: newer } });
+        const onRunChange = vi.fn();
+        const props = { open: true, onOpenChange: vi.fn(), onRunChange };
+        const { rerender } = render(<IgsnRegistrationRunModal {...props} initialRun={baseRun} />);
+        rerender(<IgsnRegistrationRunModal {...props} initialRun={newer} />);
+        await waitFor(() => expect(onRunChange).toHaveBeenCalledWith(newer));
+        await act(async () => {
+            finishEarlier({ data: { run: baseRun } });
+        });
+        expect(onRunChange).toHaveBeenCalledTimes(1);
     });
 
     it('polls a non-terminal registration while the dialog is open', async () => {
@@ -319,3 +426,5 @@ describe('IgsnRegistrationRunModal', () => {
         expect(screen.queryByText('The registration needs attention')).not.toBeInTheDocument();
     });
 });
+
+installCsrfFixture();

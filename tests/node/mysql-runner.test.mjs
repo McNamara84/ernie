@@ -19,10 +19,10 @@ function recorder(version = '9.7.2', failSlice) {
     };
 }
 
-test('complete MySQL inventory retains 29 reset boundaries and includes editor and data-embargo concurrency checks', () => {
+test('complete MySQL inventory retains 33 reset boundaries including news concurrency checks', () => {
     const slices = resolveMysqlSlices();
-    assert.equal(slices.length, 29);
-    assert.equal(new Set(slices.map(({ name }) => name)).size, 29);
+    assert.equal(slices.length, 33);
+    assert.equal(new Set(slices.map(({ name }) => name)).size, 33);
     assert.deepEqual(
         slices.find(({ name }) => name === 'editor-background'),
         resolveMysqlSlices('editor-background')[0],
@@ -30,7 +30,11 @@ test('complete MySQL inventory retains 29 reset boundaries and includes editor a
     assert.deepEqual(slices.find(({ name }) => name === 'doi-publication'), resolveMysqlSlices('doi-publication')[0]);
     assert.deepEqual(slices.find(({ name }) => name === 'data-embargo'), resolveMysqlSlices('data-embargo')[0]);
     for (const { paths } of slices) for (const path of paths) assert.ok(existsSync(path), path);
-    assert.deepEqual(slices.at(-1), resolveMysqlSlices('oai-pmh').at(-1));
+    assert.deepEqual(slices.at(-1), resolveMysqlSlices('news')[0]);
+    assert.ok(resolveMysqlSlices('news')[0].paths.includes('tests/pest/Feature/Database/NewsConcurrencyTest.php'));
+    assert.ok(resolveMysqlSlices('curation')[0].paths.includes('tests/pest/Feature/Database/CurationConcurrencyTest.php'));
+    assert.ok(resolveMysqlSlices('usage')[0].paths.includes('tests/pest/Feature/Usage/CounterConcurrencyTest.php'));
+    assert.ok(resolveMysqlSlices('contact-persons')[0].paths.includes('tests/pest/Feature/Database/ContactPersonConcurrencyTest.php'));
     assert.equal(resolveMysqlSlices('tombstones').length, 1);
     assert.equal(resolveMysqlSlices('tombstones')[0].paths.length, 2);
 });
@@ -56,7 +60,7 @@ test('starts services once and preserves isolated reset-before-test ordering and
     runMysqlTests({ execute: recording.execute });
     assert.equal(recording.calls.filter((args) => args[0] === 'up').length, 1);
     const tests = recording.calls.filter((args) => args.includes('./vendor/bin/pest'));
-    assert.equal(tests.length, 29);
+    assert.equal(tests.length, 33);
     for (const args of tests) {
         const reset = recording.calls[recording.calls.indexOf(args) - 1];
         assert.ok(reset.at(-1).startsWith('DROP DATABASE IF EXISTS ernie_test; CREATE DATABASE ernie_test;'));

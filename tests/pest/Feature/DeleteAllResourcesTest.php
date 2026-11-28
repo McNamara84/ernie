@@ -334,6 +334,24 @@ it('tracks published DOI resources as OAI-PMH deleted records during bulk deleti
         ->and($deletedRecord->sets)->toContain('year:2026');
 });
 
+it('records ICGEM membership by DOI for all resource types during bulk deletion', function () {
+    $modelType = ResourceType::firstOrCreate(['slug' => 'model'], ['name' => 'Model']);
+    $model = Resource::factory()->create(['doi' => '10.5880/ICGEM.bulk-model', 'resource_type_id' => $modelType->id]);
+    $dataset = Resource::factory()->create(['doi' => '10.5880/icgem.bulk-dataset']);
+    $outside = Resource::factory()->create(['doi' => '10.5880/alt.10.5880/icgem.bulk-other', 'resource_type_id' => $modelType->id]);
+    foreach ([$model, $dataset, $outside] as $resource) {
+        LandingPage::factory()->published()->withDoi($resource->doi)->create(['resource_id' => $resource->id]);
+    }
+
+    app(DeleteAllResourcesService::class)->deleteAll();
+
+    expect(OaiPmhDeletedRecord::where('doi', $model->doi)->first()->sets)->toContain('icgem', 'resourcetype:model')
+        ->and(OaiPmhDeletedRecord::where('doi', $dataset->doi)->first()->sets)->toContain('icgem', 'resourcetype:dataset')
+        ->and(OaiPmhDeletedRecord::where('doi', $outside->doi)->first()->sets)->not->toContain('icgem');
+    $content = $this->get('/oai-pmh?verb=ListIdentifiers&metadataPrefix=oai_dc&set=icgem')->getContent();
+    expect($content)->toContain($model->doi, $dataset->doi, 'status="deleted"')->not->toContain($outside->doi);
+});
+
 it('bumps the assessment summary cache version when deleting assessed resources in bulk', function () {
     $admin = User::factory()->create(['role' => UserRole::ADMIN]);
     $resource = Resource::factory()->create();

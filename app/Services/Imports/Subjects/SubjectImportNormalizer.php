@@ -6,6 +6,7 @@ namespace App\Services\Imports\Subjects;
 
 use App\Services\ControlledSubjectImportNormalizerService;
 use App\Services\SubjectBreadcrumbPathResolverService;
+use App\Services\Subjects\SubjectEquivalenceService;
 use App\Support\GcmdUriHelper;
 use App\Support\GemetVocabularyParser;
 use App\Support\PortalSubjectNormalizer;
@@ -96,7 +97,7 @@ final readonly class SubjectImportNormalizer
             $seenControlledKeywords[$fingerprint] = true;
         }
 
-        return new SubjectImportResult($freeKeywords, $controlledKeywords);
+        return new SubjectImportResult($freeKeywords, app(SubjectEquivalenceService::class)->keywords($controlledKeywords));
     }
 
     /**
@@ -196,7 +197,18 @@ final readonly class SubjectImportNormalizer
         string $language,
     ): ?array {
         if ($valueUri === null) {
-            return null;
+            $path = $this->normalizeGcmdPath($value);
+
+            return [
+                'id' => 'legacy:'.hash('sha256', $scheme.'|'.$path),
+                'text' => SubjectBreadcrumbPath::leaf($path, $value) ?? $value,
+                'path' => $path,
+                'language' => $language,
+                'scheme' => $scheme,
+                'schemeURI' => $schemeUri ?? $this->pathResolver->resolveSchemeUri($scheme),
+                'isLegacy' => true,
+                ...($classificationCode !== null ? ['classificationCode' => $classificationCode] : []),
+            ];
         }
 
         $uuid = GcmdUriHelper::extractUuid($valueUri);
@@ -207,7 +219,7 @@ final readonly class SubjectImportNormalizer
         $path = $this->normalizeGcmdPath($value);
         $keyword = [
             'uuid' => $uuid,
-            'id' => GcmdUriHelper::buildConceptUri($uuid),
+            'id' => GcmdUriHelper::canonicalizeKnownUri($valueUri),
             'text' => SubjectBreadcrumbPath::leaf($path, $value) ?? $value,
             'path' => $path,
             'language' => $language,

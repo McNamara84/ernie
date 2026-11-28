@@ -77,7 +77,7 @@ pattern expansion and Swagger's actual file allowlist. The advisories are
 | PHPStan                    | Host shell via npm wrapper | `npm run phpstan:check`                     | Required before finishing PHP changes                          |
 | Pest type coverage         | Host shell via npm wrapper | `npm run test:php:type-coverage`            | Enforces the measured 92% minimum; expensive on a cold cache   |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive`          | Uses isolated `ernie_test` schema                              |
-| MySQL-sensitive OAI-PMH | Host shell via npm wrapper | `npm run test:php:mysql-sensitive:oai-pmh` | Snapshot migration, indexed page ranges, and EPOS-MSL matching/harvesting on MySQL 9.7 |
+| MySQL-sensitive OAI-PMH | Host shell via npm wrapper | `npm run test:php:mysql-sensitive:oai-pmh` | Snapshot migration, indexed page ranges, and EPOS-MSL/ICGEM matching and harvesting on MySQL 9.7 |
 | Vitest one-shot            | Host shell                 | `npm run test:run`                          | Preferred for focused frontend validation                      |
 | Vitest coverage            | Host shell                 | `npm run test:coverage`                     | Use only when coverage detail is needed                        |
 | Vitest performance doctor  | Host shell                 | `npm run test:doctor`                       | Runs the suite repeatedly; use for measured tuning only        |
@@ -89,7 +89,7 @@ pattern expansion and Swagger's actual file allowlist. The advisories are
 | Playwright dev stack       | Host shell                 | `npm run test:e2e:devstack`                 | Requires the Docker dev stack                                  |
 | Playwright stage           | Host shell                 | `npm run test:e2e:stage`                    | Use only for stage-specific bug reproduction                   |
 | Backend umbrella check     | Host shell                 | `npm run check:backend`                     | Pint, Pest, and PHPStan                                        |
-| Frontend umbrella check    | Host shell                 | `npm run check:frontend`                    | Oxlint plus OpenAPI lint plus TypeScript plus one-shot Vitest  |
+| Frontend umbrella check    | Host shell                 | `npm run check:frontend`                    | Oxlint, Oxfmt, OpenAPI, TypeScript, tooling tests, and Vitest  |
 | Parity umbrella check      | Host shell                 | `npm run check:parity`                      | Parity profile plus MySQL slice plus Playwright                |
 
 ## PHP Test Database Strategy
@@ -149,14 +149,12 @@ npm run test:php:mysql-sensitive:relation-correction
 PHP suite. The wrapper always applies a 2 GB PHP memory limit, including to
 ParaTest workers, and reports the duration of every phase plus the total.
 
-The lockfile uses Pest 5.3.2 with PHPUnit 13.4.2 and ParaTest 7.26.1. Pest
-5.3.2 requires `^13.4.2` but also conflicts with PHPUnit versions `>13.4.2`,
-effectively pinning PHPUnit to exactly 13.4.2. ParaTest must be 7.26.1 or newer
-within the 7.x series. Update compatible test runner packages together through
-`npm run composer:app` rather than forcing an independent PHPUnit update.
-Laravel 13.35.0 is required for this combination:
-it fixes the PHPUnit 13.4 event-emitter API used by Laravel's parallel runner.
-The type-coverage plugin also needs version 5.0.3 for that PHPUnit API.
+The lockfile uses Pest 5.3.7 with PHPUnit 13.4.7 and ParaTest 7.29.0. Pest
+requires PHPUnit `^13.4.7` and declares a conflict with `>13.4.7`. ParaTest
+7.30.0 requires PHPUnit `^13.4.8`, so that upgrade depends on a compatible
+Pest release. Update the three packages together through `npm run composer:app`.
+The locked Laravel 13.43.0 includes the PHPUnit 13.4 event-emitter fix for
+parallel tests. The locked Pest type-coverage plugin is 5.1.1.
 
 On Docker Desktop, the checked-out source is a Windows/macOS bind mount. Pest
 and Laravel load hundreds of PHP files in every worker, so running directly
@@ -304,10 +302,13 @@ Why backend validation stays Docker-backed:
 
 ## Frontend Validation
 
-Host prerequisite:
+Use the exact Node version in `.node-version` and the npm version in
+`package.json`. Frontend validation runs on the host. Install the locked
+dependencies and the matching Chromium binary once:
 
 ```bash
 npm ci
+npm run test:browser:install
 ```
 
 Recommended commands:
@@ -317,7 +318,100 @@ npm run lint:check
 npm run format:check
 npm run types
 npm run test:run
+npm run check:frontend
 ```
+
+`vitest.config.ts` runs two projects: `jsdom` for logic, hooks, SSR and component
+contracts, and `browser` for interactions that need real layout, pointer events,
+focus, Tagify or DnD sensors. Their configurations are separate from application
+build plugins. The projects run in successive groups so the local worker budget
+is not multiplied by starting two pools together. `test:run`, `test:coverage`
+and `check:frontend` include both projects; missing browser binaries are errors.
+
+```bash
+npm run test:run -- --project jsdom tests/vitest/path/to/file.test.tsx
+npm run test:browser
+npm run test:browser -- tests/vitest-browser/components/select.test.tsx
+npm run test:browser:watch
+```
+
+In Windows PowerShell, use `npm.cmd` when forwarding options, for example
+`npm.cmd run test:run -- --project browser`. This preserves the `--` separator
+instead of allowing the PowerShell npm shim to consume it.
+
+Browser Mode uses `vitest-browser-react`, `vitest/browser` locators and awaited
+`expect.element` assertions. Import the browser test fixture from
+`tests/vitest-browser/helpers/test` for a fresh user-event instance and its
+cleanup. Its renderer provides isolated QueryClient and Tooltip contexts.
+Use `installCsrfFixture` for jsdom suites that model an authenticated page;
+it supplies and cleans up Laravel's CSRF meta element. Missing-token regressions
+remove that input explicitly and assert the diagnostic.
+Application fetch/XHR requests use explicit Playwright responses; unhandled
+requests fail the test during teardown. This keeps module mocks working without
+requiring experimental import maps or a Service Worker. Default response data
+is shared with the jsdom MSW handlers.
+
+The migration keeps property, SSR, invalid-input and error-path assertions in
+jsdom where a real browser adds no useful evidence. Select, Dialog, Tooltip and
+calendar interaction cases have moved to Browser Mode. Native tests also cover
+popover/dropdown keyboard handling, async and form comboboxes, ORCID selection,
+all four sortable list families, template-layout ordering, Tagify editing, and actual table resizing.
+Full-page Laravel workflows and map-service integration remain in Playwright.
+Use `npm run test:inventory -- --json` to inspect both Vitest file sets and avoid
+silently dropping tests when moving them.
+
+For components whose mount starts asynchronous work, use `settleRender` from
+`tests/vitest/helpers/settled-render` with the existing render function and await
+the result. Loading-state tests should hold a response with
+`Promise.withResolvers` and resolve it inside awaited `act`; they must not rely
+on a mocked response accidentally finishing after an assertion. Keep explicit
+mock resets between phases of a test. The project already clears call history
+before each test. Short-lived spies can use `using` for reliable restoration.
+
+The default reporter keeps diagnostics from passing tests visible. Expected
+errors should be captured and asserted within their own test, rather than
+suppressed globally. Set `ERNIE_VITEST_REPORT_DIR` to a local directory when a
+complete JSON result and blob report are needed for a review; normal runs do
+not write these extra reports.
+
+### Optional local Vitest feedback
+
+```bash
+npm run test:failed
+npm run test:affected
+npm run test:trace -- tests/vitest/path/to/file.test.ts
+```
+
+`test:failed` uses Vitest 5.1's persistent `--last-failed` selection.
+`test:affected` opts into experimental dependency recording and
+`--since-last-run`. Its first run is complete. Configuration, dependency or
+runtime changes force a complete recording run; a focused run cannot certify
+the complete suite. Ordinary `test:run` runs do not certify this recording
+baseline. Both the initial and later affected runs keep dependency recording
+enabled. Imported data and generated routes are tracked, but inputs
+read indirectly from the filesystem still require an explicit complete run.
+The incremental shortcut is rejected in CI and never replaces the final
+`check:frontend` validation.
+
+`test:trace` opts into the Node trace timeline for async polling failures.
+Browser failure traces are stable and enabled for normal runs. Failure
+screenshots and Playwright traces are retained under `.vitest/attachments` and
+`.vitest/browser` and uploaded by CI on failure. `userEvent.pointer` and
+`browser.importMapMocks` remain outside mandatory validation while experimental.
+
+CI runs both projects in the existing three shards. Report merging verifies
+the complete configured file inventory, rejects duplicate or omitted files,
+and then produces the aggregate coverage report. The existing project coverage
+baseline remains binding; source exclusions have not been broadened.
+Vitest 5.1's `coverage.ignoreNode` omits only Oxc's generated `_jsxFileName`
+string declaration and Vite's generated CJS import bindings, matching Vitest's built-in handling of SSR import bindings. These transforms otherwise add
+statements at import source locations. Application logic remains measured.
+
+Test watchers ignore backend dependencies and generated output (`vendor`,
+`storage`, `.tmp`, `.vitest`, and report directories), matching the application
+watcher. This also avoids scanning preserved local dependency backups.
+
+### Frontend performance and runtime setup
 
 TypeScript 7 uses four parallel type checkers for the application and test projects. This fixed value was the fastest configuration in local measurements across two to twelve checkers while avoiding the substantially higher memory use of larger worker counts.
 
@@ -364,7 +458,7 @@ The persistent filesystem module cache is stable in Vitest 5 but remains opt-in 
 
 ```bash
 npm run test:run -- tests/vitest/path/to/file.test.tsx --fsModuleCache
-npx vitest --clearCache
+npm run test:run -- --clearCache
 ```
 
 The cache is intentionally not enabled by default. The full Vitest 5 Doctor run
@@ -418,7 +512,22 @@ npm run docker:dev:backend:d
 WAYFINDER_COMMAND="php -d memory_limit=2G artisan ernie:wayfinder-generate" npm run test:run
 ```
 
-The separate `vitest.browser.config.ts` deliberately contains only browser-test transforms. Laravel HMR and Wayfinder generation stay in the main Vite configuration: Vitest 5 starts multiple browser environments, and generating files from their `buildStart` hooks can repeatedly invalidate the browser test server. Generate Wayfinder sources before introducing or running browser tests that import them.
+The Vitest wrapper prepares Wayfinder before either project starts. It generates
+into a temporary workspace directory and copies only changed output, preserving
+modification times for incremental tests. A manifest fingerprints PHP route,
+controller, configuration and Composer inputs and verifies every generated file
+before reusing the output. Deleted routes are removed only when their previous
+generated contents are intact. Application build hooks are absent from both
+test projects and the report-merging configuration.
+
+Swagger Client still requests the deprecated `node-abort-controller` package.
+The private `packages/native-abort-controller` adapter supplies its named
+exports from the native APIs provided by the required Node and browser
+runtimes. It is a private npm workspace named `node-abort-controller`; the root
+dependency selects its compatibility version rather than a relative
+file path in a transitive package. Regression tests reject dangling nested links,
+verify workspace resolution and test native fetch cancellation. Remove the
+workspace and root dependency when upstream removes that dependency.
 
 Why frontend validation stays on the host:
 
@@ -429,6 +538,99 @@ Why frontend validation stays on the host:
 CI formatter jobs are non-mutating and check the complete frontend and PHP codebases. Use `npm run format` and `npm run lint` for frontend auto-fixes; run Pint without `--test` when intentionally applying PHP formatting changes.
 
 ## Browser Validation
+
+### Landing page geometry clicks
+
+The geolocation browser suite clicks actual SVG strokes as well as testing
+keyboard activation and focus restoration. Thin dashed lines need a hit-tested
+integer screen position with a one-pixel margin: Firefox uses integer mouse event
+coordinates, so a fractional hit near a stroke cap can become a background
+click. The helper checks the same pixel it clicks and avoids overlapping
+waypoints. Keep these checks active for public pages and previews in all browsers.
+
+### COUNTER CSV exports
+
+The usage statistics browser suite submits the real export form with both blank
+and bounded month ranges. It verifies the access-method and date parameters,
+the attachment filename, and the CSV columns. All three browsers verify the
+completed file download, copied with `saveAs` so local and remote browser
+connections work alike. Playwright 1.65.1 also delivers the CSV as a download in
+Linux WebKit, so the previous response-body workaround is no longer needed.
+The export test submits the real form without mocking the response.
+
+### Linux WebKit rendering regression
+
+`playwright` and `@playwright/test` are pinned to **1.65.1**. The previous
+1.63.0 compatibility pin avoided Playwright 1.64.0 and 1.64.1. Their bundled
+WebKit r2370 can stop producing animation frames on
+two-CPU Linux runners when a page uses `backdrop-filter`. This makes ordinary
+dropdown clicks and focus restoration time out, including the statistics filter
+scenario in WebKit shard 3. The corrected WebKit is included in the 1.65
+release line; see [Playwright #43426](https://github.com/microsoft/playwright/issues/43426).
+
+The CI workflow also limits WebKit to **one worker per shard**, retaining all
+three shards and two workers for Chromium/Firefox. On a two-CPU Linux browser
+server, 1.64.1 failed all six repeated statistics filter scenarios; 1.63.0 with
+two workers still failed one of 21 usage statistics scenarios. With one worker,
+all 21 passed without retries and the longest desktop filter action decreased
+from the 15-second timeout to 7.3 seconds.
+
+The GPU-less Linux runners also set `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1`
+for direct Skia CPU rasterization. This avoids the software OpenGL path for
+WebKit's page rendering; Chromium and Firefox ignore the WebKit-specific setting.
+In three repeated curation benchmark runs on the same two-CPU Linux browser
+server, the slowest measured sort fell from 898 ms to 577 ms with this setting.
+Set it on the **browser server**, rather than the Playwright client, when
+reproducing CI with a remote Linux browser (for Docker, add
+`--env WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` to `docker run`).
+
+Keep both exact package pins aligned. Before a future browser upgrade or
+restoring two WebKit workers, repeat
+`workflows/counter-usage.spec.ts` with `--repeat-each=3` and the matching Linux
+browser server constrained to two CPUs, then verify the complete CI shards.
+Preserve the real backdrop styling, actionability checks and existing
+timeouts/retries when checking the replacement version.
+
+### Firefox DCAT accessibility scans
+
+The pinned Linux Firefox can crash during an Axe scan of the responsive DataCite
+logo in the metadata-download panel. The DCAT browser spec therefore audits the
+complete DCAT label-and-download group in Firefox. Chromium and WebKit retain
+the whole metadata-panel scan. Every browser separately verifies the DataCite
+logo's accessible name, visibility, successful loading and positive intrinsic
+width. Both viewport widths and both color schemes remain covered, using the
+default Axe rule set for each scan target.
+
+Keep this scope difference explicit: the Firefox audit does not cover the other
+metadata-download groups. Do not broaden it again without verifying the pinned
+Linux browser, including video and repeated execution:
+
+```bash
+npm run test:e2e:devstack -- critical/landing-page-dcat-ap.spec.ts --project=firefox --workers=2 --repeat-each=5 --trace=on
+```
+
+Use production assets and the Linux browser-server setup described below when
+reproducing this CI failure from Windows.
+
+### Curation rendering budget
+
+`workflows/curation-performance.spec.ts` checks the first 50 of 300 curations
+against a one-second budget after warming all three sort paths. Every browser
+uses the same reference viewport of **1280 x 720 CSS pixels at pixel ratio 1**.
+The default Desktop Safari profile uses pixel ratio 2, which quadruples the
+pixel workload and makes the same timing budget incomparable with the other
+desktop projects on a software-rendered CI runner. Functional tests keep their
+normal device profiles, including Safari's pixel ratio 2. The benchmark measures
+from the real selection event through Inertia completion and two animation
+frames, then compares the rendered row IDs with the actual response.
+Run it with `--workers=1`; the WebKit CI shards already use that setting.
+
+This benchmark disables video and trace recording at file scope to keep capture
+overhead outside the measurement. `retain-on-failure` still records passing tests before
+discarding their videos. Failure screenshots and the `curation-load-times.json`
+attachment remain available. The functional scenarios in
+`workflows/curation-tracking.spec.ts` retain the normal recording settings and
+share the same fixture helper with the benchmark.
 
 ### Local browser verification
 
@@ -541,7 +743,7 @@ including `ernie.localhost`, to the host:
 
 ```powershell
 $playwrightModules = Join-Path $PWD 'node_modules'
-docker run --rm --init -d --name ernie-browser-tests --workdir /home/pwuser --user pwuser --shm-size=1g -p 127.0.0.1:39333:3000 -v "${playwrightModules}:/work/node_modules:ro" mcr.microsoft.com/playwright:v1.65.1-resolute@sha256:dcf385f7a31aa1cbb0a7a0c97a539142bf70480b661f89f26a774ec1fe2edd1d node /work/node_modules/playwright/cli.js run-server --port 3000 --host 0.0.0.0
+docker run --rm --init -d --name ernie-browser-tests --workdir /home/pwuser --user pwuser --env WEBKIT_SKIA_ENABLE_CPU_RENDERING=1 --shm-size=1g -p 127.0.0.1:39333:3000 -v "${playwrightModules}:/work/node_modules:ro" mcr.microsoft.com/playwright:v1.65.1-resolute@sha256:dcf385f7a31aa1cbb0a7a0c97a539142bf70480b661f89f26a774ec1fe2edd1d node /work/node_modules/playwright/cli.js run-server --port 3000 --host 0.0.0.0
 $env:PW_TEST_CONNECT_WS_ENDPOINT = 'ws://127.0.0.1:39333/'
 $env:PW_TEST_CONNECT_EXPOSE_NETWORK = '<loopback>'
 $env:ERNIE_PLAYWRIGHT_ASSETS = 'build'

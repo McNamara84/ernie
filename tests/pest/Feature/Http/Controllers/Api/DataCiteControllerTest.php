@@ -3,16 +3,9 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\DataCiteController;
-use App\Services\Citations\LegacyCitationCacheService;
 use App\Services\DataCiteApiService;
 
 covers(DataCiteController::class);
-
-beforeEach(function (): void {
-    $legacy = Mockery::mock(LegacyCitationCacheService::class);
-    $legacy->shouldReceive('find')->zeroOrMoreTimes()->andReturnNull();
-    $this->app->instance(LegacyCitationCacheService::class, $legacy);
-});
 
 describe('getCitation', function () {
     it('returns citation for a valid DOI', function () {

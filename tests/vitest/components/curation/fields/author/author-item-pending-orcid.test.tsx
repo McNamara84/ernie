@@ -6,7 +6,7 @@
  */
 
 import { cleanup, render, screen, waitFor } from '@tests/vitest/utils/render';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AuthorItem from '@/components/curation/fields/author/author-item';
 import type { AuthorEntry } from '@/components/curation/fields/author/types';
@@ -88,9 +88,6 @@ describe('AuthorItem with pendingOrcidData', () => {
         affiliationSuggestions: [],
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     afterEach(async () => {
         vi.useFakeTimers();

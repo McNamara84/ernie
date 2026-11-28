@@ -10,7 +10,7 @@ use App\Models\Resource;
 use App\Services\DatacenterNameService;
 use App\Services\DataCiteMemberApiClient;
 use App\Services\GeofonEventLandingPageUrlRepairService;
-use App\Services\LegacyMetaworksDatacenterLookupService;
+use App\Support\DatacenterNames;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
@@ -84,7 +84,7 @@ beforeEach(function (): void {
 function geofonRepairResource(
     string $doi,
     string $path,
-    string $datacenter = LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+    string $datacenter = DatacenterNames::GEOFON_EVENTS_DATACENTER,
     string $domain = 'https://geofon.gfz.de/',
 ): Resource {
     $datacenterModel = Datacenter::query()->firstOrCreate(['name' => $datacenter]);

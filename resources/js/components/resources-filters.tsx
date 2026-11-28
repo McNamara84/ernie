@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useBufferedYearRangeFilter } from '@/hooks/use-buffered-year-range-filter';
+import { type ContactSelection, contactSelectionLabel } from '@/types/contact-persons';
 import type { ResourceFilterOptions, ResourceFilterState } from '@/types/resources';
 
 /**
@@ -25,6 +26,7 @@ const MIN_SEARCH_LENGTH = 3;
 const SEARCH_DEBOUNCE_MS = 1000;
 
 interface ResourcesFiltersProps {
+    contactSelection?: ContactSelection | null;
     filters: ResourceFilterState;
     onFilterChange: (filters: ResourceFilterState) => void;
     filterOptions: ResourceFilterOptions | null;
@@ -36,6 +38,7 @@ interface ResourcesFiltersProps {
 }
 
 export function ResourcesFilters({
+    contactSelection,
     filters,
     onFilterChange,
     filterOptions,
@@ -290,6 +293,7 @@ export function ResourcesFilters({
 
     const formatFilterLabel = useCallback(
         (key: keyof ResourceFilterState, value: unknown): string => {
+            if (key === 'contact') return contactSelectionLabel(contactSelection);
             const labelMap: Record<string, string> = {
                 resource_type: 'Type',
                 status: 'Status',
@@ -333,7 +337,7 @@ export function ResourcesFilters({
 
             return `${label}: ${String(value)}`;
         },
-        [filterOptions],
+        [filterOptions, contactSelection],
     );
 
     return (

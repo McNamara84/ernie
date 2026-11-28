@@ -22,6 +22,7 @@ use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use App\Services\Resources\ResourcePartySearchNormalizerService;
+use App\Support\DatacenterNames;
 use App\Support\LegacyMslScheme;
 use App\Support\PortalCacheNamespace;
 use App\Support\PortalIgsnSearchPattern;
@@ -1007,7 +1008,7 @@ class PortalSearchService
 
                 return;
             case ScienceTopic::ScientificDrilling:
-                $this->applyDatacenterFilter($query, [LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER]);
+                $this->applyDatacenterFilter($query, [DatacenterNames::SDDB_DATACENTER]);
 
                 return;
             case ScienceTopic::Modeling:

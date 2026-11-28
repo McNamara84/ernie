@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import {
     BarChart3,
     BookOpen,
@@ -36,9 +36,10 @@ import { type DocsTabId, DocsTabs } from '@/components/docs/docs-tabs';
 import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps';
 import { Input } from '@/components/ui/input';
 import { DOCS_ACTIONS, docsActionHref } from '@/data/docs-actions';
+import { gfzDataServicesUrls } from '@/data/gfz-data-services';
 import { SCROLL_TO_SECTION_OFFSET, useScrollSpy } from '@/hooks/use-scroll-spy';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem, UserRole } from '@/types';
+import type { BreadcrumbItem, SharedData, UserRole } from '@/types';
 import type { DataCiteDocsSettings, DocsCapabilities, DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
 
 interface DocsProps {
@@ -67,6 +68,7 @@ function formatConfiguredList(values: string[]): string {
 }
 
 export default function Docs({ userRole, editorSettings, dataCite, capabilities }: DocsProps) {
+    const { pathPrefix = '' } = usePage<SharedData>().props;
     const permissions = useMemo<DocsCapabilities>(
         () =>
             capabilities ?? {
@@ -75,10 +77,10 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                 deleteResources: userRole !== 'beginner',
                 deletePublishedResources: userRole === 'admin' || userRole === 'group_leader',
                 manageLandingPages: true,
-                importFromDataCite: userRole === 'admin' || userRole === 'group_leader',
                 updateDataCiteUrls: userRole === 'admin',
                 manageUsers: userRole === 'admin' || userRole === 'group_leader',
                 accessEditorSettings: userRole === 'admin' || userRole === 'group_leader',
+                manageNews: userRole === 'admin' || userRole === 'group_leader',
             },
         [capabilities, userRole],
     );
@@ -363,6 +365,52 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                 ),
             },
             {
+                id: 'curation-tracking',
+                title: 'Curation Tracking',
+                icon: Tags,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Checklist and handovers</h3>
+                        <p>
+                            Open Curation in the Data Editor after the first save. Eight manual checklist items and five automatic checks track the
+                            work independently of the metadata form. Automatic checks follow saved metadata, the landing page, queued review emails
+                            and confirmed DOI registration. They can become open again when the resource changes. A queued review is not a delivery
+                            confirmation.
+                        </p>
+                        <p>
+                            Beginners have read-only access to every curation function. Active Curators, Group Leaders and Admins can change the
+                            checklist, assign a lead and colleagues, hand over responsibility, add notes and record data locations. Not applicable
+                            requires a reason and is available only for the designated checklist items. Curation does not block publication.
+                        </p>
+                        <p>
+                            A handover retains the previous lead as a member. New assignments to another colleague and selected @ mentions queue an
+                            email. Only the author can edit or delete a note, for 24 hours after creation. Deleted notes leave a placeholder. Notes,
+                            internal paths and workflow history are excluded from public metadata exports.
+                        </p>
+                        <h4>Working state and overview</h4>
+                        <p>
+                            Waiting for a reply, needing help and a deadline are independent. Help requires an explanation. Editing waiting details
+                            keeps the start date; selecting a different waiting party starts a new waiting period. Waiting becomes overdue after 14
+                            calendar days by default. A deadline becomes overdue the following day while the resource is unpublished.
+                        </p>
+                        <p>
+                            The Curation overview has In progress, Review, Embargo and Published tabs. My Resources includes both lead and member
+                            assignments. Use Unassigned for drafts without a lead. Combine filters and sort orders, expand a row for open items, the
+                            latest note and locations, or export all matching rows as CSV. My curation on the dashboard links to open assignments
+                            across all tabs.
+                        </p>
+                        <p>
+                            Saved new drafts start automatically; eligible creators become lead. Beginner drafts and unpublished imports start
+                            unassigned. Existing published resources require Start curation. IGSNs are excluded. Tombstones keep readable history but
+                            are inactive. Curation finishes when the resource is published, all applicable manual items are complete, and no waiting
+                            or help request remains. Published records remain in the overview for 90 days, or longer while work is open. Historical
+                            review or registration evidence is never invented.
+                        </p>
+                    </>
+                ),
+            },
+            {
                 id: 'completeness-badges',
                 title: 'Completeness Badges',
                 icon: Tags,
@@ -479,6 +527,48 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                 ),
             },
             {
+                id: 'manage-news',
+                capability: 'manageNews',
+                title: 'Manage News',
+                icon: FileText,
+                minRole: 'group_leader',
+                content: (
+                    <>
+                        <h3>Homepage News</h3>
+                        <p>
+                            Admins and Group Leaders open <strong>Administration → Configuration → Manage News</strong> at <code>/manage-news</code>{' '}
+                            to edit the public homepage announcement.
+                        </p>
+                        <p>
+                            Enter a separate title and Markdown text, then check the preview. Headings, bold and italic text, lists, links and
+                            external HTTPS images are supported. Image syntax is <code>![description](https://example.org/image.jpg)</code>; HTML is
+                            removed.
+                        </p>
+                        <p>
+                            <strong>Save draft</strong> stores a new contribution without publishing it. For regular news, choose{' '}
+                            <strong>Set as active</strong> in the saved list. Exactly one regular announcement remains active; select another before
+                            archiving the current one. Saving changes to published or scheduled news affects their public display.
+                        </p>
+                        <p>
+                            For a temporary announcement, set a start and end in <strong>Europe/Berlin</strong>, save it and choose{' '}
+                            <strong>Schedule</strong>. It replaces the regular news from the start until the end, when the then active regular news
+                            returns. Overlapping schedules are rejected; adjacent periods are allowed. During the autumn clock change, explicitly
+                            choose +02:00 for the first occurrence of a repeated time or +01:00 for the second.
+                        </p>
+                        <p>
+                            <strong>Cancel schedule</strong> stops a temporary replacement. <strong>Archive</strong> preserves a contribution and
+                            cancels its schedule. Use <strong>Show archived news</strong> and <strong>Restore</strong> to reuse it as an unpublished
+                            draft. Expired announcements stay stored. The public homepage selects its news on each request; already open pages update
+                            on their next visit or reload.
+                        </p>
+                        <p>
+                            If another session has changed the news, your edits remain in the form. Review or copy them before using{' '}
+                            <strong>Reload latest version</strong>, which replaces the form with the current saved content.
+                        </p>
+                    </>
+                ),
+            },
+            {
                 id: 'editor-settings',
                 capability: 'accessEditorSettings',
                 title: 'Editor Settings',
@@ -501,6 +591,7 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             all cards. Open sections remain open after saving and partial updates. Each section heading shows the summaries relevant
                             to its controls, such as item totals and ERNIE or ELMO activation counts where available.
                         </p>
+                        <p>With reduced motion enabled on your device, settings sections open and close immediately.</p>
                         <p>
                             Changes to the editor tables and activation controls use the sticky <strong>Save changes</strong> action. Adding or
                             deleting <strong>Landing Page Domains</strong> and <strong>Datacenters</strong> is saved immediately instead. Checks for
@@ -540,7 +631,7 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                                 (EuroSciVoc), and Multi-Scale Laboratories
                             </li>
                             <li>
-                                <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for linking research
+                                <strong>Persistent Identifiers:</strong> Manage PID registries like PIDINST (B2INST + DataCite) for linking research
                                 instruments, ROR for research organizations, and RAiD for research activities
                             </li>
                             <li>
@@ -589,8 +680,8 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                         <p>The Persistent Identifiers section allows you to manage PID registries:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>PID4INST (b2inst):</strong> Instruments from the EUDAT b2inst registry can be linked to datasets as DataCite
-                                relatedIdentifiers with relationType &quot;IsCollectedBy&quot;
+                                <strong>PIDINST (B2INST + DataCite):</strong> Instruments from B2INST and public DataCite Instrument records can be
+                                linked to datasets as DataCite relatedIdentifiers with relationType &quot;IsCollectedBy&quot;
                             </li>
                             <li>
                                 <strong>ROR (Research Organization Registry):</strong> Organization data used for affiliation lookups. The ROR dataset
@@ -601,27 +692,37 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                                 RAiD projects can be updated from Editor Settings and provided to ELMO via the API.
                             </li>
                             <li>Enable/disable PID registries for ERNIE and/or ELMO independently</li>
-                            <li>Check for updates by comparing local item count with the remote registry</li>
+                            <li>Check registry counts for possible updates</li>
                             <li>Trigger background downloads of the full vocabulary data</li>
                         </ul>
 
                         <h4>Refresh the Instrument Registry</h4>
                         <p>
-                            Group Leaders and Admins can open <strong>Editor Settings</strong>, expand <strong>Persistent Identifiers</strong>, and
-                            click <strong>Update Now</strong> for <strong>PID4INST (b2inst)</strong>. This downloads the current registry in the
-                            background. The action is available even before the first download or when the local and remote instrument counts match;
-                            equal counts do not mean that names and identifiers are unchanged.
+                            In <strong>Editor Settings → Persistent Identifiers → PIDINST</strong>, use <strong>Check for Updates</strong> to compare
+                            B2INST and DataCite record counts separately with the last successful synchronization. Source counts include excluded and
+                            overlapping records; the local count shows the instruments offered after merging. Equal DOIs appear once with B2INST
+                            metadata. Older lists require one full refresh to include DataCite.
                         </p>
                         <p>
-                            Wait for the update to finish successfully. If a download fails or is incomplete, ERNIE keeps the previous registry. After
-                            a successful update, users with an open editor can click <strong>Resolve names again</strong> in{' '}
+                            An unchanged count does not prove that instrument metadata is current. Admins and Group Leaders can select{' '}
+                            <strong>Update Now</strong> even when the count is unchanged or without checking first. Wait for the background job to
+                            finish and review its result. The displayed count comes from the published list, and the date records the last content
+                            change, so it can remain unchanged after a successful refresh. Existing instrument links in datasets are preserved.
+                        </p>
+                        <p>
+                            If the result says that the list was published but cache refresh remains pending, the new instrument list has already been
+                            saved. Ask an administrator to resolve the cache or ELMO configuration problem and retry the cache refresh using the
+                            recovery command in System Administration.
+                        </p>
+                        <p>
+                            Wait for the update to finish successfully. If either source fails or is incomplete, ERNIE keeps the entire previous
+                            registry. After a successful update, users with an open editor can click <strong>Resolve names again</strong> in{' '}
                             <strong>Used Instruments</strong> without discarding their unsaved work. Save the resource normally to retain newly
                             resolved names.
                         </p>
                         <p>
-                            After installing the instrument-name update, refresh PID4INST once so ERNIE also has the identifier information needed to
-                            detect conflicts. If PID4INST is disabled for ERNIE, enable it and save the activation change before retrying name
-                            resolution.
+                            After installing the combined registry update, refresh PIDINST once to include DataCite instruments and identifier
+                            information. If PIDINST is disabled for ERNIE, enable it and save the activation change before retrying name resolution.
                         </p>
                     </>
                 ),
@@ -684,10 +785,36 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             available if a download or validation fails. Can also be triggered from Editor Settings.
                         </p>
 
-                        <h4>Update PID4INST Instruments (CLI)</h4>
+                        <h4>Update PIDINST Instruments (CLI)</h4>
+                        <p>
+                            Synchronizes public, published, current B2INST v3 instruments and worldwide public DataCite records of type Instrument. A
+                            full refresh also checks metadata changes when the record count is unchanged. Run these commands in the application
+                            container.
+                        </p>
+                        <p>Preview the synchronization and review the report before publishing:</p>
+                        <DocsCodeBlock code="php artisan get-pid4inst-instruments --dry-run" />
+                        <p>
+                            The report includes counts per source, duplicate DOIs, exclusions, additions, removals, metadata changes and PID changes.
+                            A dry run leaves the published list unchanged and sends no ELMO refresh requests; it may populate short-lived Handle
+                            lookup caches.
+                        </p>
+                        <p>Publish the validated list and request refreshes for enabled ELMO targets:</p>
                         <DocsCodeBlock code="php artisan get-pid4inst-instruments" />
-                        <p className="text-sm text-muted-foreground">
-                            Downloads all instruments from the b2inst registry. Can also be triggered from Editor Settings.
+                        <p>
+                            The list is replaced only after the complete candidate passes validation. A fetch, validation or file publication failure
+                            keeps the previous list available. Changed lists retain a backup in <code>pid4inst-instruments.json.previous</code>.
+                            Existing instrument links in datasets are never rewritten by this command.
+                        </p>
+                        <p>
+                            Check the report even when the command exits successfully. If <code>published</code> and <code>refreshPending</code> are
+                            both <code>true</code>, publication succeeded but cache invalidation or ELMO refresh dispatch needs attention. Correct the
+                            cache, credentials or queue configuration problem, then retry without downloading the registry again:
+                        </p>
+                        <DocsCodeBlock code="php artisan get-pid4inst-instruments --refresh-caches" />
+                        <p>
+                            This retry uses the already published list. For enabled targets, a successful request means that ELMO refresh jobs were
+                            queued; check their logs for delivery failures. Retrying can queue another refresh for targets already notified. Use{' '}
+                            <code>--dry-run</code> and <code>--refresh-caches</code> separately; they cannot be combined.
                         </p>
 
                         <h4>Update ROR Affiliations (CLI)</h4>
@@ -719,8 +846,8 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                         <p className="text-sm text-muted-foreground">
                             Run this once after deploying the citation-label update to an existing installation. It hydrates missing citation labels
                             for already stored DOI- and URL-based related identifiers without overwriting labels that were curated manually. DOI
-                            labels fall back to the configured metadata providers after a legacy citation-cache miss. URL labels are hydrated only
-                            when their exact URL exists in the PanMetaWorks citation cache; uncached URLs remain unresolved.
+                            labels use the configured DOI metadata providers. DOI resolver URLs are supported; other URLs remain without an automatic
+                            label when no citation has been supplied. Existing and manually curated labels are preserved.
                         </p>
                         <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels --limit=500" />
                         <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels --limit=500 --after-id=12345" />
@@ -729,51 +856,6 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             more rows remain, the command prints the next invocation with an <code>--after-id</code> cursor. Always use that printed
                             cursor for the following batch so unresolved URLs do not cause later rows to be selected repeatedly.
                         </p>
-
-                        <h4>Reconcile Missing Legacy Related Identifiers</h4>
-                        <p>
-                            This administrator command audits migrated SUMARIO resources for related identifiers that are still present in the legacy
-                            database but absent from ERNIE. It is additive and runs as a dry run by default: existing curated relations are never
-                            changed or deleted. Start with one or more repeatable <code>--doi</code> filters and write a CSV report for review.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:reconcile-legacy-related-identifiers --doi=10.5880/example --report=/path/to/related-work-audit.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            The report distinguishes missing legacy records, relations that would be added, invalid identifiers, collapsed legacy
-                            duplicates, and lookup errors. DOI resolver URLs and <code>doi:</code>-prefixed values are normalized as the same DOI;
-                            non-DOI identifiers retain their casing because URL paths and other identifier schemes may be case-sensitive. Resolve
-                            unexpected invalid rows and errors before applying the reviewed scope.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:reconcile-legacy-related-identifiers --doi=10.5880/example --apply --report=/path/to/related-work-apply.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            Apply mode appends only relations that are still missing and invalidates affected published landing-page caches. It does
-                            not publish metadata changes to DataCite unless <code>--sync-datacite</code> is explicitly added. Without that option,
-                            synchronize the reported Resource IDs later through the established metadata-update workflow. Run the same dry-run scope
-                            again afterwards; an idempotent reconciliation proposes no further additions.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:reconcile-legacy-related-identifiers --doi=10.5880/example --apply --sync-datacite --report=/path/to/related-work-sync.csv" />
-
-                        <h4>Backfill Legacy Creator Names and EPOS WP16 Subjects</h4>
-                        <p>
-                            This administrator command audits migrated SUMARIO resources for resource-specific creator spellings and legacy EPOS WP16
-                            subjects. It is a dry run by default. Start with a narrow, repeatable filter and a CSV report, then review unmatched
-                            creators, subject conflicts, concurrent changes, and errors before applying anything.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --doi=10.5880/example --report=/path/to/creator-msl-audit.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            The repeatable <code>--doi</code> and <code>--legacy-id</code> options select known records. Use{' '}
-                            <code>--match-by-doi</code> only when auditing older resources without a SUMARIO link. Large runs can be resumed and
-                            bounded with <code>--after-id</code>, <code>--limit</code>, and <code>--chunk</code>. Keep the generated CSV as the
-                            per-resource audit trail.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --legacy-id=12345 --after-id=0 --limit=500 --chunk=100 --report=/path/to/creator-msl-audit.csv" />
-                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --doi=10.5880/example --apply --report=/path/to/creator-msl-apply.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            Apply mode writes only unambiguous additions or enrichments, invalidates affected public output, and starts a
-                            full-metadata DataCite synchronization for changed resources with a DOI. Record the printed sync-run UUID. Local changes
-                            remain applied if an asynchronous synchronization item fails; retry only failed items with the same run ID. Finally,
-                            repeat the dry run over the applied scope and confirm that it proposes no further changes.
-                        </p>
-                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --retry-sync=&lt;uuid&gt;" />
 
                         <h4>Audit Legacy IGSN Handles</h4>
                         <DocsCodeBlock code="php artisan igsn:audit-legacy-handles" />
@@ -785,50 +867,6 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             the optional report can be written; missing Handles, transient or unknown responses, and report write errors produce a
                             failure exit code.
                         </p>
-
-                        <h4>Backfill Complete Legacy IGSN DIF Metadata</h4>
-                        <p>
-                            This dry-run-first administrator command audits all locally stored IGSNs against DIF 1.1, 1.2, and 1.3 from the legacy
-                            portal. It preserves every non-empty source field and adds missing standard metadata such as publication links, funders,
-                            dates, contributors, sample details, structured methods, and drilling values. Existing conflicting values are retained and
-                            reported for manual review.
-                        </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-legacy-dif-metadata --report=/path/to/igsn-dif-audit.csv" />
-                        <DocsCodeBlock code="php artisan igsn:backfill-legacy-dif-metadata --datacenter=IGSNDB.ICDP --doi=ICDP5052ECZI101" />
-                        <p className="text-sm text-muted-foreground">
-                            Review missing DIF records, unknown paths, and scalar or privacy conflicts before applying. Filters for <code>--doi</code>{' '}
-                            and <code>--datacenter</code> are repeatable; <code>--after-id</code>, <code>--limit</code>, and <code>--chunk</code>{' '}
-                            support bounded resumable runs. Total Length remains local drilling metadata and is not sent as a DataCite size.
-                        </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-legacy-dif-metadata --apply --report=/path/to/igsn-dif-apply.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            Apply mode is additive and automatically starts a full-metadata DataCite synchronization for every changed registered
-                            IGSN. The command prints its sync-run UUID. Local repairs remain stored if a later asynchronous item fails; retry only
-                            those failed items with <code>php artisan igsn:backfill-legacy-dif-metadata --retry-sync=&lt;uuid&gt;</code>. A second dry
-                            run over the same scope should propose no further automatic changes.
-                        </p>
-
-                        <h4>Repair Legacy IGSN Classifications</h4>
-                        <p>
-                            Use this administrator-only maintenance command to audit classifications from the legacy IGSN portal and add values or
-                            types that are missing locally. The default is always a dry run and does not change database records.
-                        </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --report=/path/to/igsn-classification-audit.csv" />
-                        <p className="text-sm text-muted-foreground">
-                            Limit an audit with repeatable <code>--doi</code> filters, resume after an ERNIE resource ID with <code>--after-id</code>,
-                            cap the number of records with <code>--limit</code>, and adjust legacy portal batches with <code>--chunk</code> (maximum
-                            100). Invalid DOI or Handle filters stop the command with an error instead of producing an empty successful audit.
-                        </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --doi=ICDP5052EUYY001" />
-                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --after-id=12345 --limit=500 --chunk=100" />
-                        <p className="text-sm text-muted-foreground">
-                            Review the CSV before applying changes. Check the <code>status</code>, <code>inserted_values</code>,{' '}
-                            <code>types_filled</code>, <code>rejected_values</code>, <code>conflicts</code>, and <code>message</code> columns. Resolve
-                            unexpected rejections, conflicts, missing DIF records, and errors first. Then repeat the reviewed scope with{' '}
-                            <code>--apply</code> and write a separate result report. Apply mode remains additive: it inserts missing classifications
-                            and fills only missing types without replacing curated values or existing types.
-                        </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --apply --report=/path/to/igsn-classification-apply.csv" />
 
                         <h4>DataCite Configuration</h4>
                         <p>
@@ -969,46 +1007,111 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Public Engagement Statistics</h3>
                         <p>
                             The <strong>Statistics</strong> page (<code>/statistics</code>) is available to Admins and Group Leaders in the{' '}
-                            <strong>Administration</strong> workspace of the sidebar. It summarizes how published landing pages perform after go-live.
+                            <strong>Administration</strong> workspace of the sidebar. The COUNTER dashboard summarizes public usage since an
+                            administrator explicitly activated collection for this environment. Deployment alone does not start COUNTER collection.
                         </p>
 
                         <h4>What is counted</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Landing page views</strong> for published landing pages only
+                                <strong>Investigations</strong> include successful visits to published landing pages, public metadata retrievals, and
+                                download-link clicks.
                             </li>
                             <li>
-                                <strong>Download clicks</strong> on real file targets from the <strong>Files</strong> section
+                                <strong>Requests / Download clicks</strong> count real download targets in the <strong>Files</strong> section,
+                                including additional curator-defined download links. A download also counts as an investigation. These are clicks, not
+                                confirmation of completed external file transfers. IGSNs have investigations only.
                             </li>
                             <li>
                                 <strong>Portal searches</strong> submitted explicitly through the public <code>/doi-search</code> or{' '}
-                                <code>/igsn-search</code> search box
+                                <code>/igsn-search</code> search box or a direct search URL. Successful searches with no results also count; filter
+                                changes and pagination do not.
                             </li>
                         </ul>
 
                         <h4>What is excluded</h4>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Preview and review links</li>
-                            <li>Draft landing pages</li>
-                            <li>Additional curator-defined links below the main download area</li>
-                            <li>Known bot traffic when bot protection is enabled</li>
+                            <li>Signed-in users, preview and review links, drafts, and external landing pages</li>
+                            <li>HEAD requests, failed responses, prefetches, and known crawlers, independently of bot-protection settings</li>
+                            <li>Repeated actions for the same target and event type within 30 seconds</li>
                         </ul>
+
+                        <h4>Select metrics and access methods</h4>
+                        <p>
+                            Keep <strong>Period</strong> on <strong>COUNTER</strong> and choose <strong>Unique</strong> or <strong>Total</strong>{' '}
+                            under <strong>Landing page metric</strong>. Unique counts one session per resource and metric in each UTC hour; Total
+                            counts actions after repeat filtering. The <strong>Access method</strong> filter separates <strong>Regular</strong> access
+                            from <strong>Machine</strong> clients such as curl and Python. Portal searches use filtered counts, have no unique metric,
+                            and follow only the access-method filter.
+                        </p>
+                        <p>
+                            Public DOI and IGSN landing pages show a <strong>Usage</strong> module with unique regular views, up to twelve monthly
+                            values, and an expandable <strong>Monthly data table</strong>. DOI pages also show download clicks. The{' '}
+                            <a href="/usage-statistics" className="underline">
+                                How we count
+                            </a>{' '}
+                            page explains the counting rules and links the privacy policy. When opened from Statistics, it offers links to the public
+                            Data Portal and IGSN Portal.
+                        </p>
 
                         <h4>Dashboard modules</h4>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Overview cards for landing page views, download clicks, portal searches, and tracked landing pages</li>
-                            <li>Daily trend charts for the last 14 days</li>
+                            <li>Overview cards for investigations, download clicks, portal searches, and tracked landing pages</li>
+                            <li>Daily trend charts for up to 14 completed UTC days</li>
                             <li>Top landing pages by views and by download clicks</li>
                             <li>Top normalized portal search terms</li>
                             <li>Separate engagement split for regular resources and Physical Objects</li>
                         </ul>
 
+                        <h4>Historical counters and CSV export</h4>
+                        <p>
+                            Select <strong>Before COUNTER</strong> under <strong>Period</strong> to inspect the earlier counters. They freeze at
+                            activation, remain separate, and are never converted into COUNTER metrics. Metric/access-method filters and the COUNTER
+                            CSV export are unavailable in this historical view.
+                        </p>
+                        <p>
+                            In the COUNTER view, optionally set <strong>From month</strong> and <strong>To month</strong>, then select{' '}
+                            <strong>Export monthly CSV</strong>. Blank dates export all months. The export includes all four resource metrics
+                            (total/unique investigations and total/unique requests) for the selected access method, regardless of the Unique/Total
+                            display filter. Request metrics remain empty for IGSNs.
+                        </p>
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Go-live baseline:</strong> The dashboard starts counting from the moment this analytics feature is deployed.
-                                Older legacy counters are not backfilled into the new dashboard.
+                                <strong>Data freshness:</strong> Completed UTC days are aggregated nightly. Check <strong>Data through</strong> and{' '}
+                                <strong>Last aggregated</strong> before interpreting totals. Before activation or the first aggregation, the page
+                                shows the corresponding status. Partial months, missing observations, and paused collection are identified; incomplete
+                                totals may understate usage.
                             </p>
                         </div>
+                    </>
+                ),
+            },
+            {
+                id: 'counter-operations',
+                title: 'COUNTER Operations',
+                icon: BarChart3,
+                minRole: 'admin',
+                content: (
+                    <>
+                        <h3>Activate and Monitor COUNTER Collection</h3>
+                        <p>
+                            An administrator with server access activates each environment separately after deployment and migrations. Configure a
+                            dedicated random <code>COUNTER_SESSION_SECRET</code> of at least 32 characters on every app and scheduler instance; use a
+                            different secret for Stage and Production. Recreate the containers and refresh the configuration cache through the normal
+                            deployment process before activating.
+                        </p>
+                        <DocsCodeBlock code={'php artisan counter:activate\nphp artisan counter:tracking status'} />
+                        <p>
+                            Prefer a UTC day boundary. Activation preserves the original start time permanently and freezes all legacy writers.
+                            Repeating activation keeps that start time. Existing counters are not imported. Verify that the scheduler runs: daily
+                            aggregation is scheduled for 00:15 UTC, and raw events are removed after aggregation and within seven days.
+                        </p>
+                        <p>
+                            Monitor the data-through date, last aggregation time, and incomplete days. Use{' '}
+                            <code>php artisan counter:tracking pause</code> before maintenance and <code>php artisan counter:tracking resume</code>{' '}
+                            afterwards. Pausing marks affected days incomplete and never restarts legacy counters. If aggregation fails, retry{' '}
+                            <code>php artisan counter:aggregate</code>; finalized days are not counted twice.
+                        </p>
                     </>
                 ),
             },
@@ -1076,6 +1179,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>
                                 <strong>Crossref Funder ROR Suggestions</strong> – Reviews funding references with legacy Crossref Funder IDs and
                                 proposes safe ROR replacements from the local ROR FundRef index
+                            </li>
+                            <li>
+                                <strong>Funding Award URI Enrichment</strong> - Proposes missing award URIs from Crossref Grants and CORDIS when award
+                                number, funder and source evidence identify one award. Existing values are preserved. Review the current and proposed
+                                URI and the source evidence before accepting. Decisions, previous values, reviewer and source evidence are retained
+                                permanently. Accepted changes follow the existing DataCite synchronization workflow for registered resources. This
+                                optional assistant must be enabled by an administrator.
                             </li>
                             <li>
                                 <strong>Suggested Title Languages</strong> – Suggests missing language values for title records using title-text
@@ -1239,6 +1349,32 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 across all assistants.
                             </p>
                         </div>
+                    </>
+                ),
+            },
+            {
+                id: 'contact-persons',
+                title: 'Contact Persons',
+                icon: Users,
+                minRole: 'curator',
+                content: (
+                    <>
+                        <h3>Find Recorded Contact Details</h3>
+                        <p>
+                            Admins, Group Leaders, and Curators can open <strong>Tools → Contact Persons</strong>. The page groups contacts by valid
+                            ORCID and shows their recorded name and email variants. Contacts without a valid ORCID remain separate by their stored
+                            person identity. Search by name, ORCID, or email; matching groups retain all their variants.
+                        </p>
+                        <p>
+                            Use the copy button beside an email address to copy it. Each Resources or IGSNs button opens the existing list with an
+                            exact contact filter for that name and address. Remove the contact filter to return to the wider list, or combine it with
+                            other filters. Counts refer to distinct records, including drafts and tombstones.
+                        </p>
+                        <p>
+                            This overview shows current contact assignments, including contact authors and ContactPerson contributors. Removed
+                            assignments and free-text archive contacts are not included. Contributor names reflect the stored person name; previously
+                            unrecorded spellings cannot be recovered. An address being listed does not confirm that it is still in use.
+                        </p>
                     </>
                 ),
             },
@@ -1421,7 +1557,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>REST API</h3>
-                        <p>ERNIE API 1.1 follows OpenAPI 3.2.1. Existing API URLs remain under /api/v1/.</p>
+                        <p>ERNIE API 1.2 follows OpenAPI 3.2.1 and serves versioned endpoints under /api/v1/.</p>
 
                         <p>The published specification is linted and validated with Redocly during local quality checks and CI runs.</p>
 
@@ -1446,10 +1582,22 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             ELMO selections; subsequent changes affect only the selected editor.
                         </p>
                         <p>
-                            Use <code>/api/v1/resource-types/elmo</code> for ELMO and <code>/api/v1/resource-types/elmo-msl</code> for ELMO-MSL.
-                            ELMO-MSL vocabularies and availability endpoints use <code>/api/v1/elmo-msl/vocabularies/</code>. Both external editors
-                            accept the existing API key through <code>X-API-Key</code> or <code>Authorization: Bearer</code>. Disabling an entry for
-                            ERNIE no longer disables it for ELMO or ELMO-MSL.
+                            Use <code>/api/v1/resource-types/elmo</code> for ELMO and <code>/api/v1/resource-types/elmo-msl</code> for ELMO-MSL. Both
+                            external editors authenticate with <code>X-API-Key</code> or <code>Authorization: Bearer</code>.
+                        </p>
+
+                        <h4>Controlled vocabularies in API 1.2</h4>
+                        <p>
+                            ELMO reads <code>/api/v1/elmo/vocabularies/visibility</code> and ELMO-MSL reads{' '}
+                            <code>/api/v1/elmo-msl/vocabularies/visibility</code>. Each response maps the slugs of ten thesauri and three PID
+                            registries to booleans. For example, read <code>visibility['gcmd-platforms']</code> for the old{' '}
+                            <code>platforms.available</code> setting. A true value means the editor is configured to display the vocabulary.
+                        </p>
+                        <p>
+                            Use the slug to fetch the full vocabulary, for example <code>/api/v1/vocabularies/data/gcmd-platforms</code>. Both editors
+                            receive the complete hierarchy even when visibility is false. A missing snapshot returns HTTP 404 and an unreadable or
+                            malformed snapshot returns HTTP 500. Swagger UI marks the 1.1 vocabulary endpoints as deprecated and lists their
+                            replacements. Those endpoints serve their original responses during migration.
                         </p>
 
                         <h4>Key Endpoints</h4>
@@ -1464,29 +1612,22 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <code>/api/v1/ror-affiliations</code> – ROR organization affiliations
                             </li>
                             <li>
-                                <code>/api/v1/vocabularies/raid-projects</code> - RAiD research activity identifiers
+                                <code>/api/v1/vocabularies/data/raid-projects</code> – RAiD research activity identifiers
                             </li>
                             <li>
-                                <code>/api/v1/vocabularies/msl-laboratories</code> - Versioned Multi-Scale Laboratories vocabulary
+                                <code>/api/v1/vocabularies/data/msl-laboratories</code> – Versioned Multi-Scale Laboratories vocabulary
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/data/chronostrat-timescale</code> – ICS Chronostratigraphic Chart
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/data/gemet</code> – GEMET environmental thesaurus
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/data/cgi-simple-lithology</code> – CGI Simple Lithology vocabulary
                             </li>
                             <li>
                                 <code>/api/v1/orcid/search</code> – ORCID researcher search
-                            </li>
-                            <li>
-                                <code>/api/v1/vocabularies/gcmd-*</code> – NASA GCMD controlled vocabularies
-                            </li>
-                            <li>
-                                <code>/api/v1/vocabularies/chronostrat-timescale</code> – ICS Chronostratigraphic Chart
-                            </li>
-                            <li>
-                                <code>/api/v1/vocabularies/gemet</code> – GEMET environmental thesaurus
-                            </li>
-                            <li>
-                                <code>/api/v1/vocabularies/cgi-simple-lithology</code> – CGI Simple Lithology vocabulary
-                            </li>
-                            <li>
-                                <code>/api/v1/elmo/vocabularies/thesauri-availability</code> – ELMO-specific thesaurus availability (returns
-                                is_elmo_active)
                             </li>
                         </ul>
                     </>
@@ -1628,6 +1769,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Review Metadata">
                                 <p>Check all pre-populated fields from the file upload for accuracy.</p>
+                                <p>
+                                    Use <kbd>Tab</kbd> to focus a text field or dropdown. Your screen reader can read the field label, any help text,
+                                    and any visible validation messages. Check for feedback after you leave a text field or change a selection.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Validate Authors">
                                 <p>Verify author information, add ORCID iDs, and confirm ROR affiliations.</p>
@@ -1728,6 +1873,67 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <WorkflowSuccess>
                             Your curated dataset is now saved and available under <code>/resources</code> for further processing.
                         </WorkflowSuccess>
+                    </>
+                ),
+            },
+            {
+                id: 'formats-sizes',
+                title: 'Format & Size',
+                icon: FileText,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Editing Resource Formats and Sizes</h3>
+                        <p>
+                            In the Data Editor (<code>/editor</code>), open <strong>Format &amp; Size</strong> to describe the resource&apos;s file
+                            formats and digital sizes. This optional section is available to Curators, Group Leaders and Admins, and to Beginners in
+                            the training workflow. You can save these values before creating a landing page or adding a download URL. Formats and
+                            sizes are independent lists; a format does not need a matching size entry.
+                        </p>
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Choose formats">
+                                <p>
+                                    Choose <strong>Add format</strong> and search by a familiar name such as <strong>CSV</strong> or by its MIME type,
+                                    such as <code>text/csv</code>. The dropdown includes all registered IANA MIME types, with the most frequently used
+                                    formats across ERNIE Resources first. Each option shows a readable name and its MIME type; ERNIE saves the MIME
+                                    type. Add another row for each distinct format, or remove a row you no longer need.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Enter sizes and units">
+                                <p>
+                                    Choose <strong>Add size</strong>, enter a positive number in <strong>Size</strong>, and select its{' '}
+                                    <strong>Unit</strong>. Decimal commas and points are accepted, for example <strong>1,5 GiB</strong> or{' '}
+                                    <strong>1.5 GiB</strong>. Units include B, kB, MB, GB, TB and PB, plus the binary units KiB, MiB, GiB, TiB and
+                                    PiB. Decimal and binary units have different meanings; choose the unit reported for your data. Add or remove
+                                    digital size rows as needed.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Save and review">
+                                <p>
+                                    For an unpublished resource, use <strong>Save Draft</strong> to keep your changes while continuing curation. For a
+                                    published resource, use <strong>Update Metadata</strong> and review the confirmation. Reopen the same resource to
+                                    review its saved formats and sizes. If another editor or the assistance workflow changed these values, reload the
+                                    resource and review the changes before saving again.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+                        <h4>Legacy and Imported Values</h4>
+                        <p>
+                            Existing formats outside the IANA catalog remain visible and can be kept, removed, or replaced with a registered MIME
+                            type. XML, JSON and JSON-LD uploads preserve their original formats and size descriptions. The regular format dropdown
+                            accepts registered MIME types for new entries; keeping an imported legacy value does not make it a new dropdown option.
+                        </p>
+                        <p>
+                            Values already stored by the Format and Size Suggestion Assistant appear here too. Meaning labels such as{' '}
+                            <strong>Uncompressed Primary Data Size</strong> stay attached when you edit a digital size&apos;s number or unit. Physical
+                            measurements and unstructured imported sizes remain visible as read-only values and are preserved when saving.
+                        </p>
+                        <h4>Landing-Page Setup</h4>
+                        <p>
+                            The <strong>Set up landing page</strong> dialog configures URLs, button labels and layout. Edit resource formats and sizes
+                            in <strong>Format &amp; Size</strong> in the Data Editor. Existing download-file assignments are retained. A resource
+                            size, including an archive&apos;s uncompressed contents, is not automatically assigned as a download file&apos;s size.
+                        </p>
                     </>
                 ),
             },
@@ -1915,12 +2121,26 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
 
                         <h4>ORCID Integration</h4>
-                        <p>ERNIE integrates with the ORCID Public API for researcher identification:</p>
+                        <p>
+                            In the ORCID field for an author or contributor, select the magnifying glass labeled <strong>Search for ORCID</strong>.
+                            Enter at least two characters, then press <kbd>Enter</kbd> in the search field or select <strong>Search</strong>.
+                        </p>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Search for researchers by name</li>
-                            <li>Auto-fill author details from ORCID profiles</li>
-                            <li>Validate ORCID iDs in real-time</li>
+                            <li>
+                                Search by a single name such as <code>Ehrmann</code>, or enter the full name as <code>Holger Ehrmann</code> or{' '}
+                                <code>Ehrmann, Holger</code>.
+                            </li>
+                            <li>
+                                To narrow the search by public affiliation, enter the institution after a second comma, as in{' '}
+                                <code>Ehrmann, Holger, GFZ</code>.
+                            </li>
                         </ul>
+                        <p>
+                            The profile link beside each result opens ORCID.org in a new tab. To use a result for the current person, click the result
+                            or move to it with the arrow keys and press <kbd>Enter</kbd>. ERNIE fills empty name fields from the selected profile and
+                            offers differing names and new affiliations for review. You can also enter a known ORCID iD directly in the ORCID field
+                            for validation.
+                        </p>
 
                         <h4>ROR Affiliations</h4>
                         <p>Institution affiliations use the Research Organization Registry (ROR):</p>
@@ -2225,8 +2445,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Valid:</strong> Time period for which the data is valid
                             </li>
                             <li>
-                                <strong>Available:</strong> When the resource becomes publicly available. For Embargoed access, enter exactly one full
-                                calendar date (YYYY-MM-DD); DataCite uses Available as the embargo end date.
+                                <strong>Other:</strong> Other dates or periods relevant to the dataset
+                            </li>
+                            <li>
+                                <strong>Available:</strong> When the data becomes publicly available; DataCite uses this date as the embargo end date.
                             </li>
                             <li>
                                 <strong>Submitted:</strong> When the resource was submitted
@@ -2253,17 +2475,42 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             saving.
                         </p>
                         <p>
-                            In the <strong>Dates</strong> section, type a year (<code>YYYY</code>), year and month (<code>YYYY-MM</code>), or full
-                            date (<code>YYYY-MM-DD</code>) directly into the date field. Year-only and year-month values remain editable without
-                            adding a day. With a German browser language, you can also enter a full date as <code>DD.MM.YYYY</code>; ERNIE displays
-                            full dates in that order and saves them in ISO format.
+                            The <strong>Dates</strong> section accepts years from <code>0001</code> through <code>9999</code>. Type a year (
+                            <code>YYYY</code>), year and month (<code>YYYY-MM</code>), or full date (<code>YYYY-MM-DD</code>) directly into the date
+                            field. Year-only and year-month values remain editable without adding a day. With a German browser language, you can also
+                            enter a full date as <code>DD.MM.YYYY</code>; ERNIE displays full dates in that order and saves them in ISO format.
                         </p>
                         <p>
-                            Use the calendar button to choose a day. Its month and year menus reach back to 1900. For Created, Collected, Valid, or
-                            Other dates, select <strong>Period</strong> and enter the start and end dates in separate fields; do not type a
-                            slash-delimited range into one field. Time and timezone apply only to full dates and are cleared when you change that date
-                            to a year or year-month. Invalid dates show a field error and must be corrected before saving.
+                            Use the calendar button to choose a day. Select the month from its dropdown and enter the year directly in the{' '}
+                            <strong>Year</strong> input. Press Enter or leave the Year input to navigate to that year. Navigating between months or
+                            years keeps the existing date and its precision until you select a day. The calendar follows the future-date rules of the
+                            selected Date Type.
                         </p>
+                        <p>
+                            For Created, Collected, Valid, or Other dates, select <strong>Period</strong> and enter the start and end dates in
+                            separate fields; do not type a slash-delimited range into one field. Time and timezone apply only to full dates and are
+                            cleared when you change that date to a year or year-month. Invalid date values show a field error and must be corrected
+                            before saving.
+                        </p>
+
+                        <h4>Historical and Future Dates</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Collected, Valid, and Other:</strong> Historical dates and future dates through year 9999 are allowed,
+                                including single dates and both the start and end of a period. This supports historical observations and future model
+                                projections. These future dates do not automatically change the access level.
+                            </li>
+                            <li>
+                                <strong>Created, Copyrighted, Submitted, and Withdrawn:</strong> Dates must be in the past or present. For a Created
+                                period, this applies to both endpoints. Their calendars stop at today.
+                            </li>
+                            <li>
+                                <strong>Available:</strong> Future dates require <strong>Embargoed</strong> access. Entering or selecting a future
+                                full calendar date selects that access level automatically. Before you <strong>Validate</strong> an embargoed record,
+                                provide exactly one Available date in <code>YYYY-MM-DD</code> format, without an end date or time. Drafts can retain
+                                incomplete embargo information.
+                            </li>
+                        </ul>
                     </>
                 ),
             },
@@ -2294,7 +2541,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Add a Card and Enter the Identifier">
                                 <p>
-                                    Choose <strong>Add Related Work</strong>, then paste a DOI, URL, Handle, IGSN, URN, or another supported
+                                    Choose <strong>Add Related Work</strong>, then paste a DOI, URL, Handle, IGSN, URN, SWHID, or another supported
                                     identifier into the new card. ERNIE auto-detects the type and still lets you override it manually when needed.
                                 </p>
                             </WorkflowSteps.Step>
@@ -2303,20 +2550,44 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     When you leave the field, ERNIE normalizes DOI input, shows a safe preview link, and tries to fill an empty
                                     Citation Label for DOI and URL identifiers. You can continue editing while the best-effort lookup runs.
                                 </p>
+                                <p>
+                                    Software Heritage identifiers (SWHIDs) and supported archive URLs are also detected and normalized when you leave
+                                    the field. Qualifiers such as origin, path and line ranges are preserved. Invalid SWHIDs show a specific error and
+                                    block <strong>Validate</strong>; <strong>Save Draft</strong> remains available. A valid preview link confirms the
+                                    format, without checking whether the object exists in the archive.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Pick the Relation Type">
                                 <p>
                                     The relation menu keeps the most frequently used DataCite relation types in a dedicated <em>Most used</em> block,
                                     with the full schema available below it.
                                 </p>
-                            </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={4} title="Refine and Reorder">
                                 <p>
-                                    Adjust the identifier, relation type, and Citation Label directly in the card. Drag completed cards into the order
-                                    you want; this order is preserved in the editor and reused on the landing page.
+                                    Use <code>IsIdenticalTo</code> for the SWHID of the exact archived software version described by your resource.
+                                    Use <code>IsVariantFormOf</code> for its repository URL. Only valid SWHIDs marked <code>IsIdenticalTo</code>
+                                    become additional Schema.org identifiers alongside the resource DOI.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={4} title="Refine Citation Labels">
+                                <p>
+                                    Adjust the identifier, relation type, and Citation Label directly in the card. Cards stay in place while you edit
+                                    them, including when ERNIE fills an empty label automatically.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
+
+                        <h4>Alphabetical Display</h4>
+                        <p>
+                            Opening a saved resource displays Related Works alphabetically by their saved Citation Labels, across all relation types.
+                            Entries without a label appear first. Capitalization and accents are treated equally, and numbers sort naturally, such as
+                            Work 2 before Work 10. Equal labels keep their stored order. This display does not change the stored order used by landing
+                            pages and exports.
+                        </p>
+                        <p>
+                            New cards and CSV imports stay in the order added until you reopen the editor. Saving, autosave, or collapsing the section
+                            does not rearrange the cards. Full XML and JSON uploads create a saved draft, so their Related Works already appear sorted
+                            when you first open that draft.
+                        </p>
 
                         <h4>CSV Bulk Import</h4>
                         <p>
@@ -2326,6 +2597,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             omitted. An example file is available from <strong>Download Example</strong> in the importer.
                         </p>
                         <p>
+                            Quote CSV fields containing commas, including SWHID origins or paths. SWHIDs receive the same normalization and qualifier
+                            validation as manually entered values.
+                        </p>
+                        <p>
                             Review the preview and resolve every reported validation error before importing. An exact duplicate with the same
                             identifier and relation type is skipped and reported, while the same identifier may still be imported with a different
                             relation type. Use <strong>Cancel</strong> or close the importer to return without adding any rows.
@@ -2333,10 +2608,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>DOI and URL Citation Labels</h4>
                         <p>
-                            When you leave a valid DOI or URL identifier field, ERNIE tries to resolve a formatted Citation Label. DOI metadata may be
-                            retrieved from DataCite; URL labels are available only when that exact URL already exists in ERNIE's metadata cache. An
-                            unavailable label never prevents editing or saving, and ERNIE never overwrites a label you entered manually. Stored labels
-                            are reused on landing pages and in the relation browser, so no third-party citation lookup is needed at page-load time.
+                            When you leave a DOI or DOI resolver URL field, ERNIE looks up the work. Journal articles, conference contributions and
+                            preprints receive APA 7 citations. The editor and clipboard use plain text. Landing pages display the italics for the
+                            work’s publication type. A manually entered label takes precedence. You can also save an identifier when metadata is
+                            unavailable.
+                        </p>
+                        <p>
+                            To update previously published labels, select rows in Resources or IGSNs and choose{' '}
+                            <strong>Review citation labels</strong>. ERNIE offers a change when the stored text exactly matches the previous formatter
+                            and the paper has a verified source. Compare both versions, check the desired entries, and choose{' '}
+                            <strong>Apply selected</strong>.
                         </p>
 
                         <h4>On Resource Landing Pages</h4>
@@ -2375,7 +2656,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Instrument Names and Diagnostics</h3>
                         <p>
                             In <strong>Used Instruments</strong>, select the instruments used to collect your dataset. XML and JSON imports and
-                            existing resources opened in the editor use ERNIE&apos;s local PID4INST registry to fill in missing instrument names.
+                            existing resources opened in the editor use ERNIE&apos;s local PIDINST registry to fill in missing instrument names.
                             Existing curated names and the original persistent identifiers (PIDs) are preserved.
                         </p>
                         <h4>Understanding Instrument Messages</h4>
@@ -2387,7 +2668,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Name not found:</strong> The local registry has no matching name. The PID remains visible. Ask a Group Leader
-                                or Admin to refresh PID4INST, then retry name resolution.
+                                or Admin to refresh PIDINST, then retry name resolution.
                             </li>
                             <li>
                                 <strong>Multiple records:</strong> More than one registry record matches the identifier. ERNIE does not choose a name;
@@ -2395,15 +2676,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Registry unavailable or disabled:</strong> Your selected instruments are retained. Ask a Group Leader or Admin
-                                to check PID4INST availability and activation. Adding instruments is disabled while the registry is unavailable.
+                                to check PIDINST availability and activation. Adding instruments is disabled while the registry is unavailable.
                             </li>
                         </ul>
                         <h4>Retry and Save Resolved Names</h4>
                         <p>
                             Click <strong>Resolve names again</strong> in <strong>Used Instruments</strong> to retry against the current local
-                            registry. This preserves your other unsaved form changes and does not download data from B2INST. If a registry update is
-                            needed, wait for a Group Leader or Admin to complete it before retrying. You can also retry after a temporary resolution
-                            error.
+                            registry. This preserves your other unsaved form changes and does not download data from B2INST or DataCite. If a registry
+                            update is needed, wait for a Group Leader or Admin to complete it before retrying. You can also retry after a temporary
+                            resolution error.
                         </p>
                         <p>
                             Opening an existing resource only adds resolved names to the editor; it does not change the saved record. Use the normal
@@ -2434,14 +2715,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Where to find it</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Resources list:</strong> click the quote icon <code>&quot;</code> in the Actions column of any row to open the
-                                Related Item Manager modal for that resource.
+                                In the <strong>Resources</strong> list, select one resource, open <strong>Actions</strong>, and choose{' '}
+                                <strong>Manage Related Items</strong>.
                             </li>
                             <li>
-                                <strong>Curation form:</strong> expand the <em>Related Items</em> accordion to add, edit, or delete related items
-                                while editing a resource.
+                                For a saved resource in the Data Editor, expand <strong>Related Items</strong> and choose{' '}
+                                <strong>Manage Related Items</strong>.
                             </li>
                         </ul>
+                        <p>
+                            Press <kbd>Enter</kbd> or <kbd>Space</kbd> on a section heading such as <strong>Numbering</strong> to open or close it.
+                            Use <kbd>Tab</kbd> to move forward and <kbd>Shift+Tab</kbd> to move back through the fields and buttons, including{' '}
+                            <strong>Cancel</strong> and <strong>Save</strong>. The form scrolls to the focused control while the dialog title and{' '}
+                            <strong>Close</strong> button stay in view.
+                        </p>
 
                         <h4>Adding a Related Item</h4>
                         <WorkflowSteps>
@@ -2610,10 +2897,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Exploring Data Centres</h4>
                         <p>
-                            Select <strong>Find → Data Centres</strong> to open the <a href="/data-centres">Data Centres overview</a>. Each hexagon
-                            opens the Data Portal with that data centre selected in the Datacenters filter. You can refine the search while keeping
-                            the selection, share its URL, or use Clear to reset the filters. The overview includes centres with published DOI
-                            resources.
+                            In the main menu, <a href={gfzDataServicesUrls.dataCentres}>Find → Data Centres</a> opens the Data Centres page on the GFZ
+                            Data Services website.
+                        </p>
+                        <p>
+                            To open the <a href="/data-centres">local Data Centres catalogue</a>, select <strong>Data Centres</strong> on the Find
+                            overview or under <strong>Services</strong> on the homepage. The catalogue includes centres with published DOI resources.
+                            Each hexagon opens the Data Portal with that data centre selected in the Datacenters filter. You can refine the search
+                            while keeping the selection, share its URL, or use Clear to reset the filters.
                         </p>
                         <p>
                             Follow About this data centre or open the <a href="/data-centres/description">Data Centre Descriptions</a> to learn about
@@ -2680,7 +2971,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>Click an individual marker or shape to open its record preview, including Material and Sample Type for IGSNs</li>
                             <li>Boxes, polygons, and lines appear when you zoom in far enough to inspect their geographic detail</li>
-                            <li>Enable the spatial filter when you want the result list to follow the selected map area</li>
+                            <li>
+                                Both portals start with <strong>Filter by map area</strong> on and the whole world selected. The worldwide list
+                                includes records without coordinates. Zoom, pan, or apply coordinates under <strong>Location</strong> to search a
+                                region.
+                            </li>
+                            <li>
+                                Turn the switch off to explore the map independently of the results. The search link remembers this choice when you
+                                browse pages, reload, or share it. Clear all filters to return to the worldwide search with the switch on.
+                            </li>
                             <li>
                                 IGSN values marked Not applicable, records without Material, and unexpected legacy Material values have separate
                                 legend entries and marker styles
@@ -2690,9 +2989,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Text Search and Free Keyword Suggestions</h4>
                         <p>
                             The single <strong>Search</strong> field accepts arbitrary text and suggests free keywords used by published records after
-                            you enter at least two characters. Choose a suggestion to add it as an exact keyword chip, or submit the typed value with
-                            Enter or the magnifying-glass button to run a normal full-text search. Text and multiple exact keyword chips can be
-                            combined, and each chip can be removed independently.
+                            you enter at least two characters. Choose a suggestion to add it as an exact keyword chip. You can combine text with
+                            multiple keyword chips and remove each chip independently.
+                        </p>
+                        <p>
+                            The suggestions menu closes when no keywords match or you have already selected every match. Press Escape to close the
+                            menu, even while keywords are loading or after a lookup error. Your search text stays in the field. With no suggestion
+                            highlighted, press Enter to search for the text you typed, even when the menu is closed. The magnifying-glass button also
+                            runs a full-text search.
                         </p>
                         <p>
                             In both the DOI Data Portal and the IGSN Portal, normal text search also finds Authors, Contributors, and Contact Persons
@@ -2783,6 +3087,28 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow.
                             {permissions.deleteResources && ' Curators and above can also delete draft landing pages.'}
                         </p>
+                        <h4>Reading Public Usage Statistics</h4>
+                        <p>
+                            The <strong>Usage</strong> module on published DOI and IGSN pages shows unique regular views since COUNTER activation.
+                            Views include landing-page visits, public metadata retrievals, and download-link clicks. DOI pages also show download
+                            clicks; IGSNs have views only. Downloads measure link clicks, not completed transfers from external servers.
+                        </p>
+                        <p>
+                            Expand <strong>Monthly data table</strong> to read the chart values and coverage labels. Check the data-through date and
+                            last aggregation time: completed UTC days are processed nightly, and partial months or missing observations are marked.
+                            Before activation or the first aggregation, the module explains why values are not available yet. Preview and draft pages
+                            do not collect usage, and visits while signed in are excluded.
+                        </p>
+                        <p>
+                            Follow{' '}
+                            <a href="/usage-statistics" className="underline">
+                                How we count
+                            </a>{' '}
+                            for the counting method and privacy policy. From a published landing page, use <strong>Back to resource</strong> or{' '}
+                            <strong>Back to IGSN sample</strong> to return to the same item. Review links and editor previews open the method in a new
+                            tab so you can continue working in the original one. Admins and Group Leaders can configure module visibility in a custom
+                            template; hiding Usage does not stop collection.
+                        </p>
                         <h4>Reading Coverage Descriptions on the Map</h4>
                         <p>
                             On dataset and IGSN landing pages, including previews, click a described point, bounding box, polygon, line, or line
@@ -2805,12 +3131,71 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             you close it from inside the popup, focus returns to the map object that opened it. If you have moved focus outside the
                             popup, it stays there.
                         </p>
+                        <h4>Downloading Metadata</h4>
+                        <p>
+                            On published Resource landing pages, <strong>Download Metadata</strong> offers the DataCite formats and, for eligible
+                            resource types, an <strong>ISO 19115</strong> row with <strong>XML</strong> and <strong>JSON</strong> buttons. XML uses
+                            ISO 19115-3:2023; JSON uses <strong>ISO/TR 19115-4</strong>. No separate activation is needed for ISO JSON. The button
+                            tooltips and accessible labels identify the standard and the JSON preview status.
+                        </p>
+                        <p>
+                            ISO JSON is available for Dataset, Collection, Model, Instrument, Service, Software, Computational Notebook, Workflow,
+                            Interactive Resource, and Image records. IGSNs and Physical Objects do not offer ISO JSON. Other resource types are
+                            outside the supported ISO profile. Template settings may hide the Download Metadata section.
+                        </p>
+                        <p>
+                            The JSON format is marked <strong>Preview</strong> because it implements a selected schema version and does not claim
+                            support for the entire ISO metadata model. This label does not prevent downloads from published pages. It is separate from
+                            the landing-page preview used before publication.
+                        </p>
+                        <p>
+                            Published IGSNs and Physical Objects also offer <strong>IGSN Core 2.0</strong> as XML, with links to the published schema
+                            and the public{' '}
+                            <a href={`${pathPrefix}/schemas/igsn/2.0/docs`} className="underline">
+                                IGSN Core guide
+                            </a>
+                            . This uses the published Core schema without Geo or Bio extensions. ERNIE validates each file before download. Missing
+                            required metadata or validation failures show an error instead of downloading an invalid file.
+                        </p>
+                        <h4>DCAT-AP Resource Metadata</h4>
+                        <p>
+                            When enabled for this installation, <strong>DCAT-AP 3.0.1</strong> offers an <strong>RDF/XML</strong> download using the
+                            EU base profile for published Dataset, Collection, Model, Image, and Sound records. IGSNs and Physical Objects are
+                            excluded. A valid DOI, a main title, and an Abstract are required. Missing required metadata hides DCAT-AP until
+                            corrected; other metadata formats remain available. Template settings may hide the Download Metadata section.
+                        </p>
+                        <p>
+                            The landing-page download and OAI-PMH use the same metadata with <code>metadataPrefix=dcat_ap</code>. If a previously
+                            available record becomes ineligible or is unpublished, harvesters receive a deleted header for this format. Restoring
+                            eligibility makes the record available again with a new harvest timestamp. Eligible tombstones retain metadata and the
+                            withdrawal notice, without direct data downloads. See the{' '}
+                            <a href="/oai-pmh/docs" className="underline">
+                                OAI-PMH harvesting guide
+                            </a>{' '}
+                            for incremental harvesting and restarting after an invalid resumption token.
+                        </p>
+                        <h4>EPOS-DCAT-AP 3.0 Resource Metadata</h4>
+                        <p>
+                            Eligible datasets, collections, models, images and sounds offer an additional RDF/XML download when EPOS is enabled. Each
+                            title and abstract language version is included as a separate text value. OAI-PMH provides the same record with
+                            <code> metadataPrefix=epos_dcat_ap</code>. The optional <code>epos-msl</code> set selects the project subset.
+                        </p>
+                        {userRole === 'admin' && (
+                            <p>
+                                DCAT-AP is disabled by default. Before rollout, the operator runs <code>dcat-ap:audit</code> and reviews its findings,
+                                then enables <code>DCATAP_ENABLED</code> and refreshes the application configuration. Run <code>dcat-ap:sync</code>{' '}
+                                before reopening public traffic so existing records receive a current harvest timestamp. Repeat synchronization before
+                                re-enabling the format. The environment examples document the optional catalog settings; Docker deployments require
+                                recreating the PHP containers after environment changes.
+                            </p>
+                        )}
                         <h4>Metadata Downloads in Previews</h4>
                         <p>
                             The <strong>Download Metadata</strong> section remains visible while you review a Resource or IGSN landing page. Selecting
-                            XML, JSON, JSON-LD, or the ISO 19115-3 option available for eligible records shows a notice that metadata downloads become
-                            available after registration with DataCite. On the published landing page, the same actions download the available
-                            metadata representations directly.
+                            a DataCite format, IGSN Core for physical objects, an eligible ISO format (ISO XML and ISO JSON for Resources, ISO XML for
+                            IGSNs), or DCAT-AP for supported Resources shows a notice that metadata downloads become available after registration with
+                            DataCite. DCAT-AP downloads are unavailable in previews. On the published landing page, the same actions download the
+                            available metadata representations directly.
                         </p>
                         <h4>Newer-Version and Superseded Notices</h4>
                         <p>
@@ -2852,8 +3237,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p>
                             The optional <strong>Button label</strong> defaults to <strong>Download data and description</strong>. Imported files take
-                            precedence over the primary URL and retain their read-only URLs, editable labels, formats and sizes. Empty labels use the
-                            default label for a single file or numbered labels such as <strong>Download (1)</strong> for several files.
+                            precedence over the primary URL and retain their read-only URLs and existing format and size assignments. Their button
+                            labels remain editable. Edit resource formats and sizes in the Data Editor&apos;s <strong>Format &amp; Size</strong>
+                            section; landing-page setup no longer contains these fields. Empty labels use the default label for a single file or
+                            numbered labels such as <strong>Download (1)</strong> for several files.
                         </p>
                         <p>
                             Previously hidden downloads remain hidden. For these records, choose <strong>Activate downloads</strong> and save to make
@@ -3093,13 +3480,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             Admins and Group Leaders can create custom landing page templates to control the layout, branding, and type visibility of
                             landing pages. Custom templates are cloned from the built-in <strong>Templates Resources</strong> or{' '}
-                            <strong>Templates IGSN</strong> copy template and allow customization of section order, header logo, displayed Date Types,
-                            and displayed Relation Types. Both template types can be assigned to any number of datacenters through independent
-                            assignment slots, including the GFZ datacenter. Custom templates may also remain unassigned. Every datacenter always has
-                            one persistent Resource assignment and one persistent IGSN assignment. New datacenters start on the matching copy
-                            templates; removing a datacenter from a custom template moves it back to that type's copy template automatically. A
-                            landing page in automatic mode inherits the compatible template assigned to its datacenter. An explicit landing-page
-                            selection always overrides datacenter inheritance. The two copy templates stay pinned at the top of template management.
+                            <strong>Templates IGSN</strong> copy template and allow customization of section order, module visibility, header logo,
+                            displayed Date Types, and displayed Relation Types. Both template types can be assigned to any number of datacenters
+                            through independent assignment slots, including the GFZ datacenter. Custom templates may also remain unassigned. Every
+                            datacenter always has one persistent Resource assignment and one persistent IGSN assignment. New datacenters start on the
+                            matching copy templates; removing a datacenter from a custom template moves it back to that type's copy template
+                            automatically. A landing page in automatic mode inherits the compatible template assigned to its datacenter. An explicit
+                            landing-page selection always overrides datacenter inheritance. The two copy templates stay pinned at the top of template
+                            management.
                         </p>
 
                         <WorkflowSteps>
@@ -3125,9 +3513,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Citation, Dates, Contact, Model Description, Related Work, <strong>Abstract</strong>, <strong>Methods</strong>,{' '}
                                     <strong>Technical Information</strong>, <strong>Series Information</strong>, <strong>Table of Contents</strong>,{' '}
                                     <strong>Additional Information</strong>, Creators, Contributors, Funding References, Keywords, Metadata Download,
-                                    and Location / Map. Every Resource module can be placed in either column. On Resource landing pages, the metadata
-                                    modules assigned to the same column still render together inside one shared card; <strong>Location / Map</strong>{' '}
-                                    remains a separate card at its selected position.
+                                    Location / Map, and <strong>Usage</strong>. Every Resource module can be placed in either column or in{' '}
+                                    <strong>Hidden cards</strong>. On Resource landing pages, the metadata modules assigned to the same column still
+                                    render together inside one shared card; <strong>Location / Map</strong> and <strong>Usage</strong> remain separate
+                                    cards at their selected positions.
                                 </p>
                                 <p>
                                     For IGSN landing pages, each module renders in its own card and can be placed in either column or in{' '}
@@ -3174,9 +3563,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Configure Visibility (Optional)">
                                 <p>
-                                    For a custom IGSN template, move any optional module to <strong>Hidden cards</strong> to omit it from every
-                                    landing page using that template. Move Drilling into a visible column when an ICDP landing page should show its
-                                    dedicated drilling metadata. On non-ICDP IGSNs, corresponding details remain in <strong>Acquisition</strong>.
+                                    For a custom DOI or IGSN template, move a module to <strong>Hidden cards</strong> to omit it from every landing
+                                    page using that template. Use <strong>Hide</strong> on a visible module or the left/right arrow buttons on a
+                                    hidden module to restore it without dragging. The IGSN Version Notice cannot be hidden.
+                                </p>
+                                <p>
+                                    The <strong>Usage</strong> module starts visible on DOI and IGSN templates. Hiding Usage changes its presentation
+                                    only; collection continues while COUNTER is active. Public Usage always shows unique regular usage, regardless of
+                                    the dashboard filters.
+                                </p>
+                                <p>
+                                    Move Drilling into a visible column when an ICDP landing page should show its dedicated drilling metadata. On
+                                    non-ICDP IGSNs, corresponding details remain in <strong>Acquisition</strong>.
                                 </p>
                                 <p>
                                     In the custom template editor, use <strong>Dates visibility</strong> and <strong>Related Work visibility</strong>{' '}
@@ -3658,64 +4056,6 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             On smaller screens, less critical sub-rows (Resource Type, Curator) and the Created/Updated column are hidden so the
                             essential columns (Title, Author/Year, Status, Actions) remain readable without horizontal scrolling.
                         </p>
-
-                        {permissions.importFromDataCite && (
-                            <>
-                                <h4>Import Existing GFZ Legacy Resources</h4>
-                                <p>
-                                    Admins and Group Leaders see three import actions to the right of the bulk toolbar on the <code>/resources</code>{' '}
-                                    page:
-                                </p>
-                                <ul className="list-inside list-disc space-y-1">
-                                    <li>
-                                        <strong>Import all old Resources</strong> starts the existing background import of all GFZ DataCite resources.
-                                    </li>
-                                    <li>
-                                        <strong>Import all Resources from a Datacenter</strong> loads the current datacenter list from the GFZ Data
-                                        Services portal and imports resources for one selected datacenter.
-                                    </li>
-                                    <li>
-                                        <strong>Import old single Resource</strong> opens a dialog for a single DOI.
-                                    </li>
-                                </ul>
-                                <p>
-                                    The datacenter import uses the portal assignment for visible resources. It also includes matching pending SUMARIO
-                                    resources, whose datacenter is determined from the legacy databases and the established DOI rules. Pending
-                                    resources without a more specific assignment remain part of the general GFZ datacenter through the existing
-                                    fallback.
-                                </p>
-                                <p>
-                                    Datacenter assignments from the portal are applied only to newly imported resources. Resources that already exist
-                                    in ERNIE are not re-imported or overwritten, and their current datacenter assignments are preserved. Where
-                                    applicable, the job may still enrich them with missing legacy download links or an external landing page URL from
-                                    DataCite.
-                                </p>
-                                <p>
-                                    The import result reports identical location entries merged from DataCite metadata and SUMARIO coverage enrichment
-                                    together. Entries with different geometry, descriptions, time coverage, elevation, or location details remain
-                                    separate. Review the retained locations before publishing.
-                                </p>
-                                <p>
-                                    The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL
-                                    such as <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database
-                                    before the import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the
-                                    current record.
-                                </p>
-                                <p>
-                                    GEOFON seismic-event records retain a published external landing page when their findable DataCite record points
-                                    to a trusted GEOFON event URL. ERNIE upgrades legacy <code>http://</code> targets on those hosts to{' '}
-                                    <code>https://</code>; this applies to both single-resource and datacenter imports. Because the target remains
-                                    externally hosted, the import does not write that normalized URL back to DataCite; automatic post-import DataCite
-                                    URL updates are reserved for published landing pages hosted by ERNIE.
-                                </p>
-                                <p>
-                                    ERNIE preserves existing Related Work citation labels, then imports missing DOI labels from the legacy citation
-                                    cache before contacting the DOI metadata provider. Invalid DOI placeholders are discarded. If neither lookup
-                                    resolves a label, the valid related DOI is still imported without one instead of failing the complete resource
-                                    import; its label can be curated later in the Data Editor.
-                                </p>
-                            </>
-                        )}
                     </>
                 ),
             },
@@ -3830,7 +4170,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
         ],
-        [userRole, editorSettings, dataCite, editorActions, resourceActions, permissions],
+        [userRole, editorSettings, dataCite, editorActions, resourceActions, permissions, pathPrefix],
     );
 
     // ===========================================
@@ -4016,7 +4356,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>Export individual IGSNs as DataCite JSON</li>
                             <li>Setup landing pages for IGSNs</li>
-                            <li>Register or update IGSNs at DataCite; Beginner users are forced to the test API</li>
+                            <li>Register or update IGSNs at DataCite. Test mode and Beginner accounts open a local JSON preview.</li>
                         </ul>
 
                         <h4>Pagination</h4>
@@ -4063,60 +4403,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </p>
                         )}
                         <p>
-                            <strong>Register Selected</strong> starts a persistent background run for new registrations and metadata updates. The
-                            progress dialog distinguishes registered, updated, failed, cancelled, and remaining items and identifies whether the run
-                            uses DataCite Test or Production. You can close the dialog, navigate away, or close the browser without stopping the run;
-                            use <strong>View registration progress</strong> when you return. Individual errors do not stop later IGSNs, and failed
-                            items can be retried after their cause is resolved. Total duration depends on the shared DataCite rate limit.
+                            <strong>Register Selected</strong> starts a persistent background run for the selected samples. You can close the dialog,
+                            navigate away, or close the browser without stopping the run. In test mode, choose a sample to inspect or copy its
+                            DataCite JSON. Closing the finished preview marks successful samples as <strong>Registered</strong> for the testing team.
+                            Draft landing pages stay private. In production, a sample with only a simulated registration can be registered at
+                            DataCite. Use <strong>View registration progress</strong> to reopen a batch or review individual errors.
                         </p>
-                    </>
-                ),
-            },
-            {
-                id: 'igsn-legacy-import',
-                title: 'Legacy IGSN Import',
-                icon: Database,
-                minRole: 'group_leader',
-                content: (
-                    <>
-                        <h3>Importing IGSNs from DataCite</h3>
-                        <p>
-                            Admins and Group Leaders see three import actions on <code>/igsns</code>:
-                        </p>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>
-                                <strong>Import all IGSNs</strong> imports the complete configured IGSN prefix.
-                            </li>
-                            <li>
-                                <strong>Import IGSNs from a Datacenter</strong> loads the current legacy IGSN portal datacenters and imports the
-                                complete selected group.
-                            </li>
-                            <li>
-                                <strong>Import single IGSN</strong> imports one sample together with discoverable parents, children, and siblings.
-                            </li>
-                        </ul>
-
-                        <h4>Datacenter Assignment</h4>
-                        <p>
-                            DataCite supplies the imported metadata. The legacy GFZ IGSN portal supplies the historical datacenter assignment. The
-                            portal name <strong>GFZ Potsdam</strong> is normalized to <strong>GFZ German Research Centre for Geosciences</strong>.
-                        </p>
-                        <p>
-                            Assignments apply only when a new IGSN is created. An IGSN that already exists in ERNIE is skipped without filling,
-                            replacing, or removing its current datacenter. If the portal responds successfully but contains no assignment for a new
-                            IGSN, the import continues, leaves the datacenter empty, and lists the IGSN in the result for manual curation.
-                        </p>
-                        <p>
-                            The import result reports identical location entries merged from DataCite metadata and legacy enrichment together. Review
-                            the retained locations before publishing; locations with different scientific details remain separate.
-                        </p>
-
-                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-                            <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Availability:</strong> ERNIE stops before creating IGSNs when the legacy portal assignment cannot be loaded.
-                                Retry the import after the portal is available again.
-                            </p>
-                        </div>
                     </>
                 ),
             },

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Resources;
 
+use App\Services\Curation\CurationService;
 use App\Services\ListingCountService;
 use App\Services\ResourceCacheService;
 use Illuminate\Database\DatabaseManager;
@@ -87,6 +88,7 @@ final class ResourceListingProjectionRefreshService
         $ids = array_keys($this->resourceIds);
         $this->resourceIds = [];
         $this->scheduled = false;
+        app(CurationService::class)->reconcileMany($ids);
         $this->projector->refreshMany($ids);
         $this->resourceCacheService->invalidateAllResourceCaches();
         $this->listingCountService->scheduleInternalInvalidationAfterCommit();

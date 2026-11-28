@@ -1,19 +1,22 @@
 import { FileUp, Link2, Plus } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
 
 import { resolve as resolveCitationLabel } from '@/actions/App/Http/Controllers/Api/RelatedIdentifierCitationLabelController';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { normalizeDOI, validateIdentifierFormat } from '@/lib/doi-validation';
+import { getSwhidComparisonKey, normalizeSwhid } from '@/lib/swhid';
 import type { IdentifierType, RelatedIdentifier, RelatedIdentifierFormData, RelationType } from '@/types';
 
 import RelatedWorkCsvImport from './related-work-csv-import';
 import RelatedWorkList, { type CitationResolutionState } from './related-work-list';
+import { createRelatedWorkEditorEntry, type RelatedWorkEditorEntry } from './types';
 
 interface RelatedWorkFieldProps {
-    relatedWorks: RelatedIdentifier[];
-    onChange: (relatedWorks: RelatedIdentifier[]) => void;
+    entries: RelatedWorkEditorEntry[];
+    displayEntries: RelatedWorkEditorEntry[];
+    onChange: Dispatch<SetStateAction<RelatedWorkEditorEntry[]>>;
     activeRelationTypes?: string[];
     activeIdentifierTypes?: string[];
 }
@@ -21,12 +24,15 @@ interface RelatedWorkFieldProps {
 const BULK_IMPORT_CITATION_HYDRATION_CONCURRENCY = 3;
 const CITATION_RESOLUTION_IDENTIFIER_TYPES = new Set(['DOI', 'URL']);
 
+type ResolvedLabel = Pick<RelatedIdentifier, 'citation_label' | 'citation_proof'>;
+
 interface CitationLookupResult {
-    citation: string | null;
+    citation: ResolvedLabel | null;
     cacheable: boolean;
 }
 
 function normalizeIdentifier(identifier: string, identifierType: string): string {
+    if (identifierType === 'SWHID') return normalizeSwhid(identifier);
     return identifierType === 'DOI' ? normalizeDOI(identifier) : identifier.trim();
 }
 
@@ -73,6 +79,10 @@ function isDuplicate(identifier: string, identifierType: string, relationType: s
 
         const existingNormalized = normalizeIdentifier(item.identifier, item.identifier_type);
 
+        if (identifierType === 'SWHID') {
+            const key = getSwhidComparisonKey(normalized);
+            return key !== null ? key === getSwhidComparisonKey(existingNormalized) : existingNormalized === normalized;
+        }
         return existingNormalized === normalized;
     });
 }
@@ -95,25 +105,25 @@ function getPreferredActiveOption<T extends string>(preferred: T, activeOptions?
     return firstActive ? (firstActive as T) : null;
 }
 
-export default function RelatedWorkField({ relatedWorks, onChange, activeRelationTypes, activeIdentifierTypes }: RelatedWorkFieldProps) {
+export default function RelatedWorkField({ entries, displayEntries, onChange, activeRelationTypes, activeIdentifierTypes }: RelatedWorkFieldProps) {
     const [showCsvImport, setShowCsvImport] = useState(false);
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
     const [citationResolutionStates, setCitationResolutionStates] = useState<Record<string, CitationResolutionState>>({});
-    const relatedWorksRef = useRef(relatedWorks);
-    const citationCacheRef = useRef(new Map<string, string | null>());
-    const citationRequestsRef = useRef(new Map<string, Promise<string | null>>());
+    const relatedWorksRef = useRef(entries);
+    const citationCacheRef = useRef(new Map<string, ResolvedLabel | null>());
+    const citationRequestsRef = useRef(new Map<string, Promise<ResolvedLabel | null>>());
     const defaultIdentifierType = getPreferredActiveOption<IdentifierType>('DOI', activeIdentifierTypes);
     const defaultRelationType = getPreferredActiveOption<RelationType>('Cites', activeRelationTypes);
-    const hasEmptyCard = relatedWorks.some((item) => item.identifier.trim() === '');
+    const hasEmptyCard = entries.some(({ data }) => data.identifier.trim() === '');
 
     useEffect(() => {
-        relatedWorksRef.current = relatedWorks;
-    }, [relatedWorks]);
+        relatedWorksRef.current = entries;
+    }, [entries]);
 
-    const assignPositions = (items: RelatedIdentifier[]) =>
-        items.map((item, index) => ({
-            ...item,
-            position: index,
+    const assignPositions = (items: RelatedWorkEditorEntry[]) =>
+        items.map((entry, index) => ({
+            ...entry,
+            data: { ...entry.data, position: index },
         }));
 
     const setCitationResolutionState = (key: string, state: CitationResolutionState) => {
@@ -123,7 +133,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         }));
     };
 
-    const resolveCitation = async (identifier: string, identifierType: string): Promise<string | null> => {
+    const resolveCitation = async (identifier: string, identifierType: string): Promise<ResolvedLabel | null> => {
         if (!CITATION_RESOLUTION_IDENTIFIER_TYPES.has(identifierType)) {
             return null;
         }
@@ -182,11 +192,17 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                     return { citation: null, cacheable: false };
                 }
 
-                const payload = (await response.json()) as { citation?: unknown };
+                const payload = (await response.json()) as { citation?: unknown; citation_proof?: unknown };
                 const citation = typeof payload.citation === 'string' ? payload.citation.trim() : '';
 
                 return {
-                    citation: citation === '' ? null : citation,
+                    citation:
+                        citation === ''
+                            ? null
+                            : {
+                                  citation_label: citation,
+                                  ...(typeof payload.citation_proof === 'string' ? { citation_proof: payload.citation_proof } : {}),
+                              },
                     cacheable: citation !== '',
                 };
             })
@@ -225,30 +241,24 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         }
 
         const lookupKey = getCitationLookupKey(identifier, identifierType);
-        let didUpdate = false;
-        const updated = relatedWorksRef.current.map((item) => {
-            if (
-                item.identifier_type === identifierType &&
-                getCitationLookupKey(item.identifier, item.identifier_type) === lookupKey &&
-                !item.citation_label?.trim()
-            ) {
-                didUpdate = true;
+        // Use the current parent state even if the accordion unmounted while waiting.
+        onChange((current) => {
+            let didUpdate = false;
+            const updated = current.map((entry) => {
+                const item = entry.data;
+                if (
+                    item.identifier_type === identifierType &&
+                    getCitationLookupKey(item.identifier, item.identifier_type) === lookupKey &&
+                    !item.citation_label?.trim()
+                ) {
+                    didUpdate = true;
+                    return { ...entry, data: { ...item, ...citationLabel } };
+                }
 
-                return {
-                    ...item,
-                    citation_label: citationLabel,
-                };
-            }
-
-            return item;
+                return entry;
+            });
+            return didUpdate ? updated : current;
         });
-
-        if (!didUpdate) {
-            return;
-        }
-
-        relatedWorksRef.current = updated;
-        onChange(updated);
     };
 
     const hydrateCitationLabelsForImportedItems = async (items: RelatedIdentifier[]) => {
@@ -266,7 +276,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
     const handleAddCard = () => {
         if (
             hasEmptyCard ||
-            relatedWorksRef.current.some((item) => item.identifier.trim() === '') ||
+            relatedWorksRef.current.some(({ data }) => data.identifier.trim() === '') ||
             defaultIdentifierType === null ||
             defaultRelationType === null
         ) {
@@ -274,16 +284,16 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         }
 
         const currentItems = relatedWorksRef.current;
-        const updated: RelatedIdentifier[] = [
+        const updated: RelatedWorkEditorEntry[] = [
             ...currentItems,
-            {
+            createRelatedWorkEditorEntry({
                 identifier: '',
                 identifier_type: defaultIdentifierType,
                 identifier_type_manually_selected: false,
                 relation_type: defaultRelationType,
                 citation_label: null,
                 position: currentItems.length,
-            },
+            }),
         ];
 
         setDuplicateError(null);
@@ -309,14 +319,21 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                 return;
             }
 
-            if (isDuplicate(item.identifier, item.identifierType, item.relationType, combinedList)) {
+            if (
+                isDuplicate(
+                    item.identifier,
+                    item.identifierType,
+                    item.relationType,
+                    combinedList.map(({ data }) => data),
+                )
+            ) {
                 skippedDuplicates.push(`${item.identifier} (${item.relationType})`);
 
                 return;
             }
 
             const importedItem: RelatedIdentifier = {
-                identifier: item.identifier,
+                identifier: normalizeIdentifier(item.identifier, item.identifierType),
                 identifier_type: item.identifierType,
                 relation_type: item.relationType,
                 ...(item.relationTypeInformation ? { relation_type_information: item.relationTypeInformation } : {}),
@@ -324,7 +341,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                 position: combinedList.length,
             };
 
-            combinedList.push(importedItem);
+            combinedList.push(createRelatedWorkEditorEntry(importedItem));
             importedItems.push(importedItem);
         });
 
@@ -355,8 +372,8 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         }
     };
 
-    const handleRemove = (index: number) => {
-        const reindexed = assignPositions(relatedWorksRef.current.filter((_, itemIndex) => itemIndex !== index));
+    const handleRemove = (clientId: string) => {
+        const reindexed = assignPositions(relatedWorksRef.current.filter((entry) => entry.clientId !== clientId));
 
         relatedWorksRef.current = reindexed;
         onChange(reindexed);
@@ -367,9 +384,9 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         }
     };
 
-    const handleItemChange = (index: number, updatedItem: RelatedIdentifier): boolean => {
+    const handleItemChange = (clientId: string, updatedItem: RelatedIdentifier): boolean => {
         const currentItems = relatedWorksRef.current;
-        const otherItems = currentItems.filter((_, itemIndex) => itemIndex !== index);
+        const otherItems = currentItems.filter((entry) => entry.clientId !== clientId).map(({ data }) => data);
 
         if (isDuplicate(updatedItem.identifier, updatedItem.identifier_type, updatedItem.relation_type, otherItems)) {
             setDuplicateError(
@@ -382,7 +399,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
 
         setDuplicateError(null);
 
-        const previousItem = currentItems[index];
+        const previousItem = currentItems.find((entry) => entry.clientId === clientId)?.data;
 
         if (!previousItem) {
             return false;
@@ -392,17 +409,21 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
             previousItem.identifier_type !== updatedItem.identifier_type ||
             normalizeIdentifier(previousItem.identifier, previousItem.identifier_type) !==
                 normalizeIdentifier(updatedItem.identifier, updatedItem.identifier_type);
-        const updated = currentItems.map((item, itemIndex) => {
-            if (itemIndex !== index) {
-                return item;
+        const updated = currentItems.map((entry, itemIndex) => {
+            if (entry.clientId !== clientId) {
+                return entry;
             }
 
             return {
-                ...updatedItem,
-                citation_label: identifierChanged ? null : (updatedItem.citation_label ?? null),
-                related_title: identifierChanged ? null : (updatedItem.related_title ?? null),
-                related_metadata: identifierChanged ? null : (updatedItem.related_metadata ?? null),
-                position: itemIndex,
+                ...entry,
+                data: {
+                    ...updatedItem,
+                    ...(identifierChanged ? { citation_proof: undefined } : {}),
+                    citation_label: identifierChanged ? null : (updatedItem.citation_label ?? null),
+                    related_title: identifierChanged ? null : (updatedItem.related_title ?? null),
+                    related_metadata: identifierChanged ? null : (updatedItem.related_metadata ?? null),
+                    position: itemIndex,
+                },
             };
         });
 
@@ -412,8 +433,8 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         return true;
     };
 
-    const handleIdentifierBlur = (index: number) => {
-        const currentItem = relatedWorksRef.current[index];
+    const handleIdentifierBlur = (clientId: string) => {
+        const currentItem = relatedWorksRef.current.find((entry) => entry.clientId === clientId)?.data;
 
         if (!currentItem) {
             return;
@@ -428,7 +449,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                 identifier: normalizedIdentifier,
             };
 
-            if (!handleItemChange(index, itemForLookup)) {
+            if (!handleItemChange(clientId, itemForLookup)) {
                 return;
             }
         }
@@ -455,17 +476,20 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         void hydrateCitationLabel(normalizedIdentifier, itemForLookup.identifier_type);
     };
 
-    const handleReorder = (items: RelatedIdentifier[]) => {
-        const reindexed = assignPositions(items);
+    const swhidValidationStatuses = useMemo(() => {
+        const states = new Map<string, { status: 'valid' | 'invalid'; message?: string }>();
+        entries.forEach(({ clientId, data: item }) => {
+            if (item.identifier_type !== 'SWHID' || item.identifier.trim() === '') return;
+            const result = validateIdentifierFormat(item.identifier, 'SWHID');
+            states.set(clientId, { status: result.isValid ? 'valid' : 'invalid', message: result.message });
+        });
+        return states;
+    }, [entries]);
 
-        relatedWorksRef.current = reindexed;
-        onChange(reindexed);
-    };
+    const resolutionStatesById = useMemo(() => {
+        const states = new Map<string, CitationResolutionState>();
 
-    const resolutionStatesByIndex = useMemo(() => {
-        const states = new Map<number, CitationResolutionState>();
-
-        relatedWorks.forEach((item, index) => {
+        entries.forEach(({ clientId, data: item }) => {
             if (!CITATION_RESOLUTION_IDENTIFIER_TYPES.has(item.identifier_type) || item.identifier.trim() === '') {
                 return;
             }
@@ -473,12 +497,12 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
             const state = citationResolutionStates[getCitationLookupKey(item.identifier, item.identifier_type)];
 
             if (state) {
-                states.set(index, state);
+                states.set(clientId, state);
             }
         });
 
         return states;
-    }, [citationResolutionStates, relatedWorks]);
+    }, [citationResolutionStates, entries]);
 
     return (
         <div className="space-y-6">
@@ -497,7 +521,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                         activeIdentifierTypes={activeIdentifierTypes}
                     />
                 </div>
-            ) : relatedWorks.length === 0 ? (
+            ) : entries.length === 0 ? (
                 <EmptyState
                     icon={<Link2 className="h-8 w-8" />}
                     title="No related works added"
@@ -516,15 +540,15 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
             ) : (
                 <>
                     <RelatedWorkList
-                        items={relatedWorks}
-                        completedItemCount={relatedWorks.filter((item) => item.identifier.trim() !== '').length}
+                        entries={displayEntries}
+                        completedItemCount={entries.filter(({ data }) => data.identifier.trim() !== '').length}
                         onItemChange={handleItemChange}
                         onIdentifierBlur={handleIdentifierBlur}
                         onRemove={handleRemove}
-                        onReorder={handleReorder}
                         activeRelationTypes={activeRelationTypes}
                         activeIdentifierTypes={activeIdentifierTypes}
-                        citationResolutionStates={resolutionStatesByIndex}
+                        citationResolutionStates={resolutionStatesById}
+                        validationStatuses={swhidValidationStatuses}
                     />
 
                     <div className="flex flex-wrap justify-end gap-2">

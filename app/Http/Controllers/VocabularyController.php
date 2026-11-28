@@ -14,15 +14,33 @@ use App\Models\ThesaurusSetting;
 use App\Services\CgiSimpleLithologyVocabularyService;
 use App\Services\MslLaboratoryVocabularyService;
 use App\Services\Pid4instVocabularyService;
+use App\Services\PublicVocabularySnapshotService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class VocabularyController extends Controller
 {
-    /**
-     * Create a new controller instance.
-     */
+    private const THESAURI = [
+        'gcmd-science-keywords' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
+        'gcmd-platforms' => ThesaurusSetting::TYPE_PLATFORMS,
+        'gcmd-instruments' => ThesaurusSetting::TYPE_INSTRUMENTS,
+        'msl' => ThesaurusSetting::TYPE_MSL_KEYWORDS,
+        'msl-laboratories' => ThesaurusSetting::TYPE_MSL_LABORATORIES,
+        'chronostrat-timescale' => ThesaurusSetting::TYPE_CHRONOSTRAT,
+        'gemet' => ThesaurusSetting::TYPE_GEMET,
+        'analytical-methods' => ThesaurusSetting::TYPE_ANALYTICAL_METHODS,
+        'euroscivoc' => ThesaurusSetting::TYPE_EUROSCIVOC,
+        'cgi-simple-lithology' => ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY,
+    ];
+
+    private const PID_REGISTRIES = [
+        'pid4inst-instruments' => PidSetting::TYPE_PID4INST,
+        'raid-projects' => PidSetting::TYPE_RAID,
+        'ror-affiliations' => PidSetting::TYPE_ROR,
+    ];
+
     public function __construct(
         private readonly VocabularyCacheService $cacheService,
         private readonly MslLaboratoryVocabularyService $mslLaboratoryVocabularyService,
@@ -30,20 +48,77 @@ class VocabularyController extends Controller
         private readonly Pid4instVocabularyService $instrumentVocabulary,
     ) {}
 
+    public function visibility(): JsonResponse
+    {
+        $column = $this->editorContext()->activationColumn();
+        $thesauri = ThesaurusSetting::query()->pluck($column, 'type');
+        $registries = PidSetting::query()->pluck($column, 'type');
+
+        $visibility = [];
+        foreach (self::THESAURI as $slug => $type) {
+            $visibility[$slug] = (bool) $thesauri->get($type, ThesaurusSetting::isEnabledByDefault($type));
+        }
+        foreach (self::PID_REGISTRIES as $slug => $type) {
+            $visibility[$slug] = (bool) $registries->get($type, true);
+        }
+
+        return response()->json($visibility);
+    }
+
+    public function data(string $vocab, PublicVocabularySnapshotService $snapshots): JsonResponse|StreamedResponse
+    {
+        $setting = match (true) {
+            isset(self::THESAURI[$vocab]) => new ThesaurusSetting(['type' => self::THESAURI[$vocab]]),
+            isset(self::PID_REGISTRIES[$vocab]) => new PidSetting(['type' => self::PID_REGISTRIES[$vocab]]),
+            default => null,
+        };
+        if ($setting === null) {
+            return response()->json(['error' => 'Unknown vocabulary.'], 404);
+        }
+
+        try {
+            return $snapshots->response($vocab, $setting);
+        } catch (VocabularyNotFoundException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 404);
+        } catch (VocabularyCorruptedException|VocabularyReadException|\JsonException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 500);
+        } catch (\Exception $exception) {
+            report($exception);
+
+            return response()->json(['error' => 'Failed to read vocabulary file.'], 500);
+        }
+    }
+
+    private function legacyThesaurus(string $type): JsonResponse
+    {
+        if (! $this->isThesaurusActive($type)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
+        return $this->readThesaurus($type);
+    }
+
+    private function readThesaurus(string $type): JsonResponse
+    {
+        $setting = new ThesaurusSetting(['type' => $type]);
+
+        return match ($type) {
+            ThesaurusSetting::TYPE_MSL_LABORATORIES => $this->readMslLaboratories(),
+            ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY => $this->readSimpleLithology(),
+            default => $this->getCachedVocabulary(
+                $setting->getCacheKey(),
+                $setting->getFilePath(),
+                'php artisan '.$setting->getArtisanCommand(),
+            ),
+        };
+    }
+
     /**
      * Return GCMD Science Keywords vocabulary.
      */
     public function gcmdScienceKeywords(): JsonResponse
     {
-        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)) {
-            return response()->json(['error' => 'Thesaurus is disabled'], 404);
-        }
-
-        return $this->getCachedVocabulary(
-            CacheKey::GCMD_SCIENCE_KEYWORDS,
-            'gcmd-science-keywords.json',
-            'php artisan get-gcmd-science-keywords'
-        );
+        return $this->legacyThesaurus(ThesaurusSetting::TYPE_SCIENCE_KEYWORDS);
     }
 
     /**
@@ -51,15 +126,7 @@ class VocabularyController extends Controller
      */
     public function gcmdPlatforms(): JsonResponse
     {
-        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_PLATFORMS)) {
-            return response()->json(['error' => 'Thesaurus is disabled'], 404);
-        }
-
-        return $this->getCachedVocabulary(
-            CacheKey::GCMD_PLATFORMS,
-            'gcmd-platforms.json',
-            'php artisan get-gcmd-platforms'
-        );
+        return $this->legacyThesaurus(ThesaurusSetting::TYPE_PLATFORMS);
     }
 
     /**
@@ -67,15 +134,7 @@ class VocabularyController extends Controller
      */
     public function gcmdInstruments(): JsonResponse
     {
-        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_INSTRUMENTS)) {
-            return response()->json(['error' => 'Thesaurus is disabled'], 404);
-        }
-
-        return $this->getCachedVocabulary(
-            CacheKey::GCMD_INSTRUMENTS,
-            'gcmd-instruments.json',
-            'php artisan get-gcmd-instruments'
-        );
+        return $this->legacyThesaurus(ThesaurusSetting::TYPE_INSTRUMENTS);
     }
 
     /**
@@ -83,15 +142,7 @@ class VocabularyController extends Controller
      */
     public function mslVocabulary(): JsonResponse
     {
-        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_MSL_KEYWORDS)) {
-            return response()->json(['error' => 'Thesaurus is disabled'], 404);
-        }
-
-        return $this->getCachedVocabulary(
-            CacheKey::MSL_KEYWORDS,
-            'msl-vocabulary.json',
-            'php artisan get-msl-keywords'
-        );
+        return $this->legacyThesaurus(ThesaurusSetting::TYPE_MSL_KEYWORDS);
     }
 
     /**
@@ -99,10 +150,11 @@ class VocabularyController extends Controller
      */
     public function mslLaboratories(): JsonResponse
     {
-        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_MSL_LABORATORIES)) {
-            return response()->json(['error' => 'Thesaurus is disabled'], 404);
-        }
+        return $this->legacyThesaurus(ThesaurusSetting::TYPE_MSL_LABORATORIES);
+    }
 
+    private function readMslLaboratories(): JsonResponse
+    {
         try {
             $payload = $this->mslLaboratoryVocabularyService->getPublicPayload();
 
@@ -151,6 +203,10 @@ class VocabularyController extends Controller
                     // Ensure decoded data is not null (e.g., if JSON contains literal "null")
                     if ($decoded === null) {
                         throw new VocabularyCorruptedException('Vocabulary file contains null data');
+                    }
+
+                    if (! is_array($decoded)) {
+                        throw new VocabularyCorruptedException('Expected a vocabulary array or object');
                     }
 
                     return $decoded;
@@ -217,6 +273,11 @@ class VocabularyController extends Controller
             return response()->json(['error' => 'PID4INST is disabled'], 404);
         }
 
+        return $this->readPid4instInstruments();
+    }
+
+    private function readPid4instInstruments(): JsonResponse
+    {
         try {
             return response()->json($this->instrumentVocabulary->getPublicPayload());
         } catch (VocabularyNotFoundException $exception) {
@@ -235,6 +296,11 @@ class VocabularyController extends Controller
             return response()->json(['error' => 'RAiD is disabled'], 404);
         }
 
+        return $this->readRaidProjects();
+    }
+
+    private function readRaidProjects(): JsonResponse
+    {
         return $this->getCachedVocabulary(
             CacheKey::RAID_PROJECTS,
             'raid/raid-projects.json',
@@ -247,15 +313,7 @@ class VocabularyController extends Controller
      */
     public function chronostratTimescale(): JsonResponse
     {
-        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_CHRONOSTRAT)) {
-            return response()->json(['error' => 'Thesaurus is disabled'], 404);
-        }
-
-        return $this->getCachedVocabulary(
-            CacheKey::CHRONOSTRAT_TIMESCALE,
-            'chronostrat-timescale.json',
-            'php artisan get-chronostrat-timescale'
-        );
+        return $this->legacyThesaurus(ThesaurusSetting::TYPE_CHRONOSTRAT);
     }
 
     /**
@@ -263,15 +321,7 @@ class VocabularyController extends Controller
      */
     public function gemetThesaurus(): JsonResponse
     {
-        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_GEMET)) {
-            return response()->json(['error' => 'Thesaurus is disabled'], 404);
-        }
-
-        return $this->getCachedVocabulary(
-            CacheKey::GEMET_THESAURUS,
-            'gemet-thesaurus.json',
-            'php artisan get-gemet-thesaurus'
-        );
+        return $this->legacyThesaurus(ThesaurusSetting::TYPE_GEMET);
     }
 
     /**
@@ -279,15 +329,7 @@ class VocabularyController extends Controller
      */
     public function analyticalMethods(): JsonResponse
     {
-        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_ANALYTICAL_METHODS)) {
-            return response()->json(['error' => 'Thesaurus is disabled'], 404);
-        }
-
-        return $this->getCachedVocabulary(
-            CacheKey::ANALYTICAL_METHODS,
-            'analytical-methods.json',
-            'php artisan get-analytical-methods'
-        );
+        return $this->legacyThesaurus(ThesaurusSetting::TYPE_ANALYTICAL_METHODS);
     }
 
     /**
@@ -295,15 +337,7 @@ class VocabularyController extends Controller
      */
     public function euroSciVoc(): JsonResponse
     {
-        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_EUROSCIVOC)) {
-            return response()->json(['error' => 'Thesaurus is disabled'], 404);
-        }
-
-        return $this->getCachedVocabulary(
-            CacheKey::EUROSCIVOC,
-            'euroscivoc.json',
-            'php artisan get-euroscivoc'
-        );
+        return $this->legacyThesaurus(ThesaurusSetting::TYPE_EUROSCIVOC);
     }
 
     /**
@@ -311,10 +345,11 @@ class VocabularyController extends Controller
      */
     public function cgiSimpleLithology(): JsonResponse
     {
-        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY)) {
-            return response()->json(['error' => 'Thesaurus is disabled'], 404);
-        }
+        return $this->legacyThesaurus(ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY);
+    }
 
+    private function readSimpleLithology(): JsonResponse
+    {
         try {
             $payload = $this->cacheService->cacheVocabulary(
                 CacheKey::CGI_SIMPLE_LITHOLOGY,
@@ -364,7 +399,7 @@ class VocabularyController extends Controller
             ], 500);
         }
 
-        // Stream the raw JSON string directly to avoid decoding the large file into memory
+        // Keep the full ROR registry as raw JSON to avoid materializing a second copy.
         return new JsonResponse(data: $content, json: true);
     }
 

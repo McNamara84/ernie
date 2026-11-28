@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Enums\PortalCacheArea;
 use App\Enums\PortalScope;
 use App\Services\PortalCacheInvalidationService;
+use App\Services\VocabularyCacheService;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -46,6 +47,10 @@ class ClearApplicationCache extends Command
             $this->clearAllCaches();
         } else {
             $this->clearCacheByTag($category);
+        }
+
+        if (in_array($category, ['vocabularies', 'all'], true)) {
+            app(VocabularyCacheService::class)->invalidateSubjectEquivalenceCache();
         }
 
         $this->info("✓ Cache category '{$category}' cleared successfully.");

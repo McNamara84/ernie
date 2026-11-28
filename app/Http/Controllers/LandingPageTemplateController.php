@@ -15,7 +15,6 @@ use App\Models\LandingPageTemplate;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
-use App\Services\LandingPageContentDescriptorOptionsService;
 use App\Services\LandingPageTemplateResolverService;
 use App\Services\PortalCacheInvalidationService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -383,7 +382,6 @@ class LandingPageTemplateController extends Controller
     public function options(
         Resource $resource,
         LandingPageTemplateResolverService $resolver,
-        LandingPageContentDescriptorOptionsService $descriptorOptions,
     ): JsonResponse {
         $this->authorize('view', $resource);
 
@@ -426,7 +424,6 @@ class LandingPageTemplateController extends Controller
             'automatic_template' => $automatic['template']->only(['id', 'name', 'slug']),
             'automatic_source' => $automatic['source'],
             'supports_datacenter_inheritance' => $supportsDatacenterInheritance,
-            ...$descriptorOptions->for($resource),
         ]);
     }
 
@@ -472,11 +469,12 @@ class LandingPageTemplateController extends Controller
             $orders = LandingPageTemplate::normalizeResourceSectionOrders(
                 $template->left_column_order,
                 $template->right_column_order,
+                $template->hidden_sections ?? [],
             );
         }
         $payload['left_column_order'] = $orders['left'];
         $payload['right_column_order'] = $orders['right'];
-        $payload['hidden_sections'] = $orders['hidden'] ?? [];
+        $payload['hidden_sections'] = $orders['hidden'];
         $payload['excluded_date_type_ids'] = $template->relationLoaded('excludedDateTypes')
             ? $template->excludedDateTypes->pluck('id')->map(static fn (mixed $id): int => (int) $id)->sort()->values()->all()
             : [];

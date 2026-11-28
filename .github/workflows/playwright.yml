@@ -14,11 +14,25 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ERNIE_API_KEY: playwright-identifier-api-test-key
+      REDIS_HOST: 127.0.0.1
+    services:
+      redis:
+        image: redis:8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 20
     strategy:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
         shard: [1, 2, 3]
+        include:
+          - browser: chromium
+            pestBrowser: chrome
+          - browser: firefox
+            pestBrowser: firefox
+          - browser: webkit
+            pestBrowser: safari
     name: Playwright (${{ matrix.browser }}) - Shard ${{ matrix.shard }}/3
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -26,6 +40,7 @@ jobs:
       uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
       with:
         php-version: '8.5'
+        extensions: redis
         tools: composer:v2
     - name: Setup Node
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -59,8 +74,11 @@ jobs:
         NODE_ENV: production
         APP_ENV: local
         APP_URL: http://127.0.0.1:8000
-        ASSET_URL: http://127.0.0.1:8000
+        # The same build serves Playwright on port 8000 and Pest Browser on its dynamic port.
+        ASSET_URL: ''
         VITE_APP_URL: http://127.0.0.1:8000
+    - name: Verify the portal map worker in the build
+      run: node scripts/check-portal-map-worker.mjs
     - name: Prepare application
       run: |
         cp .env.example .env
@@ -124,6 +142,15 @@ jobs:
         # See: docs/PLAYWRIGHT_GCMD_FIXTURES.md
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps ${{ matrix.browser }}
+    - name: Review funding award URIs in Pest Browser
+      if: matrix.browser == 'chromium' && matrix.shard == 1
+      run: php -d memory_limit=2G ./vendor/bin/pest tests/pest/Browser/FundingAwardUriAssistanceTest.php --no-coverage
+    - name: Search for ORCID in Pest Browser
+      if: matrix.shard == 1
+      run: php -d memory_limit=2G ./vendor/bin/pest tests/pest/Browser/OrcidSearchTest.php --browser "$PEST_BROWSER" --no-coverage
+      env:
+        PEST_BROWSER: ${{ matrix.pestBrowser }}
+        WEBKIT_SKIA_ENABLE_CPU_RENDERING: '1'
     - name: Start Laravel server
       run: php artisan serve --host=127.0.0.1 --port=8000 &
       env:
@@ -134,7 +161,7 @@ jobs:
         DB_CONNECTION: sqlite
         SESSION_DRIVER: file
         SESSION_PATH: /
-        CACHE_DRIVER: file
+        CACHE_STORE: redis
         QUEUE_CONNECTION: sync
         BROADCAST_DRIVER: log
         # Portal behavior is covered here without starting a WebGL renderer in
@@ -162,10 +189,18 @@ jobs:
         echo "=== Testing login page ==="
         curl -s http://127.0.0.1:8000/login | grep -q "login" && echo "✅ Login page accessible" || echo "❌ Login page NOT accessible"
     - name: Run Playwright tests
-      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3 --reporter=github,html
+      # Linux WebKit needs a full CPU budget for backdrop-filter rendering.
+      # Keep all three shards, but avoid competing renderers within each job.
+      # See docs/testing.md (Linux WebKit rendering regression).
+      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3 --workers=${{ matrix.browser == 'webkit' && 1 || 2 }} --reporter=github,html
       env:
         CI: true
+        # Fixtures and the web server share tagged DOI metadata across parallel resource writes.
+        CACHE_STORE: redis
         PLAYWRIGHT_HTML_OPEN: never
+        # These Linux runners have no hardware GPU. Render directly with Skia
+        # instead of routing WebKit's rasterization through software OpenGL.
+        WEBKIT_SKIA_ENABLE_CPU_RENDERING: '1'
     - name: Stop Laravel server
       if: always()
       run: |

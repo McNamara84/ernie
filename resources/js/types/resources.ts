@@ -30,6 +30,7 @@ export interface ResourceSortState {
  * Filter state for resources
  */
 export interface ResourceFilterState {
+    contact?: string;
     search?: string;
     resource_type?: string[];
     year_from?: number;

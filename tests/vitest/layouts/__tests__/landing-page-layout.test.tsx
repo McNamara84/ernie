@@ -1,11 +1,12 @@
 import { render, screen } from '@testing-library/react';
+import { createPortal } from 'react-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import LandingPageLayout from '@/layouts/LandingPageLayout';
 
 // Mock Inertia's Head component
 vi.mock('@inertiajs/react', () => ({
-    Head: ({ children }: { children: React.ReactNode }) => <head data-testid="head">{children}</head>,
+    Head: ({ children }: { children: React.ReactNode }) => createPortal(children, document.head),
 }));
 
 describe('LandingPageLayout', () => {
@@ -13,7 +14,7 @@ describe('LandingPageLayout', () => {
         render(
             <LandingPageLayout>
                 <div data-testid="child-content">Test Content</div>
-            </LandingPageLayout>
+            </LandingPageLayout>,
         );
 
         expect(screen.getByTestId('child-content')).toBeInTheDocument();
@@ -24,7 +25,7 @@ describe('LandingPageLayout', () => {
         render(
             <LandingPageLayout>
                 <div>Content</div>
-            </LandingPageLayout>
+            </LandingPageLayout>,
         );
 
         expect(screen.getByText('GFZ Data Services')).toBeInTheDocument();
@@ -35,7 +36,7 @@ describe('LandingPageLayout', () => {
         render(
             <LandingPageLayout isPreview={true}>
                 <div>Content</div>
-            </LandingPageLayout>
+            </LandingPageLayout>,
         );
 
         expect(screen.getByText(/preview mode/i)).toBeInTheDocument();
@@ -46,7 +47,7 @@ describe('LandingPageLayout', () => {
         render(
             <LandingPageLayout isPreview={false}>
                 <div>Content</div>
-            </LandingPageLayout>
+            </LandingPageLayout>,
         );
 
         expect(screen.queryByText(/preview mode/i)).not.toBeInTheDocument();
@@ -56,21 +57,15 @@ describe('LandingPageLayout', () => {
         render(
             <LandingPageLayout>
                 <div>Content</div>
-            </LandingPageLayout>
+            </LandingPageLayout>,
         );
 
-        expect(screen.getByRole('link', { name: 'www.gfz-potsdam.de' })).toHaveAttribute(
-            'href',
-            'https://www.gfz-potsdam.de'
-        );
-        expect(screen.getByRole('link', { name: 'Data Services' })).toHaveAttribute(
-            'href',
-            'https://dataservices.gfz-potsdam.de'
-        );
+        expect(screen.getByRole('link', { name: 'www.gfz-potsdam.de' })).toHaveAttribute('href', 'https://www.gfz-potsdam.de');
+        expect(screen.getByRole('link', { name: 'Data Services' })).toHaveAttribute('href', 'https://gfz-data-services.gfz.de');
         expect(screen.getByRole('link', { name: 'Legal Notice' })).toHaveAttribute('href', '/legal-notice');
         expect(screen.getByRole('link', { name: 'Data Protection' })).toHaveAttribute(
             'href',
-            'https://dataservices.gfz-potsdam.de/web/about-us/data-protection'
+            'https://gfz-data-services.gfz.de/about-us/data-protection',
         );
     });
 
@@ -78,7 +73,7 @@ describe('LandingPageLayout', () => {
         render(
             <LandingPageLayout>
                 <div>Content</div>
-            </LandingPageLayout>
+            </LandingPageLayout>,
         );
 
         const currentYear = new Date().getFullYear();
@@ -89,7 +84,7 @@ describe('LandingPageLayout', () => {
         render(
             <LandingPageLayout>
                 <div>Content</div>
-            </LandingPageLayout>
+            </LandingPageLayout>,
         );
 
         expect(screen.getByRole('main')).toBeInTheDocument();
@@ -100,7 +95,7 @@ describe('LandingPageLayout', () => {
         render(
             <LandingPageLayout>
                 <div>Content</div>
-            </LandingPageLayout>
+            </LandingPageLayout>,
         );
 
         const externalLinks = [

@@ -1,6 +1,4 @@
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { AlertCircle, CheckCircle2, ExternalLink, GripVertical, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,7 +18,6 @@ import { identifierTypes } from '@/schemas/related-work.schema';
 import type { RelatedIdentifier, RelationType } from '@/types';
 
 interface RelatedWorkItemProps {
-    sortableId: string;
     item: RelatedIdentifier;
     index: number;
     onChange: (item: RelatedIdentifier) => void;
@@ -40,12 +37,10 @@ interface RelatedWorkItemProps {
  * Displays a single related work item with:
  * - Editable identifier, type, relation type, and citation label fields
  * - External link preview for DOI, URL, and Handle identifiers
- * - Drag handle for ordering
  * - Validation status indicator
  * - Remove button
  */
 export default function RelatedWorkItem({
-    sortableId,
     item,
     index,
     onChange,
@@ -58,8 +53,6 @@ export default function RelatedWorkItem({
     citationResolutionStatus,
     citationResolutionMessage,
 }: RelatedWorkItemProps) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sortableId });
-
     const filteredRelationTypes = activeRelationTypes
         ? getAllRelationTypes().filter((type) => activeRelationTypes.includes(type))
         : getAllRelationTypes();
@@ -69,14 +62,10 @@ export default function RelatedWorkItem({
         ? identifierTypes.filter((type) => activeIdentifierTypes.includes(type))
         : [...identifierTypes];
 
-    const previewLinkIdentifierTypes = new Set(['DOI', 'URL', 'Handle']);
+    const previewLinkIdentifierTypes = new Set(['DOI', 'URL', 'Handle', 'SWHID']);
     const linkUrl = previewLinkIdentifierTypes.has(item.identifier_type) ? resolveIdentifierUrl(item.identifier, item.identifier_type) : null;
     const isClickable = linkUrl !== null;
     const isRepositoryCuration = isRepositoryCurationRelatedIdentifier(item);
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
 
     // Get relation type description
     const description = RELATION_TYPE_DESCRIPTIONS[item.relation_type as RelationType] || '';
@@ -152,14 +141,8 @@ export default function RelatedWorkItem({
     };
 
     return (
-        <div ref={setNodeRef} style={style} role="listitem">
-            <Card
-                className={cn(
-                    'p-4',
-                    isRepositoryCuration && 'border-cyan-200 bg-cyan-50/70 dark:border-cyan-800 dark:bg-cyan-950/20',
-                    isDragging && 'border-primary/50 shadow-lg',
-                )}
-            >
+        <div role="listitem">
+            <Card className={cn('p-4', isRepositoryCuration && 'border-cyan-200 bg-cyan-50/70 dark:border-cyan-800 dark:bg-cyan-950/20')}>
                 {isRepositoryCuration && (
                     <div className="mb-3 rounded-md border border-cyan-200 bg-cyan-100/70 px-3 py-2 text-xs font-medium text-cyan-900 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100">
                         Related identifier added via the assistance tool.
@@ -167,18 +150,6 @@ export default function RelatedWorkItem({
                 )}
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex min-w-0 items-start gap-3">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="mt-0.5 h-8 w-8 shrink-0 cursor-grab text-muted-foreground"
-                            aria-label={`Reorder related work ${index + 1}`}
-                            {...attributes}
-                            {...listeners}
-                        >
-                            <GripVertical className="h-4 w-4" />
-                        </Button>
-
                         <div className="space-y-2">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h4 className="text-sm font-semibold text-foreground">Related Work {index + 1}</h4>
@@ -319,7 +290,7 @@ export default function RelatedWorkItem({
                         <Textarea
                             id={`related-work-${index}-citation-label`}
                             value={item.citation_label ?? ''}
-                            onChange={(event) => updateItem({ citation_label: event.target.value })}
+                            onChange={(event) => updateItem({ citation_label: event.target.value, citation_proof: undefined })}
                             rows={3}
                             placeholder="Optional formatted citation shown on landing pages"
                         />

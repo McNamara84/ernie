@@ -5,7 +5,7 @@ import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PortalThesaurusFilter } from '@/components/portal/PortalThesaurusFilter';
 import type { PortalThesaurusFacet } from '@/types/portal';
@@ -81,9 +81,6 @@ describe('PortalThesaurusFilter', () => {
         onSelectionChange: vi.fn(),
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders all roots in one shared thesaurus card', () => {
         render(<PortalThesaurusFilter {...defaultProps} />);

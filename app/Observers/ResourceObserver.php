@@ -116,7 +116,7 @@ class ResourceObserver
             // 1. Adding explicit lock ordering (e.g., always lock by ascending landing_page.id)
             // 2. Using DB::statement('SET innodb_lock_wait_timeout = 5') before the transaction
             // 3. Implementing retry logic for deadlock exceptions (SQLSTATE 40001)
-            $landingPage = DB::transaction(function () use ($resource, $oldDoi) {
+            [$landingPage, $oldPageDoi] = DB::transaction(function () use ($resource, $oldDoi) {
                 // Fetch with row-level lock to prevent concurrent updates.
                 // This SELECT ... FOR UPDATE blocks other transactions trying to read
                 // the same row until this transaction commits or rolls back.
@@ -127,14 +127,16 @@ class ResourceObserver
                 $landingPage = $resource->landingPage()
                     ->lockForUpdate()
                     ->first();
+                $oldPageDoi = $landingPage?->doi_prefix;
 
                 if ($landingPage !== null) {
                     // Skip update if doi_prefix already matches the new DOI.
                     // This avoids unnecessary writes and log entries when concurrent
                     // requests update the same resource's DOI - the second request
                     // will see the already-updated value and skip the redundant update.
-                    if ($landingPage->doi_prefix === $resource->doi) {
-                        return $landingPage;
+                    $pageDoi = $resource->doiForLandingPage();
+                    if ($landingPage->doi_prefix === $pageDoi) {
+                        return [$landingPage, $oldPageDoi];
                     }
 
                     if ($landingPage->is_published) {
@@ -163,11 +165,11 @@ class ResourceObserver
                     // Using the relationship's update() method would execute a new query
                     // that might bypass the lock. By updating the locked model directly,
                     // we ensure the lock is maintained throughout the update operation.
-                    $landingPage->doi_prefix = $resource->doi;
+                    $landingPage->doi_prefix = $pageDoi;
                     $landingPage->save();
                 }
 
-                return $landingPage;
+                return [$landingPage, $oldPageDoi];
             });
 
             // Invalidate landing page caches for both old and new DOI-based URLs.
@@ -176,13 +178,11 @@ class ResourceObserver
             // Also clear using cache tags if available for more thorough cleanup.
             // Note: We use the slug from the originally selected model since it's immutable.
             if ($landingPage !== null) {
-                // Clear cache for old DOI-based URL (if there was an old DOI)
-                if ($oldDoi !== null) {
-                    Cache::forget("landing-page.{$oldDoi}.{$landingPage->slug}");
-                }
-                // Clear cache for new DOI-based URL (if there is a new DOI)
-                if ($resource->doi !== null) {
-                    Cache::forget("landing-page.{$resource->doi}.{$landingPage->slug}");
+                // CSV handles and the full DOIs used in public routes can have distinct cache keys.
+                foreach (array_unique([$oldDoi, $oldPageDoi, $resource->doi, $landingPage->doi_prefix]) as $doi) {
+                    if ($doi !== null) {
+                        Cache::forget("landing-page.{$doi}.{$landingPage->slug}");
+                    }
                 }
                 // Also clear by resource ID (covers draft-style URLs)
                 Cache::forget("landing-page.{$resource->id}");
@@ -201,8 +201,8 @@ class ResourceObserver
     public function deleting(Resource $resource): void
     {
         // Refresh before the cascade; the deleted event must use this snapshot.
-        $resource->load('subjects');
-        $resource->loadMissing(['igsnMetadata', 'landingPage', 'resourceAssessment', 'resourceType']);
+        $resource->load(['subjects', 'resourceType']);
+        $resource->loadMissing(['igsnMetadata', 'landingPage', 'resourceAssessment']);
 
         if ($resource->igsnMetadata !== null) {
             $this->landingPageRenderDataCache->forgetForIgsnFamilies([(int) $resource->id]);

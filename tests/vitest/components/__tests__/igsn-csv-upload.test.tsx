@@ -25,7 +25,6 @@ function createCsvFile(name = 'test.csv', content = 'igsn|title\n123|Test') {
 
 describe('IgsnCsvUpload', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         vi.restoreAllMocks();
     });
 

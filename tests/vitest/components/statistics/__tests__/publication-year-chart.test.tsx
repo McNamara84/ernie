@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import PublicationYearChart from '@/components/statistics/publication-year-chart';
 
@@ -25,9 +25,6 @@ describe('PublicationYearChart', () => {
         { year: 2024, count: 120 },
     ];
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     it('renders the chart container', () => {
         render(<PublicationYearChart data={mockData} />);

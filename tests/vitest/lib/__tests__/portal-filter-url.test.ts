@@ -28,6 +28,20 @@ const filters: PortalFilters = {
 };
 
 describe('portal filter URL builders', () => {
+    it.each(['/doi-search', '/igsn-search'] as const)('preserves the map mode across list and data requests on %s', (path) => {
+        const world = { north: 90, south: -90, east: 180, west: -180 };
+        const selected = { ...filters, mapFilterEnabled: false };
+        const viewport = { ...world, width: 800, height: 600, zoom: 2 };
+        const list = new URL(buildPortalFilterUrl(selected, path, 2), 'https://ernie.test');
+        expect(list.searchParams.get('page')).toBe('2');
+        for (const endpoint of [list.href, buildPortalCountUrl(list.search, path), buildPortalMapUrl(selected, viewport, false, path, 18),
+            buildPortalMapClusterMembersUrl(selected, viewport, 'cluster', 1, path)]) {
+            const { searchParams } = new URL(endpoint, 'https://ernie.test');
+            expect(searchParams.get('map_filter')).toBe('0');
+            expect(searchParams.has('north')).toBe(false);
+        }
+        expect(buildPortalFilterUrl({ ...filters, bounds: world }, path)).toBe(buildPortalFilterUrl({ ...filters, bounds: null }, path));
+    });
     it.each(['FID GEO', 'GFZ German Research Centre for Geosciences', 'A+B & <rocks> / 地球', 'Centre?query=#1'])('starts a clean DOI search for the exact datacenter %s', (name) => {
         const url = new URL(buildDataCentreSearchUrl(name), 'https://ernie.test');
         expect(url.pathname).toBe('/doi-search');

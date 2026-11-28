@@ -153,7 +153,7 @@ describe('JSON Upload - Keyword extraction', function () {
         expect($data['gcmdKeywords'][0]['scheme'])->toBe('Custom Vocabulary');
     });
 
-    test('ignores GCMD keywords without valueUri', function () {
+    test('retains GCMD keywords without valueUri for legacy review', function () {
         $this->actingAs(User::factory()->create());
 
         $json = dataCiteJson(minimalAttributes([
@@ -171,7 +171,9 @@ describe('JSON Upload - Keyword extraction', function () {
 
         $data = getJsonUploadData($response);
 
-        expect($data['gcmdKeywords'])->toHaveCount(0);
+        expect($data['gcmdKeywords'])->toHaveCount(1)
+            ->and($data['gcmdKeywords'][0]['text'])->toBe('Some keyword')
+            ->and($data['gcmdKeywords'][0]['isLegacy'])->toBeTrue();
     });
 
     test('skips subjects with empty text', function () {

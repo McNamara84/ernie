@@ -13,12 +13,17 @@ use Throwable;
 /** Accept ISO dates at year, month, day, or full date-time precision. */
 final class EditorDate implements ValidationRule
 {
-    public function __construct(private readonly bool $allowFuture = false) {}
-
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if (! is_string($value) || DataCiteDateNormalizer::normalize($value, true) !== $value) {
             $fail('[Dates] The :attribute must use an ISO year, year-month, date, or date-time.');
+
+            return;
+        }
+
+        $year = (int) substr($value, 0, 4);
+        if ($year < 1 || $year > 9999) {
+            $fail('[Dates] The :attribute must use a year between 0001 and 9999.');
 
             return;
         }
@@ -60,13 +65,6 @@ final class EditorDate implements ValidationRule
 
                 return;
             }
-        }
-
-        $calendarDate = substr($value, 0, 10);
-        if (strcmp($calendarDate, '1900') < 0) {
-            $fail('[Dates] The :attribute must be on or after 1900-01-01.');
-        } elseif (! $this->allowFuture && strcmp($calendarDate, now(config('app.timezone'))->toDateString()) > 0) {
-            $fail('[Dates] The :attribute cannot be in the future.');
         }
     }
 }

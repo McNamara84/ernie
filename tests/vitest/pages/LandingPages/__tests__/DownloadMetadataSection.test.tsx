@@ -3,10 +3,18 @@
  */
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@tests/vitest/utils/render';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DownloadMetadataSection } from '@/pages/LandingPages/components/DownloadMetadataSection';
 import type { LandingPageMetadataLink } from '@/types/landing-page';
+
+const pageProps = vi.hoisted(() => ({ pathPrefix: '' }));
+
+vi.mock('@inertiajs/react', () => ({ usePage: () => ({ props: pageProps }) }));
+
+beforeEach(() => {
+    pageProps.pathPrefix = '';
+});
 
 const canonicalMetadataLinks = [
     {
@@ -45,7 +53,130 @@ const canonicalMetadataLinks = [
 
 const previewMessage = 'The feature you requested is only available after your dataset has been registered with DataCite.';
 
+describe('DCAT-AP downloads', () => {
+    const dcatLink: LandingPageMetadataLink = {
+        format: 'dcat-ap',
+        standard: 'DCAT-AP',
+        label: 'DCAT-AP 3.0.1 RDF/XML',
+        url: 'https://example.org/10.5880/test/metadata/dcat-ap.rdf',
+        mediaType: 'application/rdf+xml',
+        profile: 'https://semiceu.github.io/DCAT-AP/releases/3.0.1/',
+    };
+
+    const eposLink: LandingPageMetadataLink = {
+        format: 'epos-dcat-ap',
+        standard: 'EPOS-DCAT-AP',
+        label: 'EPOS-DCAT-AP 3.0 RDF/XML',
+        url: 'https://example.org/10.5880/test/metadata/epos-dcat-ap.rdf',
+        mediaType: 'application/rdf+xml',
+        profile: 'https://epos-eu.github.io/EPOS-DCAT-AP/v3/',
+    };
+
+    it.each([
+        [true, true],
+        [true, false],
+        [false, true],
+        [false, false],
+    ])('shows only advertised profiles (EU %s, EPOS %s) in profile order', (eu, epos) => {
+        const links = [...(epos ? [eposLink] : []), ...(eu ? [dcatLink] : [])];
+        render(<DownloadMetadataSection resourceId={1} supportsDcatAp supportsEposDcatAp metadataLinks={links} />);
+        expect(screen.queryAllByRole('link', { name: /DCAT-AP/ }).map((link) => link.getAttribute('href'))).toEqual([
+            ...(eu ? [dcatLink.url] : []),
+            ...(epos ? [eposLink.url] : []),
+        ]);
+    });
+
+    it('restores focus to the EPOS preview button when both profiles are available', async () => {
+        const user = userEvent.setup();
+        render(<DownloadMetadataSection resourceId={1} isPreview supportsDcatAp supportsEposDcatAp />);
+        const button = screen.getByRole('button', { name: 'Download EPOS-DCAT-AP 3.0 metadata as RDF/XML' });
+        await user.click(button);
+        expect(screen.getByRole('dialog')).toHaveTextContent(previewMessage);
+        expect(screen.queryByRole('link', { name: /EPOS/ })).toBeNull();
+        await user.keyboard('{Escape}');
+        expect(button).toHaveFocus();
+    });
+
+    it('renders an accessible standalone RDF download with its version', () => {
+        render(<DownloadMetadataSection resourceId={1} metadataLinks={[dcatLink]} />);
+        expect(screen.getByText('DCAT-AP 3.0.1')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Download DCAT-AP 3.0.1 metadata as RDF/XML' })).toHaveAttribute('href', dcatLink.url);
+    });
+
+    it('uses the existing preview dialog without publishing a download URL', async () => {
+        const user = userEvent.setup();
+        render(<DownloadMetadataSection resourceId={1} isPreview supportsDcatAp />);
+        await user.click(screen.getByRole('button', { name: 'Download DCAT-AP 3.0.1 metadata as RDF/XML' }));
+        expect(screen.getByRole('dialog')).toHaveTextContent(previewMessage);
+        expect(screen.queryByRole('link', { name: /DCAT-AP/ })).not.toBeInTheDocument();
+        await user.keyboard('{Escape}');
+        expect(screen.getByRole('button', { name: 'Download DCAT-AP 3.0.1 metadata as RDF/XML' })).toHaveFocus();
+    });
+
+    it('hides unavailable public exports even when the resource type supports DCAT', () => {
+        render(<DownloadMetadataSection resourceId={1} supportsDcatAp />);
+        expect(screen.queryByText('DCAT-AP 3.0.1')).not.toBeInTheDocument();
+    });
+});
+
+const isoJsonLink: LandingPageMetadataLink = {
+    format: 'iso19115-4',
+    standard: 'ISO/TR 19115-4',
+    label: 'ISO/TR 19115-4 · JSON (Preview)',
+    url: 'https://example.com/10.5880/test/metadata/iso-19115-4.json',
+    mediaType: 'application/json',
+    profile: 'https://schemas.isotc211.org/json/19115/-4/mdj/1.0.0/19115-4.json',
+};
+
 describe('DownloadMetadataSection', () => {
+    it.each(['', '/ernie'])('keeps the format guides within deployment prefix "%s"', (prefix) => {
+        pageProps.pathPrefix = prefix;
+        render(<DownloadMetadataSection resourceId={42} metadataLinks={canonicalMetadataLinks} />);
+        expect(screen.getByRole('link', { name: 'Format guides' })).toHaveAttribute('href', `${prefix}/schemas/datacite/4.7/docs`);
+    });
+
+    it('groups XML and JSON under ISO 19115 and preserves the precise standards in accessible labels', () => {
+        render(<DownloadMetadataSection resourceId={42} metadataLinks={[...canonicalMetadataLinks, isoJsonLink]} />);
+        const json = screen.getByRole('link', { name: 'Download ISO/TR 19115-4 metadata as JSON (Preview)' });
+        expect(json).toHaveAttribute('href', isoJsonLink.url);
+        expect(json.textContent).toBe('JSON');
+        expect(json).toHaveAttribute('title', 'Download as ISO/TR 19115-4 JSON (Preview)');
+        expect(screen.getAllByLabelText('ISO 19115 metadata available')).toHaveLength(1);
+        expect(screen.getByLabelText('ISO 19115 metadata available').textContent).toBe('ISO 19115');
+        expect(screen.getByRole('link', { name: 'Download ISO 19115-3:2023 metadata as XML' }).textContent).toBe('XML');
+    });
+
+    it('renders JSON independently when only that representation is supplied', () => {
+        render(<DownloadMetadataSection resourceId={42} metadataLinks={[isoJsonLink]} />);
+        expect(screen.getByRole('link', { name: /Download ISO\/TR 19115-4/ })).toHaveAttribute('href', isoJsonLink.url);
+        expect(screen.getByLabelText('ISO 19115 metadata available').textContent).toBe('ISO 19115');
+        expect(screen.queryByRole('link', { name: 'Download ISO 19115-3:2023 metadata as XML' })).not.toBeInTheDocument();
+    });
+
+    it('does not invent a public JSON URL from a type capability', () => {
+        render(<DownloadMetadataSection resourceId={42} supportsIso19115Json />);
+        expect(screen.queryByRole('link', { name: 'Download ISO/TR 19115-4 metadata as JSON (Preview)' })).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('ISO 19115 metadata available')).not.toBeInTheDocument();
+    });
+
+    it('keeps ISO JSON unavailable for XML-only IGSN previews', () => {
+        render(<DownloadMetadataSection resourceId={42} isPreview supportsIso19115 />);
+        expect(screen.queryByRole('button', { name: 'Download ISO/TR 19115-4 metadata as JSON (Preview)' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /ISO 19115-3/ })).toBeInTheDocument();
+    });
+
+    it('uses the existing dialog for ISO JSON previews without a navigable URL', async () => {
+        const user = userEvent.setup();
+        render(<DownloadMetadataSection resourceId={42} isPreview supportsIso19115Json />);
+        const action = screen.getByRole('button', { name: 'Download ISO/TR 19115-4 metadata as JSON (Preview)' });
+        expect(action.textContent).toBe('JSON');
+        expect(action).toHaveAttribute('title', 'Download as ISO/TR 19115-4 JSON (Preview)');
+        expect(screen.getByLabelText('ISO 19115 metadata available').textContent).toBe('ISO 19115');
+        expect(action).not.toHaveAttribute('href');
+        await user.click(action);
+        expect(screen.getByRole('dialog', { name: 'Metadata download unavailable' })).toHaveTextContent(previewMessage);
+    });
+
     it('renders XML download link', () => {
         render(<DownloadMetadataSection resourceId={42} />);
         const xmlLink = screen.getByTitle('Download as DataCite XML');
@@ -85,7 +216,7 @@ describe('DownloadMetadataSection', () => {
     it('renders a neutral ISO metadata badge and public ISO download for eligible resources', () => {
         render(<DownloadMetadataSection resourceId={42} metadataLinks={canonicalMetadataLinks} />);
 
-        expect(screen.getByLabelText('ISO 19115-3 metadata available')).toHaveTextContent('ISO19115-3:2023 Metadata');
+        expect(screen.getByLabelText('ISO 19115 metadata available').textContent).toBe('ISO 19115');
         expect(screen.getByRole('link', { name: 'Download ISO 19115-3:2023 metadata as XML' })).toHaveAttribute(
             'href',
             'https://example.com/10.5880/test/metadata/iso-19115-3.xml',
@@ -95,7 +226,7 @@ describe('DownloadMetadataSection', () => {
     it('does not render an ISO badge when the representation is unavailable', () => {
         render(<DownloadMetadataSection resourceId={42} metadataLinks={canonicalMetadataLinks.slice(0, 3)} />);
 
-        expect(screen.queryByLabelText('ISO 19115-3 metadata available')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('ISO 19115 metadata available')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Download as ISO 19115-3 XML')).not.toBeInTheDocument();
     });
 
@@ -153,7 +284,7 @@ describe('DownloadMetadataSection', () => {
     it('does not show an ISO preview action for an ineligible resource', () => {
         render(<DownloadMetadataSection resourceId={42} isPreview supportsIso19115={false} />);
 
-        expect(screen.queryByLabelText('ISO 19115-3 metadata available')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('ISO 19115 metadata available')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Download ISO 19115-3:2023 metadata as XML' })).not.toBeInTheDocument();
     });
 });

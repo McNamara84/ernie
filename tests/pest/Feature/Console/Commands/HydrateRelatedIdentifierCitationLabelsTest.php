@@ -10,13 +10,10 @@ use App\Models\Resource;
 use Database\Seeders\IdentifierTypeSeeder;
 use Database\Seeders\RelationTypeSeeder;
 use Illuminate\Console\Command;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
@@ -27,19 +24,7 @@ beforeEach(function (): void {
     test()->seed(RelationTypeSeeder::class);
     Cache::flush();
 
-    Config::set('database.connections.legacy_metaworks', [
-        'driver' => 'sqlite',
-        'database' => ':memory:',
-        'prefix' => '',
-        'foreign_key_constraints' => false,
-    ]);
-    DB::purge('legacy_metaworks');
-
-    Schema::connection('legacy_metaworks')->create('citationcache', function (Blueprint $table): void {
-        $table->string('url', 333)->primary();
-        $table->text('citation');
-        $table->dateTime('datetimecopied')->nullable();
-    });
+    Http::preventStrayRequests();
 });
 
 it('hydrates missing DOI and URL citation labels without replacing curated labels', function (): void {
@@ -86,11 +71,6 @@ it('hydrates missing DOI and URL citation labels without replacing curated label
         'position' => 3,
     ]);
 
-    DB::connection('legacy_metaworks')->table('citationcache')->insert([
-        'url' => 'https://example.com/legacy',
-        'citation' => 'Legacy URL citation',
-    ]);
-
     Http::fake([
         'https://doi.org/*' => Http::response([
             'DOI' => '10.5880/legacy.2026.010',
@@ -111,11 +91,11 @@ it('hydrates missing DOI and URL citation labels without replacing curated label
     test()->artisan('related-identifiers:hydrate-citation-labels')
         ->assertExitCode(Command::SUCCESS)
         ->expectsOutputToContain('Processed 2 missing DOI or URL related identifier')
-        ->expectsOutputToContain('Hydrated 2 citation label');
+        ->expectsOutputToContain('Hydrated 1 citation label');
 
     expect($missingDoi->fresh()?->citation_label)->toBe('Doe, J. (2026): Hydrated citation. GFZ. https://doi.org/10.5880/legacy.2026.010')
         ->and($existingLabel->fresh()?->citation_label)->toBe('Existing curated citation label')
-        ->and($urlRelation->fresh()?->citation_label)->toBe('Legacy URL citation')
+        ->and($urlRelation->fresh()?->citation_label)->toBeNull()
         ->and($existingUrlLabel->fresh()?->citation_label)->toBe('Existing curated URL citation');
 });
 
@@ -142,6 +122,14 @@ it('reports success when no missing DOI or URL citation labels need hydration', 
 });
 
 it('respects the limit and remains idempotent across repeated URL backfills', function (): void {
+    Http::fake([
+        'https://doi.org/*' => fn (Request $request) => Http::response([
+            'title' => str_contains($request->url(), '/first') ? 'First URL citation' : 'Second URL citation',
+            'publisher' => 'GFZ', 'author' => [['family' => 'Doe', 'given' => 'Jane']],
+            'issued' => ['date-parts' => [[2026]]],
+        ]),
+    ]);
+
     $resource = Resource::factory()->create();
     $urlTypeId = IdentifierType::query()->where('slug', 'URL')->value('id');
     $relationTypeId = RelationType::query()->where('slug', 'Cites')->value('id');
@@ -151,43 +139,32 @@ it('respects the limit and remains idempotent across repeated URL backfills', fu
 
     $first = RelatedIdentifier::query()->create([
         'resource_id' => $resource->id,
-        'identifier' => 'https://example.com/first',
+        'identifier' => 'https://doi.org/10.5880/first',
         'identifier_type_id' => $urlTypeId,
         'relation_type_id' => $relationTypeId,
         'position' => 0,
     ]);
     $second = RelatedIdentifier::query()->create([
         'resource_id' => $resource->id,
-        'identifier' => 'https://example.com/second',
+        'identifier' => 'https://doi.org/10.5880/second',
         'identifier_type_id' => $urlTypeId,
         'relation_type_id' => $relationTypeId,
         'position' => 1,
-    ]);
-
-    DB::connection('legacy_metaworks')->table('citationcache')->insert([
-        [
-            'url' => 'https://example.com/first',
-            'citation' => 'First URL citation',
-        ],
-        [
-            'url' => 'https://example.com/second',
-            'citation' => 'Second URL citation',
-        ],
     ]);
 
     test()->artisan('related-identifiers:hydrate-citation-labels', ['--limit' => 1])
         ->assertExitCode(Command::SUCCESS)
         ->expectsOutputToContain('Processed 1 missing DOI or URL related identifier');
 
-    expect($first->fresh()?->citation_label)->toBe('First URL citation')
+    expect($first->fresh()?->citation_label)->toContain('First URL citation')
         ->and($second->fresh()?->citation_label)->toBeNull();
 
     test()->artisan('related-identifiers:hydrate-citation-labels')
         ->assertExitCode(Command::SUCCESS)
         ->expectsOutputToContain('Processed 1 missing DOI or URL related identifier');
 
-    expect($first->fresh()?->citation_label)->toBe('First URL citation')
-        ->and($second->fresh()?->citation_label)->toBe('Second URL citation');
+    expect($first->fresh()?->citation_label)->toContain('First URL citation')
+        ->and($second->fresh()?->citation_label)->toContain('Second URL citation');
 
     test()->artisan('related-identifiers:hydrate-citation-labels')
         ->assertExitCode(Command::SUCCESS)
@@ -195,6 +172,14 @@ it('respects the limit and remains idempotent across repeated URL backfills', fu
 });
 
 it('uses an explicit cursor to continue limited backfills past unresolved URLs', function (): void {
+    Http::fake([
+        'https://doi.org/*' => fn (Request $request) => Http::response([
+            'title' => str_contains($request->url(), '/first') ? 'First URL citation' : 'Second URL citation',
+            'publisher' => 'GFZ', 'author' => [['family' => 'Doe', 'given' => 'Jane']],
+            'issued' => ['date-parts' => [[2026]]],
+        ]),
+    ]);
+
     $resource = Resource::factory()->create();
     $urlTypeId = IdentifierType::query()->where('slug', 'URL')->value('id');
     $relationTypeId = RelationType::query()->where('slug', 'Cites')->value('id');
@@ -211,15 +196,10 @@ it('uses an explicit cursor to continue limited backfills past unresolved URLs',
     ]);
     $cached = RelatedIdentifier::query()->create([
         'resource_id' => $resource->id,
-        'identifier' => 'https://example.com/cached-second',
+        'identifier' => 'https://doi.org/10.5880/second',
         'identifier_type_id' => $urlTypeId,
         'relation_type_id' => $relationTypeId,
         'position' => 1,
-    ]);
-
-    DB::connection('legacy_metaworks')->table('citationcache')->insert([
-        'url' => 'https://example.com/cached-second',
-        'citation' => 'Second URL citation',
     ]);
 
     test()->artisan('related-identifiers:hydrate-citation-labels', ['--limit' => 1])
@@ -241,7 +221,7 @@ it('uses an explicit cursor to continue limited backfills past unresolved URLs',
         ->doesntExpectOutputToContain('Continue with:');
 
     expect($uncached->fresh()?->citation_label)->toBeNull()
-        ->and($cached->fresh()?->citation_label)->toBe('Second URL citation');
+        ->and($cached->fresh()?->citation_label)->toContain('Second URL citation');
 });
 
 it('leaves uncached URLs unresolved without making HTTP requests', function (): void {

@@ -78,7 +78,6 @@ describe('ThesaurusCard', () => {
     const mockOnElmoActiveChange = vi.fn();
 
     beforeEach(() => {
-        vi.clearAllMocks();
         // Mock fetch for API calls
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,

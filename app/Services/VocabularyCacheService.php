@@ -10,6 +10,7 @@ use App\Enums\PortalScope;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Service for managing vocabulary-related caching.
@@ -203,8 +204,15 @@ class VocabularyCacheService
         ], true);
     }
 
+    public function invalidateSubjectEquivalenceCache(): void
+    {
+        // Cached landing pages include vocabulary-confirmed subject equivalence decisions.
+        Cache::forever(CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key(), (string) Str::uuid());
+    }
+
     private function invalidatePortalVocabularyDependencies(): void
     {
+        $this->invalidateSubjectEquivalenceCache();
         app(PortalCacheInvalidationService::class)->schedule(
             PortalScope::cases(),
             [PortalCacheArea::KEYWORDS, PortalCacheArea::PAGE],

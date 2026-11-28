@@ -106,7 +106,7 @@ const defaultProps = {
     isCollapsed: false,
     onToggleCollapse: vi.fn(),
     thesaurusFacets,
-    geoFilterEnabled: false,
+    geoFilterEnabled: true,
     onGeoFilterToggle: vi.fn(),
     onBoundsChange: vi.fn(),
     temporalRange: { Created: { min: 2000, max: 2024 } },
@@ -299,6 +299,15 @@ describe('PortalFilters', () => {
         expect(screen.getByRole('button', { name: /^resource type1$/i })).toHaveAttribute('data-state', 'open');
     });
 
+    it('offers reset for an opt-out and opens Location only for a regional filter', () => {
+        const view = render(<PortalFilters {...defaultProps} geoFilterEnabled={false} />);
+        expect(screen.getByRole('button', { name: 'Clear all filters' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Location' })).toHaveAttribute('aria-expanded', 'false');
+
+        view.rerender(<PortalFilters {...defaultProps} filters={{ ...defaultFilters, bounds: { north: 53, south: 52, east: 14, west: 13 } }} />);
+        expect(screen.getByRole('button', { name: /Location/ })).toHaveAttribute('aria-expanded', 'true');
+    });
+
     it('forwards unified text and keyword actions', async () => {
         const user = userEvent.setup();
         render(<PortalFilters {...defaultProps} searchValue="climate" />);
@@ -316,13 +325,21 @@ describe('PortalFilters', () => {
         expect(screen.getByRole('button', { name: 'Remove Legacy keyword' })).toBeInTheDocument();
     });
 
-    it('clears all filters from the compact header', async () => {
+    it('clears filter values while preserving the open datacenter panel', async () => {
         const user = userEvent.setup();
-        render(<PortalFilters {...defaultProps} hasActiveFilters />);
+        const view = render(<PortalFilters {...defaultProps} filters={{ ...defaultFilters, datacenter: ['GFZ'] }} hasActiveFilters />);
+
+        expect(screen.getByRole('checkbox', { name: 'Select GFZ' })).toBeChecked();
 
         await user.click(screen.getByRole('button', { name: 'Clear all filters' }));
 
         expect(defaultProps.onClearFilters).toHaveBeenCalledOnce();
+
+        view.rerender(<PortalFilters {...defaultProps} />);
+
+        expect(screen.getByRole('button', { name: /^datacenter$/i })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('checkbox', { name: 'Select GFZ' })).not.toBeChecked();
+        expect(screen.queryByRole('button', { name: 'Clear all filters' })).not.toBeInTheDocument();
     });
 
     it('supports the collapsed desktop rail', async () => {

@@ -190,6 +190,17 @@ erDiagram
         timestamp updated_at
     }
 
+    content_metadata_import_rows {
+        uuid id PK "opaque single-use import key"
+        bigint_unsigned user_id FK "nullable; MySQL FK index; cascade on user deletion"
+        varchar kind "6 chars; format or size"
+        json payload "original imported row"
+        timestamp expires_at "indexed"
+    }
+    %% content_metadata_import_rows indexes: primary(id), MySQL FK index(user_id), index(expires_at).
+    %% Evidence expires after 24 hours and is consumed in the resource creation transaction.
+    %% No created_at/updated_at columns.
+
     guided_tours {
         bigint id PK
         varchar key
@@ -305,15 +316,153 @@ erDiagram
         text search_text
         text party_search_text "nullable"
         text party_name_search_text "nullable"
+        boolean curation_started "default: false"
+        tinyint curation_progress "unsigned, default: 0"
+        tinyint curation_manual_open "unsigned, default: 8"
+        boolean curation_open "default: false"
+        timestamp curation_activity_at "nullable"
+        timestamp curation_published_at "nullable"
+        timestamp curation_waiting_since "nullable"
+        boolean curation_needs_help "default: false"
+        date curation_deadline "nullable"
+        text curation_contact "nullable"
         timestamp created_at
         timestamp updated_at
     }
+    %% resource_listing_projections curation_activity_sort: index(curation_started, workflow_status, curation_activity_at, resource_id)
+    %% resource_listing_projections curation_deadline_sort: index(curation_started, curation_deadline, resource_id)
+    %% resource_listing_projections curation_progress_sort: index(curation_started, curation_progress, resource_id)
 
     resource_party_name_terms {
         bigint id PK
         bigint resource_id FK "indexed, cascade delete"
         text term "normalized public party name"
     }
+
+    %% Derived current contact variants from creators and contact contributors.
+    resource_contact_points {
+        bigint id PK
+        bigint resource_id FK "indexed, cascade delete"
+        varchar identity_key "64"
+        char variant_key "64"
+        varchar orcid "19, nullable"
+        varchar display_name "1000"
+        varchar email "255, nullable"
+        varchar email_normalized "255, nullable"
+        varchar name_sort "1000"
+    }
+    %% resource_contact_points contact_resource_variant_unique: unique(resource_id, variant_key)
+    %% resource_contact_points contact_variant_resource_index: index(variant_key, resource_id)
+    %% resource_contact_points contact_identity_variant_index: index(identity_key, variant_key)
+
+    %% RESOURCE CURATION WORKFLOW
+
+    resource_curation_states {
+        bigint resource_id PK,FK "unsigned, CASCADE on delete"
+        bigint started_by FK "unsigned, nullable, SET NULL on delete"
+        varchar start_source "30"
+        timestamp started_at
+        int checklist_version "unsigned, default: 1"
+        bigint lead_curator_id FK "unsigned, nullable, SET NULL on delete"
+        varchar waiting_for "20, nullable"
+        text waiting_text "nullable"
+        timestamp waiting_since "nullable"
+        text needs_help_text "nullable"
+        date deadline "nullable"
+        text deadline_reason "nullable"
+        timestamp last_activity_at
+        bigint revision "unsigned, default: 0"
+    }
+
+    resource_curators {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        bigint user_id FK "unsigned, CASCADE on delete"
+        bigint assigned_by FK "unsigned, nullable, SET NULL on delete"
+        timestamp assigned_at
+    }
+    %% resource_curators unique(resource_id, user_id)
+    %% resource_curators index(user_id, resource_id)
+
+    resource_checklist_items {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        varchar item_key "80"
+        varchar state "20"
+        text reason "nullable"
+        bigint changed_by FK "unsigned, nullable, SET NULL on delete"
+        varchar changed_by_name "255, nullable"
+        timestamp changed_at
+        bigint revision "unsigned, default: 0"
+    }
+    %% resource_checklist_items unique(resource_id, item_key)
+
+    resource_curation_events {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        varchar type "60"
+        bigint user_id FK "unsigned, nullable, SET NULL on delete"
+        varchar actor_name "255"
+        json payload
+        text body "nullable"
+        bigint revision "unsigned, default: 0"
+        timestamp created_at
+        timestamp edited_at "nullable"
+        timestamp deleted_at "nullable"
+    }
+    %% resource_curation_events curation_event_cursor: index(resource_id, created_at, id)
+    %% resource_curation_events curation_event_type: index(resource_id, type, id)
+
+    resource_review_link_dispatches {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        char operation_id "36"
+        varchar kind "20"
+        bigint sent_by FK "unsigned, nullable, SET NULL on delete"
+        timestamp queued_at
+        int queued_recipients "unsigned"
+        json queued_recipient_keys "nullable"
+        int skipped_recipients "unsigned, default: 0"
+    }
+    %% resource_review_link_dispatches curation_dispatch_operation: unique(resource_id, operation_id)
+
+    resource_doi_registration_evidence {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        varchar doi "255"
+        varchar environment "20"
+        varchar state "20"
+        varchar source "30"
+        timestamp confirmed_at
+    }
+    %% resource_doi_registration_evidence curation_registration_identity: unique(resource_id, doi, environment)
+
+    resource_data_locations {
+        bigint id PK "unsigned"
+        bigint resource_id FK "unsigned, CASCADE on delete"
+        varchar type "30"
+        text location
+        bigint created_by FK "unsigned, nullable, SET NULL on delete"
+        bigint revision "unsigned, default: 0"
+        timestamp created_at "nullable"
+        timestamp updated_at "nullable"
+    }
+
+    resource_curation_mentions {
+        bigint id PK "unsigned"
+        bigint event_id FK "unsigned, CASCADE on delete"
+        bigint user_id FK "unsigned, CASCADE on delete"
+    }
+    %% resource_curation_mentions unique(event_id, user_id)
+
+    resource_curation_notifications {
+        bigint id PK "unsigned"
+        bigint event_id FK "unsigned, CASCADE on delete"
+        bigint user_id FK "unsigned, CASCADE on delete"
+        varchar type "30"
+        timestamp queued_at "nullable"
+    }
+    %% resource_curation_notifications curation_notification_unique: unique(event_id, user_id, type)
 
     %% =========================================================================
     %% RESOURCE RELATIONSHIP TABLES
@@ -456,6 +605,7 @@ erDiagram
         bigint relation_type_id FK
         varchar relation_type_information "nullable, DataCite 4.7"
         mediumtext citation_label "nullable"
+        json citation_label_parts "nullable"
         varchar source "100, nullable"
         varchar resource_type_general "100, nullable"
         varchar related_metadata_scheme
@@ -740,7 +890,7 @@ erDiagram
         varchar logo_filename "nullable"
         json right_column_order
         json left_column_order
-        json hidden_sections "nullable; IGSN hidden cards; [] for resources"
+        json hidden_sections "nullable; hidden DOI and IGSN modules, including Usage"
         smallint creator_display_limit "default 50"
         smallint contributor_display_limit "default 50"
         smallint citation_author_display_limit "default 50"
@@ -761,7 +911,7 @@ erDiagram
 
     landing_pages {
         bigint id PK
-        bigint resource_id FK "UK, 1:1 with resources"
+        bigint resource_id FK "UK, 1:1 with resources; cascade delete"
         varchar doi_prefix
         varchar slug "unique with doi_prefix"
         varchar template
@@ -838,6 +988,95 @@ erDiagram
         timestamp updated_at
     }
 
+    %% COUNTER usage, collected only after explicit activation.
+    usage_list_versions {
+        bigint id PK
+        char checksum UK "64"
+        json rules
+        json sources
+        timestamp created_at
+    }
+
+    usage_tracking_state {
+        tinyint id PK "singleton, id 1"
+        timestamp started_at "microseconds, nullable; permanent activation boundary"
+        boolean paused "default false"
+        timestamp paused_at "microseconds, nullable"
+        bigint list_version_id FK "nullable; active classification version"
+        bigint metrics_revision "unsigned, default 0"
+        timestamp last_aggregated_at "nullable"
+        date data_through "nullable"
+    }
+
+    usage_aggregation_days {
+        date day PK
+        timestamp finalized_at "nullable"
+        boolean incomplete "default false"
+    }
+
+    usage_events {
+        bigint id PK
+        bigint landing_page_id FK "cascade delete"
+        varchar event_type "16; investigation or request"
+        varchar access_method "8; Regular or Machine"
+        char session_hash "64; pseudonymous hourly session"
+        char target_hash "64"
+        date day "indexed"
+        bigint occurred_at_ms "unsigned"
+        bigint list_version_id FK
+    }
+    %% usage_events index(day, landing_page_id, access_method)
+
+    usage_search_events {
+        bigint id PK
+        varchar portal_scope "8; doi or igsn"
+        text normalized_term
+        char term_hash "64"
+        varchar access_method "8; Regular or Machine"
+        char session_hash "64; pseudonymous hourly session"
+        date day "indexed"
+        bigint occurred_at_ms "unsigned"
+        bigint list_version_id FK
+    }
+
+    usage_daily_metrics {
+        bigint id PK
+        bigint landing_page_id FK "cascade delete"
+        date day "indexed"
+        varchar access_method "8; Regular or Machine"
+        bigint total_investigations "unsigned"
+        bigint unique_investigations "unsigned"
+        bigint total_requests "unsigned, nullable for IGSNs"
+        bigint unique_requests "unsigned, nullable for IGSNs"
+    }
+    %% usage_daily_metrics unique(landing_page_id, day, access_method)
+
+    usage_monthly_metrics {
+        bigint id PK
+        bigint landing_page_id FK "cascade delete"
+        date month "first day of UTC month, indexed"
+        varchar access_method "8; Regular or Machine"
+        bigint total_investigations "unsigned"
+        bigint unique_investigations "unsigned"
+        bigint total_requests "unsigned, nullable for IGSNs"
+        bigint unique_requests "unsigned, nullable for IGSNs"
+    }
+    %% usage_monthly_metrics unique(landing_page_id, month, access_method)
+
+    usage_search_daily_metrics {
+        bigint id PK
+        date day "indexed"
+        varchar portal_scope "8; doi or igsn"
+        text normalized_term
+        char term_hash "64"
+        varchar access_method "8; Regular or Machine"
+        bigint search_count "unsigned"
+    }
+    %% usage_search_daily_metrics unique(day, portal_scope, term_hash, access_method)
+    %% Periods, hashes, and search scopes have no FK constraints.
+    %% List versions are retained; deleting a landing page cascades only its events and resource metrics.
+
+    %% landing_page_daily_statistics and portal_search_daily_statistics freeze at COUNTER activation.
     landing_page_daily_statistics {
         bigint id PK
         bigint landing_page_id FK
@@ -868,6 +1107,33 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
+
+    %% Homepage news: dates are stored in UTC and edited in Europe/Berlin.
+    news {
+        bigint_unsigned id PK "auto-increment"
+        varchar title "255, required"
+        longtext body_markdown "required, Markdown"
+        varchar kind "20, regular or temporary"
+        datetime starts_at "nullable, UTC"
+        datetime ends_at "nullable, UTC, exclusive end"
+        boolean is_scheduled "required, default false"
+        datetime archived_at "nullable, UTC"
+        bigint_unsigned created_by_user_id FK "nullable, ON DELETE SET NULL"
+        bigint_unsigned updated_by_user_id FK "nullable, ON DELETE SET NULL"
+        int revision "required, positive, default 1"
+        datetime created_at "nullable, UTC"
+        datetime updated_at "nullable, UTC"
+    }
+    %% CHECK news_publication_shape and news_schedule_lookup are detailed below.
+
+    homepage_news_state {
+        int id PK "CHECK id = 1, no auto-increment"
+        bigint_unsigned active_news_id FK "required, ON DELETE RESTRICT"
+        int revision "required, positive, default 1"
+        datetime created_at "nullable, UTC"
+        datetime updated_at "nullable, UTC"
+    }
+    %% CHECK homepage_news_singleton: id = 1 AND revision > 0.
 
     settings {
         bigint id PK
@@ -1082,6 +1348,7 @@ erDiagram
         varchar sample_image_mime_type "100"
         bigint sample_image_size "unsigned"
         varchar upload_status
+        timestamp simulated_registered_at "nullable"
         text upload_error_message
         varchar csv_filename
         int csv_row_number
@@ -1329,6 +1596,7 @@ erDiagram
         json activity_actor "nullable, initiator identity snapshot"
         varchar status "30, indexed"
         boolean test_mode
+        boolean is_simulation "default false"
         varchar datacite_endpoint "500"
         varchar datacite_context_fingerprint "64, nullable"
         int_unsigned total
@@ -1343,6 +1611,7 @@ erDiagram
         timestamp paused_at "nullable"
         timestamp cancelled_at "nullable"
         timestamp completed_at "nullable"
+        timestamp preview_confirmed_at "nullable"
         timestamp created_at
         timestamp updated_at
     }
@@ -1355,6 +1624,8 @@ erDiagram
         varchar status "30, indexed"
         varchar operation "20, nullable"
         varchar approval_fingerprint "64, nullable"
+        json preview_payload "nullable"
+        timestamp preview_confirmed_at "nullable"
         smallint_unsigned attempts
         smallint_unsigned last_http_status "nullable"
         text error_message "nullable"
@@ -1377,6 +1648,25 @@ erDiagram
         timestamp updated_at
     }
 
+    oai_pmh_format_records {
+        bigint id PK
+        varchar metadata_prefix "32 chars; composite unique with oai_identifier"
+        varchar oai_identifier "700 chars; composite unique with metadata_prefix"
+        varchar doi "600 chars"
+        bigint_unsigned resource_id "nullable; indexed; deliberately no FK"
+        varchar status "8 chars; active or deleted"
+        timestamp first_available_at
+        timestamp datestamp "indexed"
+        json sets "last eligible OAI set memberships"
+        varchar resource_type "nullable; last eligible resource type"
+        boolean is_igsn "default false"
+        int_unsigned export_revision
+        char fingerprint "64 chars; nullable"
+    }
+    %% Unique oai_format_identity_unique (metadata_prefix, oai_identifier).
+    %% Index oai_format_harvest_index (metadata_prefix, status, datestamp).
+    %% No created_at/updated_at columns. Format history survives Resource deletion.
+
     oai_pmh_harvests {
         bigint id PK
         bigint_unsigned item_count
@@ -1388,7 +1678,7 @@ erDiagram
     oai_pmh_harvest_items {
         bigint harvest_id PK, FK "cascade on delete"
         bigint_unsigned position PK "zero-based ordered position"
-        varchar kind "resource or deleted"
+        varchar kind "resource, deleted, or format"
         bigint_unsigned identity_id "no FK; retained after resource deletion"
     }
     %% oai_pmh_harvest_items composite primary key (harvest_id, position) supports indexed page ranges.
@@ -1457,12 +1747,20 @@ erDiagram
     %% RELATIONSHIPS
     %% =========================================================================
 
+    %% Homepage news relationships
+    news }o--o| users : "created_by_user_id; ON DELETE SET NULL"
+    news }o--o| users : "updated_by_user_id; ON DELETE SET NULL"
+    news ||--o| homepage_news_state : "active_news_id; ON DELETE RESTRICT"
+
     %% Assistant module relationships
     resources ||--o{ assistant_suggestions : "has"
     users ||--o{ assistant_dismissed : "dismissed by"
     resources |o--o{ relation_type_correction_reviews : "reviewed resource"
     related_identifiers |o--o{ relation_type_correction_reviews : "reviewed identifier"
     users |o--o{ relation_type_correction_reviews : "reviewed by"
+
+    %% Content metadata import evidence relationships
+    users |o--o{ content_metadata_import_rows : "upload evidence; cascade on user deletion"
 
     %% Guided tour relationships
     users ||--o{ guided_tours : "creates"
@@ -1497,9 +1795,31 @@ erDiagram
     assessment_runs ||--o{ assessment_run_items : "contains"
     resources |o--o{ assessment_run_items : "assessment target"
 
+    %% Resource curation relationships
+    resources ||--o| resource_curation_states : "resource_id"
+    users |o--o{ resource_curation_states : "started_by"
+    users |o--o{ resource_curation_states : "lead_curator_id"
+    resources ||--o{ resource_curators : "resource_id"
+    users ||--o{ resource_curators : "user_id"
+    users |o--o{ resource_curators : "assigned_by"
+    resources ||--o{ resource_checklist_items : "resource_id"
+    users |o--o{ resource_checklist_items : "changed_by"
+    resources ||--o{ resource_curation_events : "resource_id"
+    users |o--o{ resource_curation_events : "user_id"
+    resources ||--o{ resource_review_link_dispatches : "resource_id"
+    users |o--o{ resource_review_link_dispatches : "sent_by"
+    resources ||--o{ resource_doi_registration_evidence : "resource_id"
+    resources ||--o{ resource_data_locations : "resource_id"
+    users |o--o{ resource_data_locations : "created_by"
+    resource_curation_events ||--o{ resource_curation_mentions : "event_id"
+    users ||--o{ resource_curation_mentions : "user_id"
+    resource_curation_events ||--o{ resource_curation_notifications : "event_id"
+    users ||--o{ resource_curation_notifications : "user_id"
+
     %% Resource core relationships
     resources ||--o| resource_listing_projections : "has listing projection"
     resources ||--o{ resource_party_name_terms : "has searchable party names"
+    resources ||--o{ resource_contact_points : "has contact variants"
     resources ||--o{ titles : "has"
     resources ||--o{ resource_creators : "has"
     resources ||--o{ resource_contributors : "has"
@@ -1592,6 +1912,12 @@ erDiagram
     landing_page_links }o--o| formats : "content format"
     landing_page_links }o--o| sizes : "content size"
     landing_pages ||--o{ landing_page_daily_statistics : "tracks daily analytics"
+    landing_pages ||--o{ usage_events : "records usage; cascade delete"
+    landing_pages ||--o{ usage_daily_metrics : "daily usage; cascade delete"
+    landing_pages ||--o{ usage_monthly_metrics : "monthly usage; cascade delete"
+    usage_tracking_state }o--o| usage_list_versions : "active classification"
+    usage_events }o--|| usage_list_versions : "classified with"
+    usage_search_events }o--|| usage_list_versions : "classified with"
     landing_pages }o--o| landing_page_templates : "uses template"
     landing_page_templates }o--o| users : "created by"
     landing_page_template_date_type_exclusions }o--|| landing_page_templates : "configures template"
@@ -1611,6 +1937,8 @@ erDiagram
     igsn_metadata_values }o--|| resources : "for sample"
 
     %% OAI-PMH snapshot relationships
+    resources |o..o{ oai_pmh_format_records : "logical resource_id link; no FK; history survives deletion"
+    %% For kind=format, harvest_items.identity_id refers to format_records.id without an FK.
     oai_pmh_harvests ||--o{ oai_pmh_harvest_items : "ordered identities; cascade on delete"
     oai_pmh_harvests |o--o{ oai_pmh_resumption_tokens : "shared snapshot; cascade on delete"
 
@@ -1632,3 +1960,11 @@ erDiagram
     suggested_rors }o--|| resources : "for resource"
     dismissed_rors }o--o| users : "dismissed by"
 ```
+
+## Homepage news constraints
+
+- `news_publication_shape` (CHECK): regular news have no start or end and cannot be scheduled; temporary news require both dates with `ends_at > starts_at`. All rows require `is_scheduled IN (0, 1)` and `revision > 0`; an archived row cannot remain scheduled.
+- `news_schedule_lookup` is a non-unique index on `(kind, is_scheduled, archived_at, starts_at, ends_at)`.
+- `homepage_news_singleton` (CHECK) requires `id = 1 AND revision > 0`. Together with the primary key, this permits at most one selection row. The data migration initializes that row with a non-null reference to the original announcement.
+- Both nullable user references use `ON DELETE SET NULL`. The required active-news reference uses `ON DELETE RESTRICT`; deleting the selected news is prohibited.
+- The application enforces the selection of non-archived regular news and prevents overlapping scheduled intervals while holding the selection-row lock. These are application rules, not additional database constraints. Display intervals use an inclusive start and exclusive end.

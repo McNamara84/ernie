@@ -6,6 +6,7 @@ namespace App\Http\Controllers\OaiPmh;
 
 use App\Http\Controllers\Controller;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
+use App\Services\OaiPmh\OaiPmhMetadataFormatRegistry;
 use App\Services\OaiPmh\OaiPmhSetService;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -34,15 +35,12 @@ class OaiPmhDocsController extends Controller
                 ->all();
         }
 
-        /** @var array<string, array{schema: string, namespace: string}> $metadataFormats */
-        $metadataFormats = config('oaipmh.metadata_formats', []);
-        if (! $isoProfile->isEnabled()) {
-            unset($metadataFormats['iso19115_3']);
-        }
+        $metadataFormats = app(OaiPmhMetadataFormatRegistry::class)->formats();
 
         return Inertia::render('oai-pmh/docs', [
             'baseUrl' => config('oaipmh.base_url'),
             'projectSet' => $setService->projectSetDefinition(),
+            'icgemSet' => $setService->icgemSetDefinition(),
             'adminEmail' => config('oaipmh.admin_email'),
             'metadataFormats' => $metadataFormats,
             'isoEligibleResourceTypeSlugs' => $isoProfile->isEnabled() ? $isoProfile->eligibleResourceTypeSlugs() : [],

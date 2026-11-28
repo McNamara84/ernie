@@ -5,236 +5,103 @@ declare(strict_types=1);
 namespace App\Services\Statistics;
 
 use App\Models\LandingPage;
-use App\Models\PortalSearchDailyStatistic;
-use App\Models\ResourceType;
 use App\Models\Title;
+use App\Services\Usage\CounterReadService;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
-class StatisticsDashboardService
+final class StatisticsDashboardService
 {
-    /**
-     * @return array<string, mixed>
-     */
-    public function build(): array
+    /** @return array<string, mixed> */
+    public function build(string $metric = 'unique', string $accessMethod = 'regular'): array
     {
-        $endDate = CarbonImmutable::today();
-        $startDate = $endDate->subDays(13);
+        if (! in_array($metric, ['unique', 'total'], true) || ! in_array($accessMethod, ['regular', 'machine'], true)) {
+            throw new InvalidArgumentException('Invalid COUNTER metric or access method.');
+        }
 
-        return [
-            'overview' => $this->buildOverview(),
-            'trends' => $this->buildTrends($startDate, $endDate),
-            'topLandingPagesByViews' => $this->buildTopLandingPages('page_view_count', 'total_page_views'),
-            'topLandingPagesByDownloads' => $this->buildTopLandingPages('file_download_click_count', 'total_download_clicks'),
-            'portalSearchTerms' => $this->buildTopSearchTerms(),
-            'typeSplit' => $this->buildTypeSplit(),
-        ];
-    }
+        return app(CounterReadService::class)->snapshot(function () use ($metric, $accessMethod): array {
+            $status = app(CounterReadService::class)->status();
+            $views = $metric.'_investigations';
+            $requests = $metric.'_requests';
+            $downloads = "CASE WHEN COALESCE(resource_types.slug, '') <> 'physical-object' THEN {$requests} ELSE NULL END";
+            $monthly = $this->metrics('usage_monthly_metrics', $accessMethod);
+            $totals = (clone $monthly)->selectRaw("COALESCE(SUM({$views}), 0) AS views, COALESCE(SUM({$downloads}), 0) AS downloads, COUNT(DISTINCT landing_page_id) AS pages")->first();
+            $searches = DB::table('usage_search_daily_metrics')->where('access_method', ucfirst($accessMethod));
+            $searchTerms = (clone $searches)->selectRaw('term_hash, MIN(normalized_term) as term, SUM(search_count) as total')
+                ->groupBy('term_hash')->orderByDesc('total')->orderBy('term_hash')->limit(10)->get()
+                ->map(fn (object $row): array => ['term' => $row->term, 'total' => (int) $row->total])->all();
+            $types = (clone $monthly)->selectRaw("COALESCE(resource_types.slug, '') as slug, SUM({$views}) as views, SUM({$downloads}) as downloads")
+                ->groupBy('resource_types.slug')->get();
+            $split = ['resourcePageViews' => 0, 'physicalObjectPageViews' => 0, 'resourceDownloadClicks' => 0];
+            foreach ($types as $type) {
+                if ($type->slug === 'physical-object') {
+                    $split['physicalObjectPageViews'] += (int) $type->views;
+                } else {
+                    $split['resourcePageViews'] += (int) $type->views;
+                    $split['resourceDownloadClicks'] += (int) $type->downloads;
+                }
+            }
+            $trends = ['days' => [], 'pageViews' => [], 'downloadClicks' => [], 'portalSearches' => []];
+            if ($status['dataThrough'] !== null) {
+                $end = CarbonImmutable::parse($status['dataThrough'], 'UTC');
+                $start = $end->subDays(13)->max(CarbonImmutable::parse($status['startedAt'], 'UTC')->startOfDay());
+                $daily = $this->metrics('usage_daily_metrics', $accessMethod)->whereBetween('day', [$start->toDateString(), $end->toDateString()])
+                    ->selectRaw("day, SUM({$views}) as views, SUM({$downloads}) as downloads")->groupBy('day')->get()->keyBy('day');
+                $searchDaily = (clone $searches)->whereBetween('day', [$start->toDateString(), $end->toDateString()])
+                    ->selectRaw('day, SUM(search_count) as total')->groupBy('day')->get()->keyBy('day');
+                for ($date = $start; $date->lte($end); $date = $date->addDay()) {
+                    $day = $date->toDateString();
+                    $trends['days'][] = $day;
+                    $trends['pageViews'][] = (int) ($daily->get($day)->views ?? 0);
+                    $trends['downloadClicks'][] = (int) ($daily->get($day)->downloads ?? 0);
+                    $trends['portalSearches'][] = (int) ($searchDaily->get($day)->total ?? 0);
+                }
+            }
 
-    /**
-     * @return array<string, int>
-     */
-    private function buildOverview(): array
-    {
-        /** @var object{total_page_views:int|string, total_download_clicks:int|string, tracked_landing_pages:int|string} $landingPageTotals */
-        $landingPageTotals = DB::table('landing_page_daily_statistics')
-            ->selectRaw('COALESCE(SUM(page_view_count), 0) as total_page_views')
-            ->selectRaw('COALESCE(SUM(file_download_click_count), 0) as total_download_clicks')
-            ->selectRaw('COUNT(DISTINCT landing_page_id) as tracked_landing_pages')
-            ->first();
-
-        return [
-            'totalPageViews' => (int) $landingPageTotals->total_page_views,
-            'totalDownloadClicks' => (int) $landingPageTotals->total_download_clicks,
-            'totalPortalSearches' => (int) PortalSearchDailyStatistic::query()->sum('search_count'),
-            'trackedLandingPages' => (int) $landingPageTotals->tracked_landing_pages,
-        ];
-    }
-
-    /**
-     * @return array{
-     *     days: list<string>,
-     *     pageViews: list<int>,
-     *     downloadClicks: list<int>,
-     *     portalSearches: list<int>
-     * }
-     */
-    private function buildTrends(CarbonImmutable $startDate, CarbonImmutable $endDate): array
-    {
-        /** @var list<object{statistic_date:string, total_page_views:int|string, total_download_clicks:int|string}> $landingPageTrendRows */
-        $landingPageTrendRows = DB::table('landing_page_daily_statistics')
-            ->selectRaw('statistic_date, COALESCE(SUM(page_view_count), 0) as total_page_views')
-            ->selectRaw('COALESCE(SUM(file_download_click_count), 0) as total_download_clicks')
-            ->whereDate('statistic_date', '>=', $startDate->toDateString())
-            ->whereDate('statistic_date', '<=', $endDate->toDateString())
-            ->groupBy('statistic_date')
-            ->get()
-            ->all();
-
-        /** @var list<object{statistic_date:string, total_searches:int|string}> $searchTrendRows */
-        $searchTrendRows = DB::table('portal_search_daily_statistics')
-            ->selectRaw('statistic_date, COALESCE(SUM(search_count), 0) as total_searches')
-            ->whereDate('statistic_date', '>=', $startDate->toDateString())
-            ->whereDate('statistic_date', '<=', $endDate->toDateString())
-            ->groupBy('statistic_date')
-            ->get()
-            ->all();
-
-        /** @var array<string, array{pageViews:int, downloadClicks:int}> $landingPageRows */
-        $landingPageRows = [];
-        foreach ($landingPageTrendRows as $row) {
-            $dateKey = CarbonImmutable::parse($row->statistic_date)->toDateString();
-
-            $landingPageRows[$dateKey] = [
-                'pageViews' => (int) $row->total_page_views,
-                'downloadClicks' => (int) $row->total_download_clicks,
+            return [
+                'usageStatus' => $status,
+                'overview' => [
+                    'totalPageViews' => (int) ($totals->views ?? 0), 'totalDownloadClicks' => (int) ($totals->downloads ?? 0),
+                    'trackedLandingPages' => (int) ($totals->pages ?? 0), 'totalPortalSearches' => (int) (clone $searches)->sum('search_count'),
+                ],
+                'trends' => $trends, 'typeSplit' => $split, 'portalSearchTerms' => $searchTerms,
+                'topLandingPagesByViews' => $this->top($monthly, $views),
+                'topLandingPagesByDownloads' => $this->top($monthly, $requests, true),
             ];
-        }
+        });
+    }
 
-        /** @var array<string, int> $searchRows */
-        $searchRows = [];
-        foreach ($searchTrendRows as $row) {
-            $dateKey = CarbonImmutable::parse($row->statistic_date)->toDateString();
-
-            $searchRows[$dateKey] = (int) $row->total_searches;
-        }
-
-        $days = [];
-        $pageViews = [];
-        $downloadClicks = [];
-        $portalSearches = [];
-
-        for ($date = $startDate; $date->lessThanOrEqualTo($endDate); $date = $date->addDay()) {
-            $key = $date->toDateString();
-            $days[] = $key;
-            $pageViews[] = $landingPageRows[$key]['pageViews'] ?? 0;
-            $downloadClicks[] = $landingPageRows[$key]['downloadClicks'] ?? 0;
-            $portalSearches[] = $searchRows[$key] ?? 0;
-        }
-
-        return [
-            'days' => $days,
-            'pageViews' => $pageViews,
-            'downloadClicks' => $downloadClicks,
-            'portalSearches' => $portalSearches,
-        ];
+    private function metrics(string $table, string $accessMethod): Builder
+    {
+        return DB::table($table)->where('access_method', ucfirst($accessMethod))
+            ->join('landing_pages', 'landing_pages.id', '=', $table.'.landing_page_id')
+            ->join('resources', 'resources.id', '=', 'landing_pages.resource_id')
+            ->leftJoin('resource_types', 'resource_types.id', '=', 'resources.resource_type_id');
     }
 
     /**
+     * @param  literal-string  $metric
      * @return list<array<string, mixed>>
      */
-    private function buildTopLandingPages(string $metricColumn, string $sumAlias): array
+    private function top(Builder $query, string $metric, bool $downloads = false): array
     {
-        /** @var Collection<int, LandingPage> $landingPages */
-        $landingPages = LandingPage::query()
-            ->where('is_published', true)
-            ->with([
-                'resource.titles.titleType',
-                'resource.resourceType',
-            ])
-            ->withSum('dailyStatistics as '.$sumAlias, $metricColumn)
-            ->orderByDesc($sumAlias)
-            ->limit(8)
-            ->get()
-            ->filter(fn (LandingPage $landingPage): bool => (int) ($landingPage->{$sumAlias} ?? 0) > 0)
-            ->values();
+        $rows = (clone $query)->when($downloads, fn (Builder $query) => $query->whereRaw("COALESCE(resource_types.slug, '') <> 'physical-object'"))
+            ->selectRaw("landing_page_id, SUM({$metric}) as total")->groupBy('landing_page_id')
+            ->havingRaw("SUM({$metric}) > 0")->orderByDesc('total')->orderBy('landing_page_id')->limit(8)->get();
+        $pages = LandingPage::query()->with(['resource.titles.titleType', 'resource.resourceType'])
+            ->whereIn('id', $rows->pluck('landing_page_id'))->get()->keyBy('id');
 
-        /** @var list<array<string, mixed>> $rows */
-        $rows = array_values($landingPages
-            ->map(function (LandingPage $landingPage) use ($sumAlias): array {
-                $resourceType = $landingPage->resource->resourceType;
+        return array_values($rows->map(function (object $row) use ($pages): array {
+            $page = $pages->get($row->landing_page_id);
+            $title = $page?->resource->titles->first(fn (Title $title): bool => $title->isMainTitle()) ?? $page?->resource->titles->first();
 
-                return [
-                    'landingPageId' => $landingPage->id,
-                    'title' => $this->resolveLandingPageTitle($landingPage),
-                    'identifier' => $landingPage->doi_prefix ?? ('draft-'.$landingPage->resource_id),
-                    'resourceTypeLabel' => $resourceType instanceof ResourceType ? $resourceType->name : 'Other',
-                    'total' => (int) ($landingPage->{$sumAlias} ?? 0),
-                    'publicUrl' => $landingPage->public_url,
-                    'isExternal' => $landingPage->isExternal(),
-                ];
-            })
-            ->all());
-
-        return $rows;
-    }
-
-    /**
-     * @return list<array{term: string, total: int}>
-     */
-    private function buildTopSearchTerms(): array
-    {
-        /** @var list<object{normalized_term: string, total_searches: int|string}> $rows */
-        $rows = PortalSearchDailyStatistic::query()
-            ->selectRaw('normalized_term, SUM(search_count) as total_searches')
-            ->groupBy('normalized_term')
-            ->orderByDesc('total_searches')
-            ->limit(10)
-            ->get()
-            ->all();
-
-        return array_map(static fn (object $row): array => [
-            'term' => $row->normalized_term,
-            'total' => (int) $row->total_searches,
-        ], $rows);
-    }
-
-    /**
-     * @return array<string, int>
-     */
-    private function buildTypeSplit(): array
-    {
-        /** @var object{
-         *     resource_page_views:int|string,
-         *     physical_object_page_views:int|string,
-         *     resource_download_clicks:int|string,
-         *     physical_object_download_clicks:int|string
-         * }|null $row
-         */
-        $row = DB::table('landing_page_daily_statistics')
-            ->join('landing_pages', 'landing_pages.id', '=', 'landing_page_daily_statistics.landing_page_id')
-            ->join('resources', 'resources.id', '=', 'landing_pages.resource_id')
-            ->leftJoin('resource_types', 'resource_types.id', '=', 'resources.resource_type_id')
-            ->selectRaw("COALESCE(SUM(CASE WHEN LOWER(COALESCE(resource_types.slug, '')) = 'physical-object' THEN page_view_count ELSE 0 END), 0) as physical_object_page_views")
-            ->selectRaw("COALESCE(SUM(CASE WHEN LOWER(COALESCE(resource_types.slug, '')) = 'physical-object' THEN file_download_click_count ELSE 0 END), 0) as physical_object_download_clicks")
-            ->selectRaw("COALESCE(SUM(CASE WHEN LOWER(COALESCE(resource_types.slug, '')) <> 'physical-object' OR resource_types.slug IS NULL THEN page_view_count ELSE 0 END), 0) as resource_page_views")
-            ->selectRaw("COALESCE(SUM(CASE WHEN LOWER(COALESCE(resource_types.slug, '')) <> 'physical-object' OR resource_types.slug IS NULL THEN file_download_click_count ELSE 0 END), 0) as resource_download_clicks")
-            ->first();
-
-        if ($row === null) {
             return [
-                'resourcePageViews' => 0,
-                'physicalObjectPageViews' => 0,
-                'resourceDownloadClicks' => 0,
-                'physicalObjectDownloadClicks' => 0,
+                'landingPageId' => (int) $row->landing_page_id, 'title' => $title->value ?? 'Untitled',
+                'identifier' => $page->doi_prefix ?? '', 'resourceTypeLabel' => $page?->resource->resourceType->name ?? 'Other',
+                'total' => (int) $row->total, 'publicUrl' => $page->public_url ?? '', 'isExternal' => false,
             ];
-        }
-
-        return [
-            'resourcePageViews' => (int) $row->resource_page_views,
-            'physicalObjectPageViews' => (int) $row->physical_object_page_views,
-            'resourceDownloadClicks' => (int) $row->resource_download_clicks,
-            'physicalObjectDownloadClicks' => (int) $row->physical_object_download_clicks,
-        ];
-    }
-
-    private function resolveLandingPageTitle(LandingPage $landingPage): string
-    {
-        $titles = $landingPage->resource->titles;
-
-        if ($titles->isEmpty()) {
-            return 'Untitled';
-        }
-
-        $mainTitle = $titles->first(fn (Title $title): bool => $title->isMainTitle());
-        if ($mainTitle instanceof Title) {
-            return $mainTitle->value;
-        }
-
-        /** @var Title $firstTitle */
-        $firstTitle = $titles->first();
-
-        return $firstTitle->value;
+        })->all());
     }
 }

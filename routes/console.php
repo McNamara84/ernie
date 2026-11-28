@@ -7,7 +7,9 @@ use App\Models\AssessmentRun;
 use App\Models\User;
 use App\Services\Assessment\AssessmentRunService;
 use App\Services\Assessment\ResourceAssessmentRefreshService;
+use App\Services\Curation\CurationNotificationService;
 use App\Services\ResourceTombstoneSyncService;
+use App\Services\Usage\CounterTrackingStateService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -19,6 +21,10 @@ use Illuminate\Support\Str;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('counter:activate', function () {
+    $this->info('COUNTER started at '.app(CounterTrackingStateService::class)->activate()->toIso8601String());
+})->purpose('Activate COUNTER once and permanently freeze the legacy usage counters');
 
 Artisan::command('add-user {name} {email} {password}', function (string $name, string $email, string $password) {
     // Check if this is the first user
@@ -120,3 +126,9 @@ Schedule::call(fn () => app(ResourceAssessmentRefreshService::class)->recover())
     ->everyMinute()
     ->name('recover-published-resource-assessments')
     ->withoutOverlapping(2);
+
+Schedule::command('counter:aggregate')->dailyAt('00:15')->timezone('UTC')->withoutOverlapping();
+Schedule::call(fn () => app(CurationNotificationService::class)->dispatch())
+    ->everyMinute()->name('curation-notifications')->withoutOverlapping();
+Schedule::command('counter:prune')->everyThirtyMinutes()->timezone('UTC')->withoutOverlapping();
+Schedule::command('counter:update-lists')->weeklyOn(1, '04:00')->timezone('UTC')->withoutOverlapping();

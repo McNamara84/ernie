@@ -8,6 +8,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\Title;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Mime\Email;
 
 covers(ContactPersonMessage::class);
@@ -125,7 +126,31 @@ describe('content', function () {
             ->and($content->text)->toBe('emails.contact-person-message-text');
     });
 
+    it('links both email formats to GFZ Data Services and embeds the logos in the HTML part', function () {
+        $mailable = new ContactPersonMessage(
+            contactMessage: $this->contactMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+        );
+        $email = Mail::mailer('array')->to('recipient@example.test')->sendNow($mailable)->getOriginalMessage();
+        $html = $email->getHtmlBody();
+
+        expect($html)->toContain('href="https://gfz-data-services.gfz.de">gfz-data-services.gfz.de</a>')
+            ->not->toContain('dataservices.gfz-potsdam.de');
+        expect($email->getTextBody())->toContain('https://gfz-data-services.gfz.de')
+            ->not->toContain('dataservices.gfz-potsdam.de');
+
+        $filenames = [];
+        foreach ($email->getAttachments() as $logo) {
+            $filenames[] = $logo->getFilename();
+            expect($html)->toContain('src="cid:'.$logo->getContentId().'"');
+        }
+        expect($filenames)->toEqualCanonicalizing(['gfz-ds-logo.png', 'gfz-logo-en.gif', 'helmholtz-logo-blue.png']);
+    });
+
     it('passes correct data to the view', function () {
+        config(['services.gfz_data_services.host' => 'data.example.test']);
+
         $mailable = new ContactPersonMessage(
             contactMessage: $this->contactMessage,
             resource: $this->resource,
@@ -136,6 +161,7 @@ describe('content', function () {
         $content = $mailable->content();
 
         expect($content->with)->toMatchArray([
+            'gfzDataServicesHost' => 'data.example.test',
             'senderName' => 'Jane Doe',
             'senderEmail' => 'jane@example.com',
             'messageContent' => 'I have a question about your dataset.',

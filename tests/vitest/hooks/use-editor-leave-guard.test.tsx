@@ -18,7 +18,6 @@ const visitEvent = (url: string, method = 'get'): GuardEvent => ({
 
 describe('editor leave guard', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         window.history.replaceState({}, '', '/editor?resourceId=42');
     });
 

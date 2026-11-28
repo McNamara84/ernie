@@ -91,7 +91,6 @@ async function completeValidForm(user: ReturnType<typeof userEvent.setup>) {
 
 describe('UserFeedbackDialog', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         mocks.snapshot.mockReturnValue(structuredClone(technicalSnapshot));
         mocks.post.mockResolvedValue({ data: { message: 'Feedback submitted.', feedback_id: 'feedback-id' } });
     });
@@ -112,7 +111,7 @@ describe('UserFeedbackDialog', () => {
         expect(within(dialog).getByText(/emailed to all active ERNIE administrators/i)).toBeInTheDocument();
         expect(within(dialog).getByRole('link', { name: /data privacy protection/i })).toHaveAttribute(
             'href',
-            'https://dataservices.gfz-potsdam.de/web/about-us/data-protection',
+            'https://gfz-data-services.gfz.de/about-us/data-protection',
         );
         expect(mocks.snapshot).toHaveBeenCalledOnce();
         expect(mocks.snapshot).toHaveBeenCalledWith(17);

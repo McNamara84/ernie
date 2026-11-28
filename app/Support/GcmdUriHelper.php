@@ -22,6 +22,16 @@ class GcmdUriHelper
      */
     private const NEW_URI_TEMPLATE = 'https://gcmd.earthdata.nasa.gov/kms/concept/%s';
 
+    /** Canonicalize known GCMD endpoints without treating foreign UUIDs as GCMD identities. */
+    public static function canonicalizeKnownUri(string $uri): string
+    {
+        if (preg_match('~^https?://(?:gcmd\.earthdata\.nasa\.gov|cmr\.earthdata\.nasa\.gov|gcmdservices\.gsfc\.nasa\.gov)/kms/(?:concept/|concepts/concept_scheme/(?:sciencekeywords|platforms|instruments)/)([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$~i', $uri, $match)) {
+            return self::buildConceptUri(strtolower($match[1]));
+        }
+
+        return $uri;
+    }
+
     /**
      * Extract UUID from GCMD URI.
      *

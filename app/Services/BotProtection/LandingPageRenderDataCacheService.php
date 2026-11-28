@@ -8,10 +8,13 @@ use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Services\IgsnSampleFamilyService;
+use App\Services\Usage\CounterTrackingStateService;
 use App\Support\Traits\ChecksCacheTagging;
+use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class LandingPageRenderDataCacheService
 {
@@ -35,17 +38,43 @@ class LandingPageRenderDataCacheService
 
         /** @var array{template: string, props: array<string, mixed>, viewData?: array<string, mixed>} */
         return $this->getCacheInstance($cacheKey->tags())
-            ->remember($cacheKey->key($landingPage->id), $cacheKey->ttl(), $resolver);
+            ->remember($this->renderKey($landingPage->id), $cacheKey->ttl(), $resolver);
     }
 
     public function forget(LandingPage $landingPage): bool
     {
-        return CacheKey::LANDING_PAGE_RENDER_DATA->forget($landingPage->id);
+        return $this->forgetById($landingPage->id);
     }
 
     public function forgetById(int $landingPageId): bool
     {
-        return CacheKey::LANDING_PAGE_RENDER_DATA->forget($landingPageId);
+        $cache = $this->getCacheInstance(CacheKey::LANDING_PAGE_RENDER_DATA->tags());
+        $forgotten = false;
+        foreach ([false, true] as $eu) {
+            foreach ([false, true] as $epos) {
+                $forgotten = $cache->forget($this->renderKey($landingPageId, $eu, $epos)) || $forgotten;
+            }
+        }
+
+        return $forgotten;
+    }
+
+    private function renderKey(int $landingPageId, ?bool $dcatEnabled = null, ?bool $eposEnabled = null): string
+    {
+        $state = app(CounterTrackingStateService::class)->read();
+        $base = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPageId);
+        if ($dcatEnabled ?? config('dcatap.enabled', false)) {
+            $base .= ':dcat-ap:'.config('dcatap.version').':'.config('dcatap.revision');
+        }
+        if ($eposEnabled ?? config('dcatap.epos.enabled', false)) {
+            $base .= ':epos-dcat-ap:'.config('dcatap.epos.version').':'.config('dcatap.epos.revision');
+        }
+        $subjectRevision = Cache::get(CacheKey::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION->key());
+        if (is_string($subjectRevision)) {
+            $base .= ':subjects:'.$subjectRevision;
+        }
+
+        return $state->started_at === null ? $base : $base.':usage:'.$state->metrics_revision.':'.CarbonImmutable::now('UTC')->format('Y-m');
     }
 
     /**

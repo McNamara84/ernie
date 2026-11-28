@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -31,12 +32,14 @@ enum CacheKey: string
     case MSL_KEYWORDS = 'vocabularies:msl:keywords';
     case MSL_LABORATORIES = 'vocabularies:msl:laboratories';
     case PID4INST_INSTRUMENTS = 'vocabularies:pid4inst:instruments';
+    case B2INST_HANDLE = 'b2inst:handle';
     case RAID_PROJECTS = 'vocabularies:raid:projects';
     case CHRONOSTRAT_TIMESCALE = 'vocabularies:chronostrat:timescale';
     case GEMET_THESAURUS = 'vocabularies:gemet:thesaurus';
     case ANALYTICAL_METHODS = 'vocabularies:analytical_methods';
     case EUROSCIVOC = 'vocabularies:euroscivoc';
     case CGI_SIMPLE_LITHOLOGY = 'vocabularies:cgi:simple_lithology';
+    case PUBLIC_VOCABULARY_SNAPSHOT = 'vocabularies:public:1.2';
 
     // ROR affiliation cache keys
     case ROR_AFFILIATION = 'ror:affiliation';
@@ -49,6 +52,7 @@ enum CacheKey: string
 
     // Repository-wide editor option usage, independent of resource invalidation
     case EDITOR_DATE_TYPE_USAGE = 'editor:date_type_usage:v1';
+    case EDITOR_FORMAT_USAGE = 'editor:resource-format-usage:v1';
 
     // Portal cache keys
     case PORTAL_FREE_KEYWORD_SUGGESTIONS = 'portal:free_keyword_suggestions';
@@ -66,6 +70,9 @@ enum CacheKey: string
 
     // DOI citation cache keys
     case DOI_CITATION = 'doi:citation';
+    case CITATION_REVIEW_SNAPSHOT = 'citations:review';
+    case CITATION_NATIVE_PAPER = 'citations:native-paper';
+    case CITATION_APA_PARTS = 'citations:related-work:apa-7';
 
     // DataCite REST API metadata cache keys
     case DOI_DATACITE_METADATA = 'doi:datacite_metadata';
@@ -88,6 +95,9 @@ enum CacheKey: string
     case ASSISTANCE_TOTAL_PENDING_COUNT = 'assistance:total_pending_count';
     case ASSISTANCE_DATACENTER_OPTIONS = 'assistance:datacenter_options';
 
+    // Reduced award source payloads; provider locks and cooldowns remain independent.
+    case FUNDING_AWARD_URI_SOURCE = 'award-uri:source:v1';
+
     // Relation correction source metadata (provider and hashed DOI suffixes)
     case RELATION_CORRECTION_RAW = 'relation-correction:raw:v1';
     case RELATION_CORRECTION_SUPPORT = 'relation-correction:support:v1';
@@ -105,14 +115,13 @@ enum CacheKey: string
     case FUJI_ASSESSMENT_LIMITER_LOCK = 'fuji:assessment:request-limiter-lock';
 
     // Published landing page render payloads
-    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v14';
+    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v19';
+    case LANDING_PAGE_SUBJECT_VOCABULARY_REVISION = 'landing_pages:subject_vocabulary_revision';
 
     // Landing page setup modal download URL suggestions
     case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions:v2';
 
     // Import activity deduplication (independent of resource caches)
-    case USER_ACTIVITY_IMPORT_SYNC = 'activity:import-sync';
-    case USER_ACTIVITY_IMPORT_SUMMARY = 'activity:import-summary';
 
     /**
      * Get the full cache key with optional suffix.
@@ -164,6 +173,9 @@ enum CacheKey: string
             self::EUROSCIVOC => 86400,
             self::CGI_SIMPLE_LITHOLOGY => 86400,
 
+            // Handle registration evidence is short-lived; negative results use 60 seconds.
+            self::B2INST_HANDLE => max(1, min(3600, (int) config('b2inst.resolver_cache_ttl', 900))),
+
             // ROR affiliations are relatively stable - 7 days
             self::ROR_AFFILIATION => 604800,
 
@@ -175,6 +187,9 @@ enum CacheKey: string
 
             // Global date type ordering changes slowly - 7 days
             self::EDITOR_DATE_TYPE_USAGE => 604800,
+
+            // Resource format popularity - 1 minute
+            self::EDITOR_FORMAT_USAGE => 60,
 
             // Portal keyword facets - 1 hour
             self::PORTAL_FREE_KEYWORD_SUGGESTIONS,
@@ -197,7 +212,12 @@ enum CacheKey: string
             self::PORTAL_MAP_EXTENT => max(0, (int) config('portal_map.extent_cache_ttl', 300)),
 
             // DOI citations and DataCite metadata are relatively stable - 24 hours
-            self::DOI_CITATION, self::DOI_DATACITE_METADATA, self::CITATION_LOOKUP => 86400,
+            self::DOI_CITATION,
+            self::DOI_DATACITE_METADATA,
+            self::CITATION_LOOKUP,
+            self::CITATION_NATIVE_PAPER,
+            self::CITATION_APA_PARTS => 86400,
+            self::CITATION_REVIEW_SNAPSHOT => 1800,
 
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
@@ -220,6 +240,8 @@ enum CacheKey: string
             self::ASSISTANCE_TOTAL_PENDING_COUNT,
             self::ASSISTANCE_DATACENTER_OPTIONS => 120,
 
+            self::FUNDING_AWARD_URI_SOURCE => (int) config('funding_award_uri.positive_cache_seconds', 86400),
+
             // Successful source reads - 24 hours; failed reads use a short retry TTL.
             self::RELATION_CORRECTION_RAW,
             self::RELATION_CORRECTION_SUPPORT => 86400,
@@ -239,13 +261,12 @@ enum CacheKey: string
             // Published landing page render data - short-lived and configurable
             self::LANDING_PAGE_RENDER_DATA => max(0, (int) config('bot_protection.landing_cache_ttl', 600)),
 
-            // Download URL suggestions use rememberForever and explicit invalidation.
+            // Snapshot entries, subject vocabulary revisions and download URL suggestions use forever storage.
             // This TTL acts only as a safe default if the enum is reused elsewhere.
+            self::PUBLIC_VOCABULARY_SNAPSHOT,
+            self::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION,
             self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => 86400,
 
-            // Keep import retry activity idempotent for 2 days.
-            self::USER_ACTIVITY_IMPORT_SYNC,
-            self::USER_ACTIVITY_IMPORT_SUMMARY => 172800,
         };
     }
 
@@ -254,7 +275,7 @@ enum CacheKey: string
      *
      * @return array<string> Array of cache tags
      */
-    public function tags(): array
+    public function tags(string|int|null $suffix = null): array
     {
         return match ($this) {
             self::RESOURCE_LIST,
@@ -273,12 +294,16 @@ enum CacheKey: string
             self::MSL_KEYWORDS,
             self::MSL_LABORATORIES,
             self::PID4INST_INSTRUMENTS,
+            self::B2INST_HANDLE,
             self::RAID_PROJECTS,
             self::CHRONOSTRAT_TIMESCALE,
             self::GEMET_THESAURUS,
             self::ANALYTICAL_METHODS,
             self::EUROSCIVOC => ['vocabularies'],
             self::CGI_SIMPLE_LITHOLOGY => ['vocabularies'],
+            self::PUBLIC_VOCABULARY_SNAPSHOT => str_starts_with((string) $suffix, 'ror-affiliations')
+                ? ['vocabularies', 'ror']
+                : ['vocabularies'],
 
             self::ROR_AFFILIATION => ['ror', 'affiliations'],
 
@@ -287,6 +312,7 @@ enum CacheKey: string
             self::DOCS_EDITOR_SETTINGS => ['settings', 'docs'],
 
             self::EDITOR_DATE_TYPE_USAGE => ['vocabularies', 'editor_date_type_usage'],
+            self::EDITOR_FORMAT_USAGE => ['editor_format_usage'],
 
             self::PORTAL_FREE_KEYWORD_SUGGESTIONS,
             self::PORTAL_KEYWORD_SUGGESTIONS => ['portal', 'keywords'],
@@ -308,11 +334,13 @@ enum CacheKey: string
             self::PORTAL_MAP_PAYLOAD => ['portal_map_payloads'],
             self::PORTAL_MAP_EXTENT => ['portal_map_extents'],
 
-            self::DOI_CITATION => ['doi', 'citations'],
+            self::DOI_CITATION,
+            self::CITATION_LOOKUP,
+            self::CITATION_REVIEW_SNAPSHOT,
+            self::CITATION_NATIVE_PAPER,
+            self::CITATION_APA_PARTS => ['doi', 'citations'],
 
             self::DOI_DATACITE_METADATA => ['doi', 'datacite_metadata'],
-
-            self::CITATION_LOOKUP => ['doi', 'citations'],
 
             self::CACHE_STATS => ['system'],
 
@@ -324,6 +352,8 @@ enum CacheKey: string
 
             self::ASSISTANCE_TOTAL_PENDING_COUNT,
             self::ASSISTANCE_DATACENTER_OPTIONS => ['assistance'],
+
+            self::FUNDING_AWARD_URI_SOURCE => ['assistance', 'funding_award_uri'],
 
             self::RELATION_CORRECTION_RAW,
             self::RELATION_CORRECTION_SUPPORT => ['assistance', 'relation_correction'],
@@ -339,11 +369,28 @@ enum CacheKey: string
 
             self::LANDING_PAGE_RENDER_DATA => ['resources', 'landing_pages'],
 
+            self::LANDING_PAGE_SUBJECT_VOCABULARY_REVISION,
             self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => [],
 
-            self::USER_ACTIVITY_IMPORT_SYNC,
-            self::USER_ACTIVITY_IMPORT_SUMMARY => [],
         };
+    }
+
+    public function repository(string|int|null $suffix = null): Repository
+    {
+        // Large public projections use the file store even when the default store limits item size.
+        if ($this === self::PUBLIC_VOCABULARY_SNAPSHOT && in_array($suffix, ['msl-laboratories', 'pid4inst-instruments'], true)) {
+            return Cache::store('file');
+        }
+
+        $tags = $this->tags($suffix);
+        if ($tags !== [] && Cache::supportsTags()) {
+            return Cache::tags($tags);
+        }
+
+        // An isolated worker can bind its repository directly in place of the cache manager.
+        $root = Cache::getFacadeRoot();
+
+        return $root instanceof Repository ? $root : Cache::store();
     }
 
     /**
@@ -357,14 +404,7 @@ enum CacheKey: string
      */
     public function forget(string|int|null $suffix = null): bool
     {
-        $fullKey = $this->key($suffix);
-        $tags = $this->tags();
-
-        if ($tags !== [] && method_exists(Cache::getStore(), 'tags')) {
-            return Cache::tags($tags)->forget($fullKey);
-        }
-
-        return Cache::forget($fullKey);
+        return $this->repository($suffix)->forget($this->key($suffix));
     }
 
     /**
@@ -380,7 +420,7 @@ enum CacheKey: string
     }
 
     /**
-     * Get all vocabulary-related cache keys.
+     * Get the fixed vocabulary payload keys whose TTLs can be refreshed.
      *
      * @return array<int, self>
      */

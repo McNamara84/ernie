@@ -1,4 +1,5 @@
 import { act, waitFor } from '@testing-library/react';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { describe, expect, it } from 'vitest';
 
 import { fetchMslLaboratories, useMSLLaboratories } from '@/hooks/use-msl-laboratories';
@@ -147,3 +148,5 @@ describe('useMSLLaboratories', () => {
         expect(requestCount).toBe(2);
     });
 });
+
+installCsrfFixture();

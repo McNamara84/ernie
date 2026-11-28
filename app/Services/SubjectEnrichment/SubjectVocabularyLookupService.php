@@ -96,6 +96,16 @@ final class SubjectVocabularyLookupService
     /** @var array<string, true> */
     private array $indexedSchemes = [];
 
+    /** @var array<string, string> */
+    private array $snapshotFingerprints = [];
+
+    public function snapshotFingerprint(string $scheme): ?string
+    {
+        $this->buildIndexesForScheme($scheme);
+
+        return $this->snapshotFingerprints[$scheme] ?? null;
+    }
+
     /** @var array<string, bool> */
     private array $availableSchemes = [];
 
@@ -338,6 +348,7 @@ final class SubjectVocabularyLookupService
         }
 
         $decoded = json_decode($contents, true);
+        $this->snapshotFingerprints[$scheme] = hash('sha256', $contents);
         if (! is_array($decoded)) {
             $this->availableSchemes[$scheme] = false;
 
@@ -441,6 +452,7 @@ final class SubjectVocabularyLookupService
                 language: $this->filledString($node['language'] ?? $node['lang'] ?? $node['xml:lang'] ?? null) ?? 'en',
                 source: $this->sourceByScheme[$nodeScheme] ?? $source,
                 synonyms: $this->synonyms($node),
+                definition: $this->filledString($node['description'] ?? $node['definition'] ?? null),
             );
 
             $this->indexConcept($concept);
@@ -592,7 +604,7 @@ final class SubjectVocabularyLookupService
 
     private function shouldDropLeadingSegment(string $segment, string $scheme): bool
     {
-        return PortalSubjectNormalizer::normalizeScheme($segment) === $scheme;
+        return SubjectBreadcrumbPath::isSchemeHeading($segment, $scheme);
     }
 
     private function pathLookupKey(?string $path, ?string $scheme): ?string

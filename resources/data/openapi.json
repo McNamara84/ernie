@@ -3,8 +3,8 @@
     "info": {
         "title": "ERNIE API",
         "summary": "Read-only metadata, vocabulary, and citation endpoints for ERNIE integrations.",
-        "version": "1.1.0",
-        "description": "REST API for ERNIE (Earth Research Notary for Information Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems. Version 1.1 adds ELMO-MSL editor configuration. ERNIE, ELMO and ELMO-MSL activation and resource-type license exclusions are independent.",
+        "version": "1.2.0",
+        "description": "REST API for ERNIE (Earth Research Notary for Information Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems. Version 1.2 introduces one vocabulary visibility endpoint per external editor and a shared data endpoint for ten thesauri and three PID registries. ERNIE, ELMO and ELMO-MSL activation and resource-type license exclusions are independent. SWHID validation is available as a stateless POST operation with the ernie-swhid-v1 profile.",
         "termsOfService": "https://ernie.rz-vm182.gfz.de/legal-notice",
         "contact": {
             "name": "Holger Ehrmann",
@@ -36,17 +36,12 @@
         {
             "name": "Vocabularies",
             "summary": "Controlled vocabularies and availability endpoints",
-            "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory), PID registries (b2inst and RAiD), and ROR (Research Organization Registry)"
+            "description": "Editor-specific visibility settings and shared downloads for ten controlled vocabularies and the PID4INST, RAiD and ROR registries."
         },
         {
             "name": "DataCite",
             "summary": "Citation and DOI metadata lookup endpoints",
             "description": "Endpoints for retrieving citation metadata and author information for DOIs via the DataCite API and doi.org Content Negotiation"
-        },
-        {
-            "name": "IGSN Imports",
-            "summary": "Authenticated IGSN import operations",
-            "description": "Session-authenticated endpoints for discovering legacy datacenter groups and starting IGSN imports from DataCite."
         },
         {
             "name": "Portal",
@@ -57,6 +52,11 @@
             "name": "Changelog",
             "summary": "Authenticated release history endpoint",
             "description": "Session-protected endpoint for retrieving ERNIE releases and their related GitHub context."
+        },
+        {
+            "name": "ORCID",
+            "summary": "Researcher identification",
+            "description": "Look up researchers using public ORCID records."
         }
     ],
     "security": [],
@@ -682,11 +682,247 @@
                 }
             }
         },
+        "/api/v1/elmo/vocabularies/visibility": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "operationId": "getElmoVocabularyVisibility",
+                "summary": "Get vocabulary visibility for ELMO",
+                "description": "Returns the editor setting for each of the 13 vocabulary slugs. A value of true enables display in ELMO, including when the source file is missing. Use any returned slug with GET /api/v1/vocabularies/data/{vocab}.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Configured vocabulary visibility for ELMO.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VocabularyVisibility"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/v1/elmo-msl/vocabularies/visibility": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "operationId": "getElmoMslVocabularyVisibility",
+                "summary": "Get vocabulary visibility for ELMO-MSL",
+                "description": "Returns the editor setting for each of the 13 vocabulary slugs. A value of true enables display in ELMO-MSL, including when the source file is missing. Use any returned slug with GET /api/v1/vocabularies/data/{vocab}.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Configured vocabulary visibility for ELMO-MSL.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VocabularyVisibility"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/v1/vocabularies/data/{vocab}": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "operationId": "getControlledVocabularyData",
+                "summary": "Get a complete controlled vocabulary or PID registry",
+                "description": "ELMO and ELMO-MSL share this endpoint. It returns the public content in the format of the requested vocabulary, including its hierarchy or registry metadata. A hidden vocabulary is still available for download. For a legacy flat ROR list, lastUpdated is the source file's modification time.",
+                "parameters": [
+                    {
+                        "name": "vocab",
+                        "in": "path",
+                        "required": true,
+                        "description": "Vocabulary slug from either editor's visibility response. The matching response schema is labelled with this slug.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "gcmd-science-keywords",
+                                "gcmd-platforms",
+                                "gcmd-instruments",
+                                "msl",
+                                "msl-laboratories",
+                                "chronostrat-timescale",
+                                "gemet",
+                                "analytical-methods",
+                                "euroscivoc",
+                                "cgi-simple-lithology",
+                                "pid4inst-instruments",
+                                "raid-projects",
+                                "ror-affiliations"
+                            ]
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The public snapshot for the requested vocabulary.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "title": "gcmd-science-keywords",
+                                            "$ref": "#/components/schemas/GcmdScienceKeywords"
+                                        },
+                                        {
+                                            "title": "gcmd-platforms",
+                                            "$ref": "#/components/schemas/GcmdPlatforms"
+                                        },
+                                        {
+                                            "title": "gcmd-instruments",
+                                            "$ref": "#/components/schemas/GcmdInstruments"
+                                        },
+                                        {
+                                            "title": "msl",
+                                            "$ref": "#/components/schemas/MslKeywords"
+                                        },
+                                        {
+                                            "title": "msl-laboratories",
+                                            "$ref": "#/components/schemas/MslLaboratoriesResponse"
+                                        },
+                                        {
+                                            "title": "chronostrat-timescale",
+                                            "$ref": "#/components/schemas/ChronostratTimescale"
+                                        },
+                                        {
+                                            "title": "gemet",
+                                            "$ref": "#/components/schemas/GemetThesaurus"
+                                        },
+                                        {
+                                            "title": "analytical-methods",
+                                            "$ref": "#/components/schemas/AnalyticalMethodsVocabulary"
+                                        },
+                                        {
+                                            "title": "euroscivoc",
+                                            "$ref": "#/components/schemas/EuroSciVocVocabulary"
+                                        },
+                                        {
+                                            "title": "cgi-simple-lithology",
+                                            "$ref": "#/components/schemas/CgiSimpleLithologyVocabulary"
+                                        },
+                                        {
+                                            "title": "pid4inst-instruments",
+                                            "$ref": "#/components/schemas/Pid4instInstruments"
+                                        },
+                                        {
+                                            "title": "raid-projects",
+                                            "$ref": "#/components/schemas/RaidProjects"
+                                        },
+                                        {
+                                            "title": "ror-affiliations",
+                                            "$ref": "#/components/schemas/RorAffiliations"
+                                        }
+                                    ]
+                                },
+                                "examples": {
+                                    "platforms": {
+                                        "summary": "gcmd-platforms",
+                                        "value": {
+                                            "lastUpdated": "2026-11-09T12:00:00Z",
+                                            "data": [
+                                                {
+                                                    "id": "https://example.org/platforms/satellites",
+                                                    "text": "Satellites",
+                                                    "language": "en",
+                                                    "scheme": "GCMD Platforms",
+                                                    "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms",
+                                                    "description": "Satellite platforms",
+                                                    "children": [
+                                                        {
+                                                            "id": "https://example.org/platforms/landsat",
+                                                            "text": "Landsat",
+                                                            "language": "en",
+                                                            "scheme": "GCMD Platforms",
+                                                            "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms",
+                                                            "description": "Landsat satellites",
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "ror": {
+                                        "summary": "ror-affiliations",
+                                        "value": {
+                                            "lastUpdated": "2026-11-09T12:00:00Z",
+                                            "total": 1,
+                                            "data": [
+                                                {
+                                                    "prefLabel": "GFZ Helmholtz Centre for Geosciences",
+                                                    "rorId": "https://ror.org/04z8jg394",
+                                                    "otherLabel": ["GFZ"]
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Unknown vocabulary slug or no local snapshot available.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "The local vocabulary could not be read or is malformed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/gcmd-science-keywords": {
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Science Keywords vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-science-keywords for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -732,7 +968,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Platforms vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-platforms for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -778,7 +1015,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Instruments vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-instruments for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -824,7 +1062,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get MSL laboratories vocabulary",
-                "description": "Returns the locally stored Originating Multi-Scale Laboratories vocabulary with version metadata. Each laboratory contains the seven fields from the canonical Utrecht University vocabulary. Internal source and Git SHA metadata are never included. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the locally stored Originating Multi-Scale Laboratories vocabulary with version metadata. Each laboratory contains the seven fields from the canonical Utrecht University vocabulary. Internal source and Git SHA metadata are never included. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/msl-laboratories for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -888,7 +1127,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get ICS Chronostratigraphic Timescale vocabulary",
-                "description": "Returns the International Chronostratigraphic Chart (ICS) as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains geologic time intervals (eons, eras, periods, epochs, ages). Boundary and GSSP concepts are filtered out. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the International Chronostratigraphic Chart (ICS) as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains geologic time intervals (eons, eras, periods, epochs, ages). Boundary and GSSP concepts are filtered out. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/chronostrat-timescale for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -934,7 +1174,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GEMET Thesaurus vocabulary",
-                "description": "Returns the GEMET (GEneral Multilingual Environmental Thesaurus) as a hierarchical JSON structure. The vocabulary is loaded from the EIONET GEMET REST API and contains environmental concepts organized in SuperGroups, Groups, and Concepts. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the GEMET (GEneral Multilingual Environmental Thesaurus) as a hierarchical JSON structure. The vocabulary is loaded from the EIONET GEMET REST API and contains environmental concepts organized in SuperGroups, Groups, and Concepts. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gemet for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -980,7 +1221,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get Analytical Methods for Geochemistry vocabulary",
-                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/analytical-methods for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1026,7 +1268,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get European Science Vocabulary (EuroSciVoc)",
-                "description": "Returns the European Science Vocabulary (EuroSciVoc) as a hierarchical JSON structure. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories from CORDIS content. The vocabulary is published by the Publications Office of the European Union. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the European Science Vocabulary (EuroSciVoc) as a hierarchical JSON structure. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories from CORDIS content. The vocabulary is published by the Publications Office of the European Union. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/euroscivoc for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1072,7 +1315,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get CGI Simple Lithology vocabulary",
-                "description": "Returns the CGI Simple Lithology vocabulary as a validated hierarchical JSON structure. ERNIE downloads the vocabulary from the official CGI vocabulary SPARQL API, preserves all paths of polyhierarchical concepts, and serves only the last successfully validated local copy. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the CGI Simple Lithology vocabulary as a validated hierarchical JSON structure. ERNIE downloads the vocabulary from the official CGI vocabulary SPARQL API, preserves all paths of polyhierarchical concepts, and serves only the last successfully validated local copy. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/cgi-simple-lithology for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1117,8 +1361,9 @@
         "/api/v1/vocabularies/pid4inst-instruments": {
             "get": {
                 "tags": ["Vocabularies"],
-                "summary": "Get PID4INST instruments vocabulary",
-                "description": "Returns the complete PID4INST instruments vocabulary from b2inst (EUDAT instrument registry). Each instrument includes a persistent identifier (Handle PID), name, description, and additional metadata such as owners, manufacturers, instrument types, and measured variables. Provide the API key via the `X-API-Key` header.",
+                "summary": "Get PIDINST instruments vocabulary",
+                "description": "Returns the combined PIDINST instruments vocabulary from B2INST and public DataCite Instrument records worldwide. Identical DOIs appear once with B2INST metadata. Each instrument includes its PID and type (Handle, DOI or URL), name, description and available additional metadata. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/pid4inst-instruments for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1164,7 +1409,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get RAiD projects for ELMO",
-                "description": "Returns public RAiD (Research Activity Identifier) project records discovered through DataCite with a metadata wrapper including total count and last update timestamp. Each entry includes the RAiD identifier, title, description, dates, contributors, organisations, related identifiers, and search terms. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns public RAiD (Research Activity Identifier) project records discovered through DataCite with a metadata wrapper including total count and last update timestamp. Each entry includes the RAiD identifier, title, description, dates, contributors, organisations, related identifiers, and search terms. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/raid-projects for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1248,7 +1494,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get ROR affiliations for ELMO",
-                "description": "Returns the complete ROR (Research Organization Registry) data with metadata wrapper including total count and last update timestamp. Each entry includes the preferred label, ROR ID, and alternative labels/search terms. Provide the API key via the `X-API-Key` header.",
+                "description": "Returns the complete ROR (Research Organization Registry) data with metadata wrapper including total count and last update timestamp. Each entry includes the preferred label, ROR ID, and alternative labels/search terms. Provide the API key via the `X-API-Key` header. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/ror-affiliations for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1294,7 +1541,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check thesauri availability for ELMO",
-                "description": "Returns the availability status of all configured thesauri from the ELMO perspective (uses `is_elmo_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/thesauri-availability` instead.",
+                "description": "Returns the availability status of all configured thesauri from the ELMO perspective (uses `is_elmo_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/thesauri-availability` instead. Deprecated since API 1.2.0. Use GET /api/v1/elmo/vocabularies/visibility for ELMO. Its keys are the vocabulary URL slugs and its values are booleans determined by editor settings.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1324,7 +1572,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check PID registry availability for ELMO",
-                "description": "Returns the availability status of all configured PID registries from the ELMO perspective (uses `is_elmo_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/pid-availability` instead.",
+                "description": "Returns the availability status of all configured PID registries from the ELMO perspective (uses `is_elmo_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/pid-availability` instead. Deprecated since API 1.2.0. Use GET /api/v1/elmo/vocabularies/visibility for ELMO. Its keys are the vocabulary URL slugs and its values are booleans determined by editor settings.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -1346,6 +1595,121 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/v1/orcid/search": {
+            "get": {
+                "tags": ["ORCID"],
+                "operationId": "searchOrcid",
+                "summary": "Search public ORCID records by name",
+                "description": "The default search accepts a name. The author and contributor dialogs use person mode to search by name and optional institution. ERNIE shares a limit of 30 requests per minute per IP address across its ORCID endpoints.",
+                "security": [],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": true,
+                        "description": "A single name matches given, family or other names. A full name can use First Last (Holger Ehrmann). With mode=person, Last, First (Ehrmann, Holger) also accepts multiword names. Last, First, Institution (Ehrmann, Holger, GFZ) requires a matching public affiliation. Further commas are part of the institution name. Person mode ignores a trailing comma and rejects missing name components such as Ehrmann,,GFZ.",
+                        "schema": { "type": "string", "minLength": 2, "maxLength": 200 },
+                        "example": "Josiah Carberry"
+                    },
+                    {
+                        "name": "mode",
+                        "in": "query",
+                        "required": false,
+                        "description": "Omit for the default name search. Set to person to use the expanded ORCID search and its comma-separated name and institution syntax.",
+                        "schema": { "type": "string", "enum": ["person"] }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "description": "Maximum number of results to return. The editor requests 20.",
+                        "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 10 }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Matching researcher summaries and the total number of matches. A search with no matches returns an empty results array and a total of zero.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/OrcidSearchResponse" },
+                                "example": {
+                                    "success": true,
+                                    "data": {
+                                        "results": [
+                                            {
+                                                "orcid": "0000-0002-1825-0097",
+                                                "firstName": "Josiah",
+                                                "lastName": "Carberry",
+                                                "creditName": null,
+                                                "institutions": []
+                                            }
+                                        ],
+                                        "total": 1
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The default name search failed while contacting ORCID or reading its response.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/OrcidSearchError" },
+                                "example": { "success": false, "message": "Search request failed" }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The query parameters are invalid, or the name in person mode has missing components. Parameter validation includes field-level errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/OrcidSearchError" },
+                                "examples": {
+                                    "invalidParameter": {
+                                        "value": { "success": false, "message": "Validation failed", "errors": { "q": ["The q field is required."] } }
+                                    },
+                                    "incompleteName": {
+                                        "value": {
+                                            "success": false,
+                                            "message": "Enter a name, or use Last, First followed by an optional institution."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "ERNIE's per-IP rate limit was reached, or ORCID rate-limited a person search.",
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry when ERNIE enforces its local limit.",
+                                "schema": { "type": "integer", "minimum": 0 }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/OrcidSearchRateLimit" },
+                                "examples": {
+                                    "ernieLimit": { "value": { "message": "Too Many Attempts." } },
+                                    "orcidLimit": {
+                                        "value": { "success": false, "message": "ORCID is receiving too many requests. Please try again shortly." }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "The person search could not reach ORCID or received an unusable response. Retry later.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/OrcidSearchError" },
+                                "example": { "success": false, "message": "ORCID search is temporarily unavailable." }
+                            }
+                        }
                     }
                 }
             }
@@ -1450,14 +1814,14 @@
                             }
                         }
                     },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
                     "422": {
                         "description": "Missing or invalid DOI query parameter"
                     },
                     "429": {
                         "description": "Rate limit exceeded (30 requests/minute)"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/UnauthorizedError"
                     },
                     "502": {
                         "description": "Transient upstream failure. Returned when the primary metadata provider (Crossref) errored and the DataCite fallback did not produce a confirming hit. Clients should retry after a short delay rather than treat this as `not_found`.",
@@ -1819,221 +2183,268 @@
                 }
             }
         },
-        "/igsns/import/datacenters": {
+        "/{portal}-search": {
             "get": {
-                "tags": ["IGSN Imports"],
-                "summary": "List legacy IGSN datacenters",
-                "description": "Returns the currently available, known datacenters from the legacy GFZ IGSN portal with live resource counts. Legacy names are normalized to their canonical ERNIE datacenter names; in particular, GFZ Potsdam is returned as GFZ German Research Centre for Geosciences.",
-                "security": [
+                "tags": ["Portal"],
+                "summary": "Open the DOI or IGSN search page",
+                "description": "Opens the public results page for a shareable search URL. The page accepts the same search filters as `GET /{portal}-search/count`. A browser visit returns HTML. An Inertia request with `X-Inertia: true` and the current asset version returns the page object as JSON.",
+                "operationId": "getPortalSearchPage",
+                "security": [],
+                "parameters": [
                     {
-                        "LaravelSession": []
+                        "name": "portal",
+                        "in": "path",
+                        "required": true,
+                        "description": "Select the DOI or IGSN discovery portal.",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "description": "Portal full-text search term.",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 500
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Legacy resource-type shortcut. The fixed portal scope remains authoritative, and the IGSN portal ignores resource-type filters.",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["doi", "igsn"]
+                        }
+                    },
+                    {
+                        "name": "type[]",
+                        "in": "query",
+                        "description": "Selected resource-type slugs for the DOI portal. The IGSN portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "datacenter[]",
+                        "in": "query",
+                        "description": "Selected datacenter names.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "keywords[]",
+                        "in": "query",
+                        "description": "Legacy combined keyword filters.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "free_keywords[]",
+                        "in": "query",
+                        "description": "Exact free-keyword filters.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "thesaurus_keywords[]",
+                        "in": "query",
+                        "description": "Selected controlled-vocabulary term identifiers for the DOI portal. The IGSN portal ignores this parameter.",
+                        "schema": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 2048
+                            }
+                        }
+                    },
+                    {
+                        "name": "sample_types[]",
+                        "in": "query",
+                        "description": "Exact sample types for the IGSN portal, combined with OR. The DOI portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "materials[]",
+                        "in": "query",
+                        "description": "Controlled material nodes for the IGSN portal, combined with OR. Selecting a parent includes its descendants. The DOI portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "classifications[]",
+                        "in": "query",
+                        "description": "Exact classification values for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "geological_ages[]",
+                        "in": "query",
+                        "description": "Exact geological ages for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "geological_units[]",
+                        "in": "query",
+                        "description": "Exact geological units for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalFilterValues"
+                        }
+                    },
+                    {
+                        "name": "date_type",
+                        "in": "query",
+                        "description": "Date field used by the optional temporal filter.",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["Created", "Collected", "Coverage"]
+                        }
+                    },
+                    {
+                        "name": "year_from",
+                        "in": "query",
+                        "description": "Inclusive first year of the optional temporal filter.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "example": 2000
+                        }
+                    },
+                    {
+                        "name": "year_to",
+                        "in": "query",
+                        "description": "Inclusive last year of the optional temporal filter.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "example": 2026
+                        }
+                    },
+                    {
+                        "name": "topic",
+                        "in": "query",
+                        "description": "Curated science topic for the DOI portal. Unknown topic slugs return HTTP 422. The IGSN portal ignores this parameter.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalScienceTopic"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "description": "Results page to display.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/PortalMapFilter"
+                    },
+                    {
+                        "name": "north",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalMapBounds/properties/north"
+                        }
+                    },
+                    {
+                        "name": "south",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalMapBounds/properties/south"
+                        }
+                    },
+                    {
+                        "name": "east",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalMapBounds/properties/east"
+                        }
+                    },
+                    {
+                        "name": "west",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/PortalMapBounds/properties/west"
+                        }
+                    },
+                    {
+                        "name": "X-Inertia",
+                        "in": "header",
+                        "description": "Send `true` for an Inertia page visit.",
+                        "schema": {
+                            "type": "string",
+                            "const": "true"
+                        }
+                    },
+                    {
+                        "name": "X-Inertia-Version",
+                        "in": "header",
+                        "description": "The asset version from the current Inertia page, when present.",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Legacy IGSN datacenters available for grouped imports.",
+                        "description": "Portal search results and applied filters.",
                         "content": {
+                            "text/html": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/LegacyIgsnDatacenterListResponse"
-                                },
-                                "example": {
-                                    "datacenters": [
-                                        {
-                                            "id": "IGSNDB.ICDP",
-                                            "name": "ICDP",
-                                            "legacy_name": "ICDP",
-                                            "resource_count": 15813
+                                    "type": "object",
+                                    "required": ["component", "props"],
+                                    "properties": {
+                                        "component": {
+                                            "type": "string",
+                                            "const": "portal"
                                         },
-                                        {
-                                            "id": "IGSNDB.GFZ",
-                                            "name": "GFZ German Research Centre for Geosciences",
-                                            "legacy_name": "GFZ Potsdam",
-                                            "resource_count": 357
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Authentication required. The request must include a valid ERNIE session."
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/ForbiddenError"
-                    },
-                    "503": {
-                        "description": "The legacy IGSN portal is temporarily unavailable.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/MessageResponse"
-                                },
-                                "example": {
-                                    "message": "The legacy IGSN portal is currently unavailable. Please try again later."
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/igsns/import/start-datacenter": {
-            "post": {
-                "tags": ["IGSN Imports"],
-                "summary": "Start an IGSN import for one legacy datacenter",
-                "description": "Starts an authenticated background import for all IGSNs assigned to one currently available legacy IGSN datacenter. The server verifies the submitted legacy identifier against the live portal facet before queueing the job. Only newly created IGSNs receive the datacenter assignment; existing ERNIE resources are not changed.",
-                "security": [
-                    {
-                        "LaravelSession": [],
-                        "CsrfToken": []
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/DatacenterIgsnImportRequest"
-                            },
-                            "example": {
-                                "datacenter_id": "IGSNDB.ICDP"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Datacenter IGSN import job was queued successfully.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/IgsnImportStartResponse"
-                                },
-                                "example": {
-                                    "import_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5e",
-                                    "message": "Datacenter IGSN import started successfully"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Authentication required. The request must include a valid ERNIE session."
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/ForbiddenError"
-                    },
-                    "422": {
-                        "description": "The legacy datacenter identifier is missing, malformed, unknown, or no longer available from the portal.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationErrorResponse"
-                                },
-                                "example": {
-                                    "message": "The selected legacy IGSN datacenter is no longer available.",
-                                    "errors": {
-                                        "datacenter_id": ["The selected legacy IGSN datacenter is no longer available."]
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "503": {
-                        "description": "The legacy IGSN portal is temporarily unavailable, so ERNIE could not verify the datacenter before queueing the import.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/MessageResponse"
-                                },
-                                "example": {
-                                    "message": "The legacy IGSN portal is currently unavailable. Please try again later."
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/igsns/import/start-single": {
-            "post": {
-                "tags": ["IGSN Imports"],
-                "summary": "Start a single IGSN import from DataCite",
-                "description": "Starts an authenticated background import for one IGSN. The value can be a bare IGSN handle, a configured-prefix DOI, or a doi.org URL. ERNIE verifies the record at DataCite before queueing the job. If the requested IGSN is a parent, direct children discovered through DataCite relationships and legacy sources are included. If the requested IGSN is a child, DataCite parent-chain and sibling groups are included as import targets.",
-                "security": [
-                    {
-                        "LaravelSession": [],
-                        "CsrfToken": []
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SingleIgsnImportRequest"
-                            },
-                            "examples": {
-                                "handle": {
-                                    "summary": "Bare IGSN handle",
-                                    "value": {
-                                        "igsn": "ICDP5052EUYY001"
-                                    }
-                                },
-                                "doi": {
-                                    "summary": "Configured-prefix DOI",
-                                    "value": {
-                                        "igsn": "10.60510/GFBNO7002EHG0001"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "202": {
-                        "description": "Single IGSN import job was queued successfully.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/IgsnImportStartResponse"
-                                },
-                                "example": {
-                                    "import_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5e",
-                                    "message": "Single IGSN import started successfully"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Authentication required. The request must include a valid ERNIE session."
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/ForbiddenError"
-                    },
-                    "422": {
-                        "description": "The IGSN input is missing, malformed, uses a foreign prefix, or could not be found at DataCite.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationErrorResponse"
-                                },
-                                "examples": {
-                                    "invalid": {
-                                        "summary": "Invalid IGSN format",
-                                        "value": {
-                                            "message": "The IGSN must be a valid configured-prefix DOI or IGSN handle.",
-                                            "errors": {
-                                                "igsn": ["The IGSN must be a valid configured-prefix DOI or IGSN handle."]
-                                            }
-                                        }
-                                    },
-                                    "notFound": {
-                                        "summary": "IGSN not found at DataCite",
-                                        "value": {
-                                            "message": "This IGSN could not be found at DataCite.",
-                                            "errors": {
-                                                "igsn": ["This IGSN could not be found at DataCite."]
+                                        "props": {
+                                            "type": "object",
+                                            "properties": {
+                                                "filters": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "mapFilterEnabled": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "bounds": {
+                                                            "oneOf": [
+                                                                {
+                                                                    "$ref": "#/components/schemas/PortalMapBounds"
+                                                                },
+                                                                {
+                                                                    "type": "null"
+                                                                }
+                                                            ]
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -2041,18 +2452,14 @@
                             }
                         }
                     },
-                    "503": {
-                        "description": "DataCite is temporarily unavailable, so ERNIE could not verify the requested IGSN before queueing the import.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/MessageResponse"
-                                },
-                                "example": {
-                                    "message": "DataCite is currently unavailable. Please try again later."
-                                }
-                            }
-                        }
+                    "409": {
+                        "description": "The Inertia asset version has changed. Reload the URL in the X-Inertia-Location response header."
+                    },
+                    "422": {
+                        "description": "A portal search filter is invalid."
+                    },
+                    "429": {
+                        "description": "Public portal rate limit exceeded."
                     }
                 }
             }
@@ -2448,6 +2855,9 @@
                             "$ref": "#/components/schemas/PortalScienceTopic"
                         },
                         "example": "volcanism"
+                    },
+                    {
+                        "$ref": "#/components/parameters/PortalMapFilter"
                     }
                 ],
                 "responses": {
@@ -3005,6 +3415,9 @@
                             "$ref": "#/components/schemas/PortalScienceTopic"
                         },
                         "example": "volcanism"
+                    },
+                    {
+                        "$ref": "#/components/parameters/PortalMapFilter"
                     }
                 ],
                 "responses": {
@@ -3449,6 +3862,9 @@
                             "$ref": "#/components/schemas/PortalScienceTopic"
                         },
                         "example": "volcanism"
+                    },
+                    {
+                        "$ref": "#/components/parameters/PortalMapFilter"
                     }
                 ],
                 "responses": {
@@ -3970,7 +4386,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Science Keywords vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-science-keywords for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4017,7 +4434,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Platforms vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-platforms for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4064,7 +4482,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GCMD Instruments vocabulary",
-                "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gcmd-instruments for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4111,7 +4530,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get MSL laboratories vocabulary",
-                "description": "Returns the locally stored Originating Multi-Scale Laboratories vocabulary with version metadata. Each laboratory contains the seven fields from the canonical Utrecht University vocabulary. Internal source and Git SHA metadata are never included. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the locally stored Originating Multi-Scale Laboratories vocabulary with version metadata. Each laboratory contains the seven fields from the canonical Utrecht University vocabulary. Internal source and Git SHA metadata are never included. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/msl-laboratories for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4176,7 +4596,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get ICS Chronostratigraphic Timescale vocabulary",
-                "description": "Returns the International Chronostratigraphic Chart (ICS) as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains geologic time intervals (eons, eras, periods, epochs, ages). Boundary and GSSP concepts are filtered out. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the International Chronostratigraphic Chart (ICS) as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains geologic time intervals (eons, eras, periods, epochs, ages). Boundary and GSSP concepts are filtered out. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/chronostrat-timescale for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4223,7 +4644,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get GEMET Thesaurus vocabulary",
-                "description": "Returns the GEMET (GEneral Multilingual Environmental Thesaurus) as a hierarchical JSON structure. The vocabulary is loaded from the EIONET GEMET REST API and contains environmental concepts organized in SuperGroups, Groups, and Concepts. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the GEMET (GEneral Multilingual Environmental Thesaurus) as a hierarchical JSON structure. The vocabulary is loaded from the EIONET GEMET REST API and contains environmental concepts organized in SuperGroups, Groups, and Concepts. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/gemet for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4270,7 +4692,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get Analytical Methods for Geochemistry vocabulary",
-                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/analytical-methods for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4317,7 +4740,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get European Science Vocabulary (EuroSciVoc)",
-                "description": "Returns the European Science Vocabulary (EuroSciVoc) as a hierarchical JSON structure. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories from CORDIS content. The vocabulary is published by the Publications Office of the European Union. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the European Science Vocabulary (EuroSciVoc) as a hierarchical JSON structure. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories from CORDIS content. The vocabulary is published by the Publications Office of the European Union. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/euroscivoc for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4364,7 +4788,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get CGI Simple Lithology vocabulary",
-                "description": "Returns the CGI Simple Lithology vocabulary as a validated hierarchical JSON structure. ERNIE downloads the vocabulary from the official CGI vocabulary SPARQL API, preserves all paths of polyhierarchical concepts, and serves only the last successfully validated local copy. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the CGI Simple Lithology vocabulary as a validated hierarchical JSON structure. ERNIE downloads the vocabulary from the official CGI vocabulary SPARQL API, preserves all paths of polyhierarchical concepts, and serves only the last successfully validated local copy. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/cgi-simple-lithology for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4410,8 +4835,9 @@
         "/api/v1/elmo-msl/vocabularies/pid4inst-instruments": {
             "get": {
                 "tags": ["Vocabularies"],
-                "summary": "Get PID4INST instruments vocabulary",
-                "description": "Returns the complete PID4INST instruments vocabulary from b2inst (EUDAT instrument registry). Each instrument includes a persistent identifier (Handle PID), name, description, and additional metadata such as owners, manufacturers, instrument types, and measured variables. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "summary": "Get PIDINST instruments vocabulary",
+                "description": "Returns the combined PIDINST instruments vocabulary from B2INST and public DataCite Instrument records worldwide. Identical DOIs appear once with B2INST metadata. Each instrument includes its PID and type (Handle, DOI or URL), name, description and available additional metadata. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/pid4inst-instruments for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4458,7 +4884,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get RAiD projects for ELMO-MSL",
-                "description": "Returns public RAiD (Research Activity Identifier) project records discovered through DataCite with a metadata wrapper including total count and last update timestamp. Each entry includes the RAiD identifier, title, description, dates, contributors, organisations, related identifiers, and search terms. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns public RAiD (Research Activity Identifier) project records discovered through DataCite with a metadata wrapper including total count and last update timestamp. Each entry includes the RAiD identifier, title, description, dates, contributors, organisations, related identifiers, and search terms. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/raid-projects for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4505,7 +4932,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get ROR affiliations for ELMO-MSL",
-                "description": "Returns the complete ROR (Research Organization Registry) data with metadata wrapper including total count and last update timestamp. Each entry includes the preferred label, ROR ID, and alternative labels/search terms. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the complete ROR (Research Organization Registry) data with metadata wrapper including total count and last update timestamp. Each entry includes the preferred label, ROR ID, and alternative labels/search terms. Provide the API key via the `X-API-Key` header. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/ror-affiliations for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4552,7 +4980,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check thesauri availability for ELMO-MSL",
-                "description": "Returns the availability status of all configured thesauri from the ELMO-MSL perspective (uses `is_elmo_msl_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/thesauri-availability` instead. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the availability status of all configured thesauri from the ELMO-MSL perspective (uses `is_elmo_msl_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/thesauri-availability` instead. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/elmo-msl/vocabularies/visibility for ELMO-MSL. Its keys are the vocabulary URL slugs and its values are booleans determined by editor settings.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4583,7 +5012,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check PID registry availability for ELMO-MSL",
-                "description": "Returns the availability status of all configured PID registries from the ELMO-MSL perspective (uses `is_elmo_msl_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/pid-availability` instead. Activation is independent of ERNIE and ELMO.",
+                "description": "Returns the availability status of all configured PID registries from the ELMO-MSL perspective (uses `is_elmo_msl_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/pid-availability` instead. Activation is independent of ERNIE and ELMO. Deprecated since API 1.2.0. Use GET /api/v1/elmo-msl/vocabularies/visibility for ELMO-MSL. Its keys are the vocabulary URL slugs and its values are booleans determined by editor settings.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4685,7 +5115,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get EPOS MSL keywords",
-                "description": "Returns the local MSL keyword tree when independently enabled for ELMO.",
+                "description": "Returns the local MSL keyword tree when independently enabled for ELMO. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/msl for the data and GET /api/v1/elmo/vocabularies/visibility for the ELMO display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4732,7 +5163,8 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get EPOS MSL keywords for ELMO-MSL",
-                "description": "Returns the local MSL keyword tree when independently enabled for ELMO-MSL.",
+                "description": "Returns the local MSL keyword tree when independently enabled for ELMO-MSL. Deprecated since API 1.2.0. Use GET /api/v1/vocabularies/data/msl for the data and GET /api/v1/elmo-msl/vocabularies/visibility for the ELMO-MSL display setting. The shared data endpoint also serves hidden vocabularies.",
+                "deprecated": true,
                 "security": [
                     {
                         "ElmoApiKey": []
@@ -4829,9 +5261,142 @@
                     }
                 ]
             }
+        },
+        "/api/v1/identifiers/validate": {
+            "post": {
+                "tags": ["Editor Configuration"],
+                "summary": "Validate and normalize a SWHID",
+                "operationId": "validateIdentifier",
+                "description": "Stateless, authenticated validation against SWHID 1.2 and the ernie-swhid-v1 profile. Accepts cnt, dir, rev, rel and snp cores and origin, visit, anchor, path, lines and bytes qualifiers. Enforces uniqueness, valid values, visit/origin and anchor/path dependencies, and exclusive ordered fragment ranges on cnt objects. Does not query an archive or check object existence. Supported HTTP/HTTPS wrappers are archive.softwareheritage.org (root and /browse/), identifiers.org and n2t.net. Core case is normalized; qualifiers are preserved. A well-formed request returns HTTP 200 even when the identifier is invalid. Limited to 60 requests per minute per API key and client IP; send keys only from a trusted client backend.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    },
+                    {
+                        "ErnieBearerKey": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IdentifierValidationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Validation result; inspect valid and errors.",
+                        "headers": {
+                            "Cache-Control": {
+                                "schema": {
+                                    "type": "string",
+                                    "const": "no-store"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IdentifierValidationResult"
+                                },
+                                "examples": {
+                                    "valid": {
+                                        "value": {
+                                            "identifierType": "SWHID",
+                                            "profile": "ernie-swhid-v1",
+                                            "valid": true,
+                                            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=9-15",
+                                            "core": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b",
+                                            "objectType": "cnt",
+                                            "qualifiers": {
+                                                "lines": "9-15"
+                                            },
+                                            "resolverUrl": "https://archive.softwareheritage.org/swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=9-15",
+                                            "errors": []
+                                        }
+                                    },
+                                    "invalid": {
+                                        "value": {
+                                            "identifierType": "SWHID",
+                                            "profile": "ernie-swhid-v1",
+                                            "valid": false,
+                                            "normalized": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=15-9",
+                                            "core": null,
+                                            "objectType": null,
+                                            "qualifiers": null,
+                                            "resolverUrl": null,
+                                            "errors": [
+                                                {
+                                                    "code": "invalid_range",
+                                                    "field": "qualifiers.lines",
+                                                    "message": "Invalid SWHID lines. Expected N or N-M, starting at 1, with N no greater than M."
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "422": {
+                        "description": "Missing, unsupported, non-string or oversized request fields.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["message", "errors"],
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded. Retry after the indicated delay.",
+                        "headers": {
+                            "Retry-After": {
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
+        "parameters": {
+            "PortalMapFilter": {
+                "name": "map_filter",
+                "in": "query",
+                "required": false,
+                "description": "Only the string `0` disables filtering by the search bounds `north`, `south`, `east` and `west`. Omit the parameter or pass another string to enable it. Omitting all four bounds or using the whole world (90, -90, 180, -180 respectively) includes records without coordinates in lists and counts. Map and cluster requests always require their separate `viewport[...]` parameters and validate any supplied search bounds.",
+                "schema": {
+                    "type": "string",
+                    "default": "1"
+                },
+                "example": "0"
+            }
+        },
         "securitySchemes": {
             "ElmoApiKey": {
                 "type": "apiKey",
@@ -4844,12 +5409,6 @@
                 "in": "cookie",
                 "name": "ernie_session",
                 "description": "Authenticated ERNIE browser session cookie used by web routes."
-            },
-            "CsrfToken": {
-                "type": "apiKey",
-                "in": "header",
-                "name": "X-CSRF-TOKEN",
-                "description": "Laravel CSRF token required for authenticated mutating web requests."
             },
             "ErnieBearerKey": {
                 "type": "http",
@@ -4886,19 +5445,6 @@
                                     "message": "API key not configured."
                                 }
                             }
-                        }
-                    }
-                }
-            },
-            "ForbiddenError": {
-                "description": "The authenticated user is not allowed to start IGSN imports.",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/MessageResponse"
-                        },
-                        "example": {
-                            "message": "This action is unauthorized."
                         }
                     }
                 }
@@ -4987,6 +5533,62 @@
                 "required": ["version", "date", "features", "improvements", "fixes"],
                 "additionalProperties": false
             },
+            "OrcidSearchResult": {
+                "type": "object",
+                "description": "Public summary of one researcher.",
+                "properties": {
+                    "orcid": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$", "description": "Bare ORCID iD." },
+                    "firstName": { "type": "string", "description": "Given names, or an empty string if unavailable." },
+                    "lastName": { "type": "string", "description": "Family name, or an empty string if unavailable." },
+                    "creditName": { "type": ["string", "null"], "description": "Published credit name, or null if unavailable." },
+                    "institutions": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Public institution names, empty if unavailable."
+                    }
+                },
+                "required": ["orcid", "firstName", "lastName", "creditName", "institutions"]
+            },
+            "OrcidSearchResponse": {
+                "type": "object",
+                "properties": {
+                    "success": { "type": "boolean", "const": true },
+                    "data": {
+                        "type": "object",
+                        "properties": {
+                            "results": { "type": "array", "maxItems": 50, "items": { "$ref": "#/components/schemas/OrcidSearchResult" } },
+                            "total": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Number of matching records before applying the result limit."
+                            }
+                        },
+                        "required": ["results", "total"]
+                    }
+                },
+                "required": ["success", "data"]
+            },
+            "OrcidSearchError": {
+                "type": "object",
+                "properties": {
+                    "success": { "type": "boolean", "const": false },
+                    "message": { "type": "string" },
+                    "errors": {
+                        "type": "object",
+                        "description": "Field-level messages included when query parameter validation fails with HTTP 422.",
+                        "additionalProperties": { "type": "array", "items": { "type": "string" } }
+                    }
+                },
+                "required": ["success", "message"]
+            },
+            "OrcidSearchRateLimit": {
+                "type": "object",
+                "properties": {
+                    "message": { "type": "string" },
+                    "success": { "type": "boolean", "const": false, "description": "Included when ORCID rate-limits a person search." }
+                },
+                "required": ["message"]
+            },
             "RelatedIdentifierCitationLabelResponse": {
                 "type": "object",
                 "description": "Resolved citation label and the normalized identifier used for the lookup.",
@@ -4995,6 +5597,11 @@
                         "type": "string",
                         "minLength": 1,
                         "example": "Doe, J. (2026): Resolved DOI citation."
+                    },
+                    "citation_proof": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Signed proof returned for citations with formatted text. Submit it unchanged as citationProof alongside the unedited citationLabel to preserve its italic formatting."
                     },
                     "identifier": {
                         "type": "string",
@@ -5071,6 +5678,14 @@
                         "$ref": "#/components/schemas/MessageResponse"
                     }
                 ]
+            },
+            "PortalFilterValues": {
+                "type": "array",
+                "maxItems": 20,
+                "items": {
+                    "type": "string",
+                    "maxLength": 255
+                }
             },
             "PortalScienceTopic": {
                 "type": "string",
@@ -5641,94 +6256,6 @@
                 "required": ["schemaVersion", "clusterId", "total", "members", "pagination"],
                 "additionalProperties": false
             },
-            "DatacenterIgsnImportRequest": {
-                "type": "object",
-                "description": "Payload for starting an IGSN import limited to one legacy datacenter.",
-                "properties": {
-                    "datacenter_id": {
-                        "type": "string",
-                        "description": "Legacy IGSN portal datacenter identifier selected from the datacenter list endpoint.",
-                        "pattern": "^IGSNDB\\.[A-Z0-9_-]+$",
-                        "maxLength": 100,
-                        "example": "IGSNDB.ICDP"
-                    }
-                },
-                "required": ["datacenter_id"],
-                "additionalProperties": false
-            },
-            "LegacyIgsnDatacenter": {
-                "type": "object",
-                "description": "Known legacy IGSN datacenter normalized to its canonical ERNIE name.",
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "description": "Stable legacy portal facet identifier.",
-                        "pattern": "^IGSNDB\\.[A-Z0-9_-]+$",
-                        "example": "IGSNDB.GFZ"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Canonical ERNIE datacenter name.",
-                        "example": "GFZ German Research Centre for Geosciences"
-                    },
-                    "legacy_name": {
-                        "type": "string",
-                        "description": "Display name used by the legacy IGSN portal.",
-                        "example": "GFZ Potsdam"
-                    },
-                    "resource_count": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "description": "Current number of IGSNs in the legacy portal facet.",
-                        "example": 357
-                    }
-                },
-                "required": ["id", "name", "legacy_name", "resource_count"],
-                "additionalProperties": false
-            },
-            "LegacyIgsnDatacenterListResponse": {
-                "type": "object",
-                "description": "Legacy datacenters currently available for grouped IGSN imports.",
-                "properties": {
-                    "datacenters": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/LegacyIgsnDatacenter"
-                        }
-                    }
-                },
-                "required": ["datacenters"],
-                "additionalProperties": false
-            },
-            "SingleIgsnImportRequest": {
-                "type": "object",
-                "description": "Payload for starting a single IGSN import from DataCite.",
-                "properties": {
-                    "igsn": {
-                        "type": "string",
-                        "description": "IGSN handle, configured-prefix DOI, or doi.org URL.",
-                        "examples": ["ICDP5052EUYY001", "10.60510/GFBNO7002EHG0001", "https://doi.org/10.60510/SSDPRR02ES84601"]
-                    }
-                },
-                "required": ["igsn"]
-            },
-            "IgsnImportStartResponse": {
-                "type": "object",
-                "description": "Response returned after an IGSN import job has been queued.",
-                "properties": {
-                    "import_id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Cache key suffix used to poll the import status endpoint.",
-                        "example": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5e"
-                    },
-                    "message": {
-                        "type": "string",
-                        "example": "Single IGSN import started successfully"
-                    }
-                },
-                "required": ["import_id", "message"]
-            },
             "ValidationErrorResponse": {
                 "type": "object",
                 "description": "Laravel validation error response.",
@@ -5925,11 +6452,10 @@
             "GcmdScienceKeywords": {
                 "type": "object",
                 "description": "GCMD Science Keywords from NASA Knowledge Management System",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-10-08T11:54:31Z"
                     },
                     "data": {
@@ -5944,11 +6470,10 @@
             "GcmdPlatforms": {
                 "type": "object",
                 "description": "GCMD Platforms from NASA Knowledge Management System",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-10-08T12:13:45Z"
                     },
                     "data": {
@@ -5963,11 +6488,10 @@
             "GcmdInstruments": {
                 "type": "object",
                 "description": "GCMD Instruments from NASA Knowledge Management System",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-10-08T12:22:38Z"
                     },
                     "data": {
@@ -6067,11 +6591,10 @@
             "ChronostratTimescale": {
                 "type": "object",
                 "description": "ICS Chronostratigraphic Timescale from ARDC Linked Data API (International Chronostratigraphic Chart / Geologic Time Scale 2020)",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2025-12-15T09:30:00Z"
                     },
                     "data": {
@@ -6086,11 +6609,10 @@
             "GemetThesaurus": {
                 "type": "object",
                 "description": "GEMET (GEneral Multilingual Environmental Thesaurus) from the EIONET REST API",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2026-03-12T10:00:00Z"
                     },
                     "data": {
@@ -6105,11 +6627,10 @@
             "AnalyticalMethodsVocabulary": {
                 "type": "object",
                 "description": "Analytical Methods for Geochemistry and Cosmochemistry vocabulary from the ARDC Linked Data API (EarthChem/GEOROC)",
+                "required": ["data"],
                 "properties": {
                     "lastUpdated": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the vocabulary was last updated",
+                        "$ref": "#/components/schemas/ThesaurusSnapshotTimestamp",
                         "example": "2026-04-15T12:00:00Z"
                     },
                     "data": {
@@ -6335,6 +6856,14 @@
                     }
                 }
             },
+            "ThesaurusSnapshotTimestamp": {
+                "type": "string",
+                "description": "Update time in RFC 3339 format or in the YYYY-MM-DD HH:mm:ss format written by earlier thesaurus imports.",
+                "anyOf": [
+                    { "format": "date-time" },
+                    { "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01]) ([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$" }
+                ]
+            },
             "GcmdKeywordConcept": {
                 "type": "object",
                 "properties": {
@@ -6382,7 +6911,7 @@
             },
             "Pid4instInstruments": {
                 "type": "object",
-                "description": "PID4INST instruments vocabulary from b2inst (EUDAT instrument registry)",
+                "description": "Combined public instruments from B2INST v3 and DataCite, deduplicated by DOI with B2INST precedence. Internal synchronization diagnostics are excluded from this response.",
                 "properties": {
                     "lastUpdated": {
                         "type": "string",
@@ -6397,7 +6926,7 @@
                     },
                     "data": {
                         "type": "array",
-                        "description": "Array of instrument records from b2inst",
+                        "description": "Array of offered instruments from B2INST and DataCite after exclusions and DOI deduplication",
                         "items": {
                             "$ref": "#/components/schemas/Pid4instInstrument"
                         }
@@ -6407,21 +6936,22 @@
             },
             "Pid4instInstrument": {
                 "type": "object",
-                "description": "A single instrument record from the b2inst PID registry. Fields are flattened from the original b2inst API response — nested objects are reduced to their name strings for simpler consumption.",
+                "description": "An instrument from the combined PIDINST vocabulary. B2INST and DataCite metadata are normalized to this common shape; unavailable optional details use empty values.",
                 "properties": {
                     "id": {
                         "type": "string",
-                        "description": "Internal b2inst record ID (string-cast)",
-                        "example": "123"
+                        "description": "B2INST record ID or datacite: followed by the canonical DOI for DataCite-only records; distinct from the instrument PID",
+                        "example": "7z780-7kj63"
                     },
                     "pid": {
                         "type": "string",
-                        "description": "Persistent Identifier (Handle PID) of the instrument",
+                        "description": "Instrument PID. Handles are normalized to bare identifiers, using verified provider identity when migrated metadata disagrees.",
                         "example": "21.T11998/0000-001A-3905-F"
                     },
                     "pidType": {
                         "type": "string",
                         "description": "Type of the persistent identifier",
+                        "enum": ["Handle", "DOI", "URL"],
                         "example": "Handle"
                     },
                     "name": {
@@ -6436,8 +6966,8 @@
                     },
                     "landingPage": {
                         "type": "string",
-                        "description": "URL to the landing page of the instrument in b2inst (empty string if not available)",
-                        "example": "https://b2inst.gwdg.de/records/123"
+                        "description": "Instrument landing page from B2INST metadata or DataCite attributes.url (empty string if absent)",
+                        "example": "https://sensors.gfz.de/devices/842"
                     },
                     "owners": {
                         "type": "array",
@@ -6478,6 +7008,84 @@
                     }
                 },
                 "required": ["id", "pid", "pidType", "name"]
+            },
+            "VocabularyVisibility": {
+                "type": "object",
+                "description": "Display settings for one editor, keyed by the slug accepted by the shared data endpoint. Each key is present. A missing setting uses the editor defaults: CGI Simple Lithology is hidden and all other sources are visible.",
+                "required": [
+                    "gcmd-science-keywords",
+                    "gcmd-platforms",
+                    "gcmd-instruments",
+                    "msl",
+                    "msl-laboratories",
+                    "chronostrat-timescale",
+                    "gemet",
+                    "analytical-methods",
+                    "euroscivoc",
+                    "cgi-simple-lithology",
+                    "pid4inst-instruments",
+                    "raid-projects",
+                    "ror-affiliations"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "gcmd-science-keywords": {
+                        "type": "boolean"
+                    },
+                    "gcmd-platforms": {
+                        "type": "boolean"
+                    },
+                    "gcmd-instruments": {
+                        "type": "boolean"
+                    },
+                    "msl": {
+                        "type": "boolean"
+                    },
+                    "msl-laboratories": {
+                        "type": "boolean"
+                    },
+                    "chronostrat-timescale": {
+                        "type": "boolean"
+                    },
+                    "gemet": {
+                        "type": "boolean"
+                    },
+                    "analytical-methods": {
+                        "type": "boolean"
+                    },
+                    "euroscivoc": {
+                        "type": "boolean"
+                    },
+                    "cgi-simple-lithology": {
+                        "type": "boolean"
+                    },
+                    "pid4inst-instruments": {
+                        "type": "boolean"
+                    },
+                    "raid-projects": {
+                        "type": "boolean"
+                    },
+                    "ror-affiliations": {
+                        "type": "boolean"
+                    }
+                },
+                "examples": [
+                    {
+                        "gcmd-science-keywords": true,
+                        "gcmd-platforms": false,
+                        "gcmd-instruments": true,
+                        "msl": true,
+                        "msl-laboratories": true,
+                        "chronostrat-timescale": true,
+                        "gemet": true,
+                        "analytical-methods": true,
+                        "euroscivoc": true,
+                        "cgi-simple-lithology": false,
+                        "pid4inst-instruments": true,
+                        "raid-projects": true,
+                        "ror-affiliations": true
+                    }
+                ]
             },
             "ThesauriAvailability": {
                 "type": "object",
@@ -6539,7 +7147,7 @@
                         "displayName": {
                             "type": "string",
                             "description": "Human-readable name of the PID registry",
-                            "example": "PID4INST (b2inst)"
+                            "example": "PIDINST (B2INST + DataCite)"
                         }
                     },
                     "required": ["available", "displayName"]
@@ -6547,7 +7155,7 @@
                 "example": {
                     "pid4inst": {
                         "available": true,
-                        "displayName": "PID4INST (b2inst)"
+                        "displayName": "PIDINST (B2INST + DataCite)"
                     },
                     "ror": {
                         "available": true,
@@ -6699,7 +7307,8 @@
                     },
                     "total": {
                         "type": "integer",
-                        "description": "Total number of organizations in the dataset",
+                        "minimum": 0,
+                        "description": "Number of organization entries in data.",
                         "example": 109876
                     },
                     "data": {
@@ -6804,6 +7413,9 @@
                             }
                         },
                         "required": ["validation", "detection"]
+                    },
+                    "semanticValidation": {
+                        "$ref": "#/components/schemas/IdentifierSemanticValidation"
                     }
                 },
                 "required": ["id", "name", "slug", "description", "patterns"]
@@ -6842,7 +7454,12 @@
                                     }
                                 },
                                 "required": ["algorithms", "mode"],
-                                "examples": [{ "algorithms": ["isbn10-mod11", "isbn13-mod10"], "mode": "advisory" }]
+                                "examples": [
+                                    {
+                                        "algorithms": ["isbn10-mod11", "isbn13-mod10"],
+                                        "mode": "advisory"
+                                    }
+                                ]
                             }
                         },
                         "required": ["pattern"]
@@ -6874,7 +7491,7 @@
                     {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/GcmdKeywordConcept"
+                            "$ref": "#/components/schemas/MslKeywordConcept"
                         }
                     },
                     {
@@ -6886,13 +7503,173 @@
                             "data": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/GcmdKeywordConcept"
+                                    "$ref": "#/components/schemas/MslKeywordConcept"
                                 }
                             }
                         },
                         "required": ["data"]
                     }
                 ]
+            },
+            "MslKeywordConcept": {
+                "type": "object",
+                "description": "A node in the EPOS MSL keyword tree.",
+                "required": ["id", "text", "language", "scheme", "schemeURI", "description"],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Concept URI, or an empty string when the source node has no URI.",
+                        "anyOf": [{ "format": "uri" }, { "const": "" }]
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Preferred label of the concept."
+                    },
+                    "language": {
+                        "type": "string",
+                        "examples": ["en"]
+                    },
+                    "scheme": {
+                        "type": "string",
+                        "examples": ["EPOS MSL vocabulary"]
+                    },
+                    "schemeURI": {
+                        "type": "string",
+                        "format": "uri",
+                        "examples": ["https://epos-msl.uu.nl/voc"]
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Definition of the concept, or an empty string when unavailable."
+                    },
+                    "children": {
+                        "type": "array",
+                        "description": "Child concepts. Leaves may omit this property or have an empty array.",
+                        "items": {
+                            "$ref": "#/components/schemas/MslKeywordConcept"
+                        }
+                    }
+                }
+            },
+            "IdentifierSemanticValidation": {
+                "type": "object",
+                "description": "Present for SWHID only. Regex patterns are a syntax precheck; use this operation for complete semantic validation. Existing identifier-type activation rules still apply.",
+                "required": ["method", "endpoint", "profile", "specificationVersion", "requiresApiKey"],
+                "properties": {
+                    "method": {
+                        "type": "string",
+                        "const": "POST"
+                    },
+                    "endpoint": {
+                        "type": "string",
+                        "const": "/api/v1/identifiers/validate"
+                    },
+                    "profile": {
+                        "type": "string",
+                        "const": "ernie-swhid-v1"
+                    },
+                    "specificationVersion": {
+                        "type": "string",
+                        "const": "1.2"
+                    },
+                    "requiresApiKey": {
+                        "type": "boolean",
+                        "const": true
+                    }
+                }
+            },
+            "IdentifierValidationRequest": {
+                "type": "object",
+                "required": ["identifierType", "identifier"],
+                "properties": {
+                    "identifierType": {
+                        "type": "string",
+                        "enum": ["SWHID"]
+                    },
+                    "identifier": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2183,
+                        "description": "Bare or supported resolver-form SWHID, with optional qualifiers.",
+                        "example": "swh:1:cnt:4d99d2d18326621ccdd70f5ea66c2e2ac236ad8b;lines=9-15"
+                    }
+                }
+            },
+            "IdentifierValidationError": {
+                "type": "object",
+                "required": ["code", "field", "message"],
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "enum": [
+                            "unsupported_version",
+                            "unsupported_object_type",
+                            "invalid_core",
+                            "unknown_qualifier",
+                            "duplicate_qualifier",
+                            "invalid_qualifier_value",
+                            "missing_qualifier_dependency",
+                            "conflicting_fragment_qualifiers",
+                            "invalid_range"
+                        ]
+                    },
+                    "field": {
+                        "type": "string",
+                        "description": "identifier, qualifiers, or qualifiers.<name>.",
+                        "example": "qualifiers.lines"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Human-readable explanation. Branch on code, not message text."
+                    }
+                }
+            },
+            "IdentifierValidationResult": {
+                "type": "object",
+                "required": ["identifierType", "profile", "valid", "normalized", "core", "objectType", "qualifiers", "resolverUrl", "errors"],
+                "properties": {
+                    "identifierType": {
+                        "type": "string",
+                        "const": "SWHID"
+                    },
+                    "profile": {
+                        "type": "string",
+                        "const": "ernie-swhid-v1"
+                    },
+                    "valid": {
+                        "type": "boolean"
+                    },
+                    "normalized": {
+                        "type": "string",
+                        "description": "Normalization preserves qualifier values and their order, including invalid values. Invalid input never produces a resolver URL."
+                    },
+                    "core": {
+                        "type": ["string", "null"]
+                    },
+                    "objectType": {
+                        "type": ["string", "null"],
+                        "enum": ["cnt", "dir", "rev", "rel", "snp", null]
+                    },
+                    "qualifiers": {
+                        "type": ["object", "null"],
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "description": "Original encoded qualifier values; an empty object for a valid core SWHID, null for invalid input."
+                    },
+                    "resolverUrl": {
+                        "type": ["string", "null"],
+                        "format": "uri",
+                        "description": "Complete Software Heritage resolver URL with the identifier encoded as path data, including existing percent escapes. No outer query or fragment; normalized and qualifier values remain unchanged. Null for invalid input."
+                    },
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IdentifierValidationError"
+                        },
+                        "description": "Empty on success. The current profile returns the first error."
+                    }
+                }
             }
         }
     }

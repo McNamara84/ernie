@@ -1,5 +1,214 @@
 [
     {
+        "version": "1.2.0",
+        "date": "2026-11-30",
+        "features": [
+            {
+                "title": "EPOS-DCAT-AP 3.0 Metadata Downloads and Harvesting",
+                "description": "Eligible resources support RDF/XML downloads and OAI-PMH harvesting when EPOS-DCAT-AP is enabled."
+            },
+            {
+                "title": "Alphabetical Related Works in the Editor",
+                "description": "Reopening a resource in the editor sorts related works alphabetically by citation label.",
+                "references": [{ "type": "issue", "number": 1542, "url": "https://github.com/McNamara84/ernie/issues/1542" }]
+            },
+            {
+                "title": "Managed Homepage News",
+                "description": "Admins and Group Leaders can publish homepage news in Markdown and schedule temporary announcements."
+            },
+            {
+                "title": "DataCite Instruments in PIDINST",
+                "description": "Curators can link datasets to instruments from DataCite as well as B2INST."
+            },
+            {
+                "title": "Format and Size Editing in the Data Editor",
+                "description": "Curators can set resource formats and sizes in the Data Editor before creating a landing page."
+            },
+            {
+                "title": "DCAT-AP 3.0.1 Resource Metadata",
+                "description": "Readers can download DCAT-AP metadata as RDF/XML from eligible landing pages or harvest it via OAI-PMH.",
+                "references": [
+                    { "type": "issue", "number": 1374, "url": "https://github.com/McNamara84/ernie/issues/1374" },
+                    { "type": "issue", "number": 1375, "url": "https://github.com/McNamara84/ernie/issues/1375" },
+                    { "type": "issue", "number": 1376, "url": "https://github.com/McNamara84/ernie/issues/1376" }
+                ]
+            },
+            {
+                "title": "ICGEM Resource Harvesting",
+                "description": "The icgem OAI-PMH set includes published resources of any type whose own DOI starts with 10.5880/icgem, ignoring case.",
+                "references": [{ "type": "issue", "number": 1433, "url": "https://github.com/McNamara84/ernie/issues/1433" }]
+            },
+            {
+                "title": "Software Heritage Identifiers",
+                "description": "Curators can link related works to archived software using Software Heritage identifiers (SWHIDs).",
+                "references": [
+                    { "type": "issue", "number": 1384, "url": "https://github.com/McNamara84/ernie/issues/1384" },
+                    { "type": "issue", "number": 1385, "url": "https://github.com/McNamara84/ernie/issues/1385" },
+                    { "type": "issue", "number": 1386, "url": "https://github.com/McNamara84/ernie/issues/1386" }
+                ]
+            },
+            {
+                "title": "Contact Persons Overview and Filters",
+                "description": "Curators can search contact details and open the matching resources or IGSN samples from the Contact Persons tool.",
+                "references": [
+                    { "type": "issue", "number": 1352, "url": "https://github.com/McNamara84/ernie/issues/1352" },
+                    { "type": "pull_request", "number": 1513, "url": "https://github.com/McNamara84/ernie/pull/1513" }
+                ]
+            },
+            {
+                "title": "IGSN 2.0 Core Metadata Downloads",
+                "description": "Readers can download IGSN Core XML metadata from published IGSN and Physical Object landing pages."
+            },
+            {
+                "title": "Public Metadata Schema Catalog",
+                "description": "The catalog offers searchable guides and examples for IGSN Core XML, DataCite JSON and DataCite JSON-LD.",
+                "references": [{ "type": "pull_request", "number": 1564, "url": "https://github.com/McNamara84/ernie/pull/1564" }]
+            },
+            {
+                "title": "ISO JSON Metadata Downloads",
+                "description": "Eligible resource landing pages offer an ISO/TR 19115-4 JSON preview alongside ISO 19115-3 XML."
+            },
+            {
+                "title": "Funding Award URI Assistant",
+                "description": "Admins and Group Leaders can add missing award links after reviewing matches from Crossref Grants and CORDIS.",
+                "references": [{ "type": "issue", "number": 774, "url": "https://github.com/McNamara84/ernie/issues/774" }]
+            },
+            {
+                "title": "Resource Curation Tracking",
+                "description": "Curators can assign DOI resources to colleagues and track checklists, deadlines and handovers.",
+                "references": [{ "type": "issue", "number": 409, "url": "https://github.com/McNamara84/ernie/issues/409" }]
+            },
+            {
+                "title": "Research Data Usage Statistics",
+                "description": "DOI and IGSN landing pages show monthly counts of unique views, with download clicks on DOI pages.",
+                "references": [{ "type": "issue", "number": 1428, "url": "https://github.com/McNamara84/ernie/issues/1428" }]
+            },
+            {
+                "title": "COUNTER Dashboard and Monthly Export",
+                "description": "Admins and Group Leaders can compare usage trends and export monthly COUNTER metrics as CSV.",
+                "references": [{ "type": "issue", "number": 1429, "url": "https://github.com/McNamara84/ernie/issues/1429" }]
+            },
+            {
+                "title": "Hide Resource Landing Page Modules",
+                "description": "Admins and Group Leaders can hide and restore individual modules in custom DOI landing page templates.",
+                "references": [{ "type": "issue", "number": 267, "url": "https://github.com/McNamara84/ernie/issues/267" }]
+            }
+        ],
+        "improvements": [
+            {
+                "title": "IGSN Registration Previews",
+                "description": "Test a single sample or a checkbox selection with a color-coded, copyable preview of each DataCite request. Closing the preview marks successful samples as Registered for the testing team and keeps them eligible for production registration."
+            },
+            {
+                "title": "Worldwide Map Search by Default",
+                "description": "The DOI and IGSN portals start with the whole world selected, including records without coordinates. Zoom or pan to narrow the results, or turn off the map filter and share that choice in the search link.",
+                "references": [{ "type": "issue", "number": 1581, "url": "https://github.com/McNamara84/ernie/issues/1581" }]
+            },
+            {
+                "title": "ORCID person search in the editor",
+                "description": "Curators can start an ORCID search with Enter or Search and preview profiles before selecting a person.",
+                "references": [{ "type": "issue", "number": 1575, "url": "https://github.com/McNamara84/ernie/issues/1575" }]
+            },
+            {
+                "title": "Return from Usage Statistics",
+                "description": "Readers can return from “How we count usage” to the resource or IGSN sample they were viewing.",
+                "references": [{ "type": "issue", "number": 1574, "url": "https://github.com/McNamara84/ernie/issues/1574" }]
+            },
+            {
+                "title": "Shared vocabulary downloads in ERNIE API 1.2",
+                "description": "ELMO and ELMO-MSL share download links, with one request per editor to check vocabulary visibility."
+            },
+            {
+                "title": "Instrument Registry Refresh in Settings",
+                "description": "Admins and Group Leaders can refresh instrument metadata even when the number of records stays the same.",
+                "references": [{ "type": "pull_request", "number": 1511, "url": "https://github.com/McNamara84/ernie/pull/1511" }]
+            },
+            {
+                "title": "Legacy Resource and IGSN Import Retired",
+                "description": "With legacy database imports retired, users can upload DataCite files and IGSN CSVs from the dashboard."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "RDF/XML Compatibility for DCAT-AP Downloads",
+                "description": "Standalone DCAT-AP and EPOS-DCAT-AP downloads link to their schema with an xml-model processing instruction so strict RDF/XML parsers can read them. OAI-PMH records keep the xsi:schemaLocation attribute on the embedded rdf:RDF element.",
+                "references": [{ "type": "pull_request", "number": 1593, "url": "https://github.com/McNamara84/ernie/pull/1593" }]
+            },
+            {
+                "title": "Editor Fields and Collapsible Settings",
+                "description": "Screen readers describe text and selection fields using their help text and visible validation messages. Searchable dropdowns, including the data centre list, open at the width of their field. Editor settings panels animate when opened or closed and respect your reduced-motion preference."
+            },
+            {
+                "title": "Keyword Suggestions in Portal Searches",
+                "description": "The DOI and IGSN search portals hide the keyword menu when no new matches are available. Escape closes the menu, including loading and error messages. Enter searches your text when no suggestion is highlighted."
+            },
+            {
+                "title": "APA 7 Citations for Related Papers",
+                "description": "Related journal articles, conference papers and preprints now cite their publication source in APA 7. Landing pages show the appropriate italics. Curators can preview matching published labels, see partial selections and apply the selected updates. Large previews resume automatically when the per-user preview limit resets.",
+                "references": [{ "type": "issue", "number": 1547, "url": "https://github.com/McNamara84/ernie/issues/1547" }]
+            },
+            {
+                "title": "Symfony Security Updates",
+                "description": "Updated Symfony to secure outgoing mail connections and the generation of absolute URLs.",
+                "references": [{ "type": "pull_request", "number": 1586, "url": "https://github.com/McNamara84/ernie/pull/1586" }]
+            },
+            {
+                "title": "Scrolling in the Related Item Manager",
+                "description": "Long lists and forms scroll inside the dialog, so all fields and the Save button are reachable on smaller screens. The title and Close button stay in view when you tab through the form.",
+                "references": [{ "type": "issue", "number": 1580, "url": "https://github.com/McNamara84/ernie/issues/1580" }]
+            },
+            {
+                "title": "Numbered Search Results in the DOI and IGSN Portals",
+                "description": "Page numbers and the total result count stay visible while browsing. Paging or repeating a search refreshes older counts in the background.",
+                "references": [{ "type": "issue", "number": 1579, "url": "https://github.com/McNamara84/ernie/issues/1579" }]
+            },
+            {
+                "title": "Historical and Projected Dataset Dates",
+                "description": "The editor accepts dates from year 0001 and future Collected, Valid and Other dates through 9999."
+            },
+            {
+                "title": "DCAT-AP Harvest Recovery for Missing Resources",
+                "description": "DCAT-AP harvests report missing resources as deleted so other records can still be retrieved."
+            },
+            {
+                "title": "Duplicate Controlled Keywords",
+                "description": "Imports, the editor and landing pages now merge duplicate vocabulary keywords while preserving language variants.",
+                "references": [{ "type": "issue", "number": 1531, "url": "https://github.com/McNamara84/ernie/issues/1531" }]
+            },
+            {
+                "title": "Instrument Registry Updates with Incomplete Records",
+                "description": "Updates keep instruments with blank measured variables and skip those with only an unregistered Handle."
+            },
+            {
+                "title": "Instrument Names for B2INST Identifiers",
+                "description": "The editor finds instrument names using alternate B2INST identifiers while preserving the identifier you entered.",
+                "references": [
+                    { "type": "issue", "number": 1498, "url": "https://github.com/McNamara84/ernie/issues/1498" },
+                    { "type": "pull_request", "number": 1521, "url": "https://github.com/McNamara84/ernie/pull/1521" },
+                    { "type": "pull_request", "number": 1511, "url": "https://github.com/McNamara84/ernie/pull/1511" }
+                ]
+            },
+            {
+                "title": "OAI-PMH Harvesting Guidance",
+                "description": "The public guide shows how to resume ICGEM and EPOS-MSL harvests without missing updates."
+            },
+            {
+                "title": "GFZ Links and Legal Notice Navigation",
+                "description": "Portal links now reach GFZ Data Services, and the Legal Notice has a Back button.",
+                "references": [{ "type": "pull_request", "number": 1573, "url": "https://github.com/McNamara84/ernie/pull/1573" }]
+            },
+            {
+                "title": "Landing Page Map Resizing",
+                "description": "Landing page maps keep the full geographic coverage in view when the layout changes.",
+                "references": [{ "type": "pull_request", "number": 1564, "url": "https://github.com/McNamara84/ernie/pull/1564" }]
+            },
+            {
+                "title": "Reliable Settings Section Links",
+                "description": "Links to thesaurus settings now scroll to the correct card even on narrow screens."
+            }
+        ]
+    },
+    {
         "version": "1.1.4",
         "date": "2026-11-19",
         "fixes": [

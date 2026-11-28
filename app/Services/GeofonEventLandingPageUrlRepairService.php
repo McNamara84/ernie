@@ -8,6 +8,7 @@ use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\Resource;
+use App\Support\DatacenterNames;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -76,7 +77,7 @@ final class GeofonEventLandingPageUrlRepairService
                     $localInspection = $this->urls->inspect($localUrl);
                     $isExpectedDatacenter = app(DatacenterNameService::class)->matches(
                         $resource->datacenter,
-                        LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+                        DatacenterNames::GEOFON_EVENTS_DATACENTER,
                     );
 
                     if (! $isExpectedDatacenter) {
@@ -641,7 +642,7 @@ final class GeofonEventLandingPageUrlRepairService
                 || $lockedLandingPage->external_path !== $expectedPath
                 || ! app(DatacenterNameService::class)->matches(
                     $lockedResource->datacenter,
-                    LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+                    DatacenterNames::GEOFON_EVENTS_DATACENTER,
                 )) {
                 return false;
             }

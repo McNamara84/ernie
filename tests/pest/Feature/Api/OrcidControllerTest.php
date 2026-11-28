@@ -24,6 +24,7 @@ test('editor ORCID endpoints use interactive priority and restore it after retur
     ['/api/v1/orcid/validate/0000-0002-1825-0097', 'validateOrcid', ['valid' => true, 'exists' => true]],
     ['/api/v1/orcid/0000-0002-1825-0097', 'fetchOrcidRecord', ['success' => true, 'data' => []]],
     ['/api/v1/orcid/search?q=Carberry', 'searchOrcid', ['success' => true, 'data' => []]],
+    ['/api/v1/orcid/search?q=Carberry&mode=person', 'searchPeople', ['success' => true, 'data' => []]],
 ]);
 
 describe('OrcidController - Validation Endpoint', function () {
@@ -126,6 +127,30 @@ describe('OrcidController - Show Endpoint', function () {
 });
 
 describe('OrcidController - Search Endpoint', function () {
+    test('routes manual person searches with the requested or default limit', function (string $limitParameter, int $rows) {
+        Http::fake(['*/expanded-search/*' => Http::response(['num-found' => 0, 'expanded-result' => []])]);
+        $this->getJson('/api/v1/orcid/search?'.http_build_query(['q' => 'Ehrmann, Holger, GFZ', 'mode' => 'person']).$limitParameter)
+            ->assertOk()->assertExactJson(['success' => true, 'data' => ['results' => [], 'total' => 0]]);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'rows='.$rows));
+        Http::assertSentCount(1);
+    })->with([['&limit=20', 20], ['', 10], ['&limit=', 10]]);
+
+    test('rejects an unknown search mode', function () {
+        $this->getJson('/api/v1/orcid/search?q=Li&mode=unknown')->assertUnprocessable()->assertJsonValidationErrors('mode');
+        Http::assertNothingSent();
+    });
+
+    test('explains malformed comma-separated names', function () {
+        $this->getJson('/api/v1/orcid/search?q=Ehrmann,,GFZ&mode=person')->assertUnprocessable()
+            ->assertJsonPath('success', false)->assertJsonPath('message', 'Enter a name, or use Last, First followed by an optional institution.');
+        Http::assertNothingSent();
+    });
+
+    test('propagates person search service errors', function (int $status, int $expected) {
+        Http::fake(['*/expanded-search/*' => Http::response([], $status)]);
+        $this->getJson('/api/v1/orcid/search?q=Li&mode=person')->assertStatus($expected)->assertJsonPath('success', false);
+    })->with([[429, 429], [500, 503]]);
+
     test('searches for orcid records', function () {
         Http::fake([
             'pub.orcid.org/v3.0/search*' => Http::response([

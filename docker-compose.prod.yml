@@ -21,16 +21,19 @@ services:
       start_period: 10s
     environment:
       - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
-      # OAI-PMH identifiers are persistent and must not change with APP_URL.
+      # Preserve the published OAI namespace, including its historical hostname.
+      # Changing APP_URL must not rename identifiers already held by harvesters.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
-      # Public pages are released independently; false keeps their TYPO3 redirects.
-      - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-false}
-      - PUBLIC_FIND_ENABLED=${PUBLIC_FIND_ENABLED:-false}
-      - PUBLIC_DATA_CENTRES_ENABLED=${PUBLIC_DATA_CENTRES_ENABLED:-false}
-      - PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED=${PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED:-false}
+      # Public pages are released independently; false returns a local HTTP 404.
+      - PUBLIC_HOME_ENABLED=${PUBLIC_HOME_ENABLED:-true}
+      - PUBLIC_FIND_ENABLED=${PUBLIC_FIND_ENABLED:-true}
+      - PUBLIC_DATA_CENTRES_ENABLED=${PUBLIC_DATA_CENTRES_ENABLED:-true}
+      - PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED=${PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED:-true}
       - ERNIE_CONTAINER_ROLE=app
       - ERNIE_RUN_MIGRATIONS=1
       - SYSTEM_METRICS_ENABLED=${SYSTEM_METRICS_ENABLED:-true}
@@ -82,9 +85,26 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - FUNDING_AWARD_URI_ENABLED=${FUNDING_AWARD_URI_ENABLED:-false}
+      - CROSSREF_MAILTO=${CROSSREF_MAILTO:-}
       - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
       - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
       - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
+      - B2INST_HOST=${B2INST_HOST:-https://b2inst.pid.gwdg.de}
+      - B2INST_PAGE_SIZE=${B2INST_PAGE_SIZE:-100}
+      - B2INST_CONNECT_TIMEOUT=${B2INST_CONNECT_TIMEOUT:-10}
+      - B2INST_TIMEOUT=${B2INST_TIMEOUT:-30}
+      - B2INST_MAX_DURATION=${B2INST_MAX_DURATION:-900}
+      - B2INST_MAX_PAGES=${B2INST_MAX_PAGES:-1000}
+      - B2INST_MAX_RECORDS=${B2INST_MAX_RECORDS:-100000}
+      - B2INST_RESOLVER_CACHE_TTL=${B2INST_RESOLVER_CACHE_TTL:-900}
+      - PIDINST_MAX_DURATION=${PIDINST_MAX_DURATION:-${B2INST_MAX_DURATION:-900}}
+      - PIDINST_DATACITE_HOST=${PIDINST_DATACITE_HOST:-https://api.datacite.org}
+      - PIDINST_DATACITE_PAGE_SIZE=${PIDINST_DATACITE_PAGE_SIZE:-1000}
+      - PIDINST_DATACITE_CONNECT_TIMEOUT=${PIDINST_DATACITE_CONNECT_TIMEOUT:-10}
+      - PIDINST_DATACITE_TIMEOUT=${PIDINST_DATACITE_TIMEOUT:-30}
+      - PIDINST_DATACITE_MAX_PAGES=${PIDINST_DATACITE_MAX_PAGES:-1000}
+      - PIDINST_DATACITE_MAX_RECORDS=${PIDINST_DATACITE_MAX_RECORDS:-100000}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
@@ -96,6 +116,12 @@ services:
       - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
+      - DCATAP_ENABLED=${DCATAP_ENABLED:-false}
+      - EPOS_DCAT_AP_ENABLED=${EPOS_DCAT_AP_ENABLED:-false}
+      - DCATAP_CATALOG_URI=${DCATAP_CATALOG_URI:-https://dataservices.gfz.de/}
+      - DCATAP_CATALOG_TITLE=${DCATAP_CATALOG_TITLE:-GFZ Data Services}
+      - DCATAP_CATALOG_DESCRIPTION=${DCATAP_CATALOG_DESCRIPTION:-Research data published by GFZ Data Services.}
+      - DCATAP_CATALOG_PUBLISHER=${DCATAP_CATALOG_PUBLISHER:-GFZ Data Services}
       - BOT_PROTECTION_ENABLED=${BOT_PROTECTION_ENABLED:-true}
       - BOT_PROTECTION_AI_USER_AGENTS=${BOT_PROTECTION_AI_USER_AGENTS:-Amazonbot,anthropic-ai,Applebot-Extended,Bytespider,CCBot,ChatGPT-User,ClaudeBot,Claude-User,cohere-ai,Diffbot,FacebookBot,Google-Extended,GPTBot,ImagesiftBot,Meta-ExternalAgent,omgili,PerplexityBot,YouBot}
       - BOT_PROTECTION_ADDITIONAL_CRAWLER_USER_AGENTS=${BOT_PROTECTION_ADDITIONAL_CRAWLER_USER_AGENTS:-}
@@ -153,19 +179,6 @@ services:
       - DB_IGSN_USER=${DB_IGSN_USER:-root}
       - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
       - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
-      - IGSN_LEGACY_DB_ENABLED=${IGSN_LEGACY_DB_ENABLED:-false}
-      - GFZ_IGSN_PORTAL_PROXY_URL=${GFZ_IGSN_PORTAL_PROXY_URL:-https://dataservices.gfz-potsdam.de/igsn/portal/proxy/proxy.php}
-      - GFZ_IGSN_PORTAL_CONNECT_TIMEOUT=${GFZ_IGSN_PORTAL_CONNECT_TIMEOUT:-5}
-      - GFZ_IGSN_PORTAL_TIMEOUT=${GFZ_IGSN_PORTAL_TIMEOUT:-30}
-      - GFZ_IGSN_PORTAL_RETRY_TIMES=${GFZ_IGSN_PORTAL_RETRY_TIMES:-3}
-      - GFZ_IGSN_PORTAL_RETRY_SLEEP_MS=${GFZ_IGSN_PORTAL_RETRY_SLEEP_MS:-500}
-      - GFZ_IGSN_PORTAL_RETRY_JITTER_MS=${GFZ_IGSN_PORTAL_RETRY_JITTER_MS:-100}
-      - GFZ_IGSN_PORTAL_PAGE_SIZE=${GFZ_IGSN_PORTAL_PAGE_SIZE:-500}
-      - GFZ_IGSN_PORTAL_CACHE_TTL=${GFZ_IGSN_PORTAL_CACHE_TTL:-600}
-      - SOLR_HOST=${SOLR_HOST:-}
-      - SOLR_PORT=${SOLR_PORT:-443}
-      - SOLR_USER=${SOLR_USER:-}
-      - SOLR_PASSWORD=${SOLR_PASSWORD:-}
       # Mail configuration
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}
@@ -219,7 +232,7 @@ services:
       - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.regex=^https://(?i:dataservices[.]gfz[.]de)[.]?(:[0-9]+)?/igsn-new([/?].*)?$$"
       - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.replacement=https://dataservices.gfz.de/igsn-search"
       - "traefik.http.middlewares.ernie-igsn-search-redirect.redirectregex.permanent=true"
-      # ERNIE decides whether / is rendered or redirected via PUBLIC_HOME_ENABLED.
+      # ERNIE decides whether / is available via PUBLIC_HOME_ENABLED.
       # Redirect only confirmed first path segments to the retired
       # TYPO3 host. The (/|$) boundary is essential: /igsn must not capture
       # /igsns, and /thesaurus must not capture /thesauri.
@@ -326,7 +339,7 @@ services:
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
-    command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,database-dumps,default,imports --verbose --tries=3 --timeout=7200
+    command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,database-dumps,default --verbose --tries=3 --timeout=7200
     volumes:
       - storage-data:/var/www/html/storage
     networks:
@@ -340,6 +353,8 @@ services:
         condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       # Keep this identical to the app service for observer/job consistency.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
@@ -373,9 +388,26 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - FUNDING_AWARD_URI_ENABLED=${FUNDING_AWARD_URI_ENABLED:-false}
+      - CROSSREF_MAILTO=${CROSSREF_MAILTO:-}
       - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
       - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
       - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
+      - B2INST_HOST=${B2INST_HOST:-https://b2inst.pid.gwdg.de}
+      - B2INST_PAGE_SIZE=${B2INST_PAGE_SIZE:-100}
+      - B2INST_CONNECT_TIMEOUT=${B2INST_CONNECT_TIMEOUT:-10}
+      - B2INST_TIMEOUT=${B2INST_TIMEOUT:-30}
+      - B2INST_MAX_DURATION=${B2INST_MAX_DURATION:-900}
+      - B2INST_MAX_PAGES=${B2INST_MAX_PAGES:-1000}
+      - B2INST_MAX_RECORDS=${B2INST_MAX_RECORDS:-100000}
+      - B2INST_RESOLVER_CACHE_TTL=${B2INST_RESOLVER_CACHE_TTL:-900}
+      - PIDINST_MAX_DURATION=${PIDINST_MAX_DURATION:-${B2INST_MAX_DURATION:-900}}
+      - PIDINST_DATACITE_HOST=${PIDINST_DATACITE_HOST:-https://api.datacite.org}
+      - PIDINST_DATACITE_PAGE_SIZE=${PIDINST_DATACITE_PAGE_SIZE:-1000}
+      - PIDINST_DATACITE_CONNECT_TIMEOUT=${PIDINST_DATACITE_CONNECT_TIMEOUT:-10}
+      - PIDINST_DATACITE_TIMEOUT=${PIDINST_DATACITE_TIMEOUT:-30}
+      - PIDINST_DATACITE_MAX_PAGES=${PIDINST_DATACITE_MAX_PAGES:-1000}
+      - PIDINST_DATACITE_MAX_RECORDS=${PIDINST_DATACITE_MAX_RECORDS:-100000}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
@@ -387,6 +419,12 @@ services:
       - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
+      - DCATAP_ENABLED=${DCATAP_ENABLED:-false}
+      - EPOS_DCAT_AP_ENABLED=${EPOS_DCAT_AP_ENABLED:-false}
+      - DCATAP_CATALOG_URI=${DCATAP_CATALOG_URI:-https://dataservices.gfz.de/}
+      - DCATAP_CATALOG_TITLE=${DCATAP_CATALOG_TITLE:-GFZ Data Services}
+      - DCATAP_CATALOG_DESCRIPTION=${DCATAP_CATALOG_DESCRIPTION:-Research data published by GFZ Data Services.}
+      - DCATAP_CATALOG_PUBLISHER=${DCATAP_CATALOG_PUBLISHER:-GFZ Data Services}
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
@@ -416,19 +454,6 @@ services:
       - DB_IGSN_USER=${DB_IGSN_USER:-root}
       - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
       - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
-      - IGSN_LEGACY_DB_ENABLED=${IGSN_LEGACY_DB_ENABLED:-false}
-      - GFZ_IGSN_PORTAL_PROXY_URL=${GFZ_IGSN_PORTAL_PROXY_URL:-https://dataservices.gfz-potsdam.de/igsn/portal/proxy/proxy.php}
-      - GFZ_IGSN_PORTAL_CONNECT_TIMEOUT=${GFZ_IGSN_PORTAL_CONNECT_TIMEOUT:-5}
-      - GFZ_IGSN_PORTAL_TIMEOUT=${GFZ_IGSN_PORTAL_TIMEOUT:-30}
-      - GFZ_IGSN_PORTAL_RETRY_TIMES=${GFZ_IGSN_PORTAL_RETRY_TIMES:-3}
-      - GFZ_IGSN_PORTAL_RETRY_SLEEP_MS=${GFZ_IGSN_PORTAL_RETRY_SLEEP_MS:-500}
-      - GFZ_IGSN_PORTAL_RETRY_JITTER_MS=${GFZ_IGSN_PORTAL_RETRY_JITTER_MS:-100}
-      - GFZ_IGSN_PORTAL_PAGE_SIZE=${GFZ_IGSN_PORTAL_PAGE_SIZE:-500}
-      - GFZ_IGSN_PORTAL_CACHE_TTL=${GFZ_IGSN_PORTAL_CACHE_TTL:-600}
-      - SOLR_HOST=${SOLR_HOST:-}
-      - SOLR_PORT=${SOLR_PORT:-443}
-      - SOLR_USER=${SOLR_USER:-}
-      - SOLR_PASSWORD=${SOLR_PASSWORD:-}
       # Mail configuration (needed for queued mail jobs)
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}
@@ -440,6 +465,13 @@ services:
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ERNIE}
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
+
+  # Curation mail stays on the application DB for atomic queue/audit writes.
+  curation-queue:
+    <<: *ernie-queue
+    container_name: dockerized-laravel-curation-queue
+    stop_grace_period: 75s
+    command: php artisan queue:work curation --queue=curation --sleep=1 --tries=3 --timeout=60
 
   # Discovery scans have a separate consumer and reservation window.
   assistance-queue:
@@ -478,6 +510,8 @@ services:
         condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
@@ -492,9 +526,26 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - FUNDING_AWARD_URI_ENABLED=${FUNDING_AWARD_URI_ENABLED:-false}
+      - CROSSREF_MAILTO=${CROSSREF_MAILTO:-}
       - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
       - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
       - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
+      - B2INST_HOST=${B2INST_HOST:-https://b2inst.pid.gwdg.de}
+      - B2INST_PAGE_SIZE=${B2INST_PAGE_SIZE:-100}
+      - B2INST_CONNECT_TIMEOUT=${B2INST_CONNECT_TIMEOUT:-10}
+      - B2INST_TIMEOUT=${B2INST_TIMEOUT:-30}
+      - B2INST_MAX_DURATION=${B2INST_MAX_DURATION:-900}
+      - B2INST_MAX_PAGES=${B2INST_MAX_PAGES:-1000}
+      - B2INST_MAX_RECORDS=${B2INST_MAX_RECORDS:-100000}
+      - B2INST_RESOLVER_CACHE_TTL=${B2INST_RESOLVER_CACHE_TTL:-900}
+      - PIDINST_MAX_DURATION=${PIDINST_MAX_DURATION:-${B2INST_MAX_DURATION:-900}}
+      - PIDINST_DATACITE_HOST=${PIDINST_DATACITE_HOST:-https://api.datacite.org}
+      - PIDINST_DATACITE_PAGE_SIZE=${PIDINST_DATACITE_PAGE_SIZE:-1000}
+      - PIDINST_DATACITE_CONNECT_TIMEOUT=${PIDINST_DATACITE_CONNECT_TIMEOUT:-10}
+      - PIDINST_DATACITE_TIMEOUT=${PIDINST_DATACITE_TIMEOUT:-30}
+      - PIDINST_DATACITE_MAX_PAGES=${PIDINST_DATACITE_MAX_PAGES:-1000}
+      - PIDINST_DATACITE_MAX_RECORDS=${PIDINST_DATACITE_MAX_RECORDS:-100000}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
@@ -506,6 +557,12 @@ services:
       - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
+      - DCATAP_ENABLED=${DCATAP_ENABLED:-false}
+      - EPOS_DCAT_AP_ENABLED=${EPOS_DCAT_AP_ENABLED:-false}
+      - DCATAP_CATALOG_URI=${DCATAP_CATALOG_URI:-https://dataservices.gfz.de/}
+      - DCATAP_CATALOG_TITLE=${DCATAP_CATALOG_TITLE:-GFZ Data Services}
+      - DCATAP_CATALOG_DESCRIPTION=${DCATAP_CATALOG_DESCRIPTION:-Research data published by GFZ Data Services.}
+      - DCATAP_CATALOG_PUBLISHER=${DCATAP_CATALOG_PUBLISHER:-GFZ Data Services}
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
@@ -566,7 +623,10 @@ services:
         condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY:?Set APP_KEY to the shared deployment key}
+      - COUNTER_SESSION_SECRET=${COUNTER_SESSION_SECRET:-}
+      - CURATION_WAITING_OVERDUE_DAYS=${CURATION_WAITING_OVERDUE_DAYS:-14}
       - APP_URL=${APP_URL:-https://dataservices.gfz.de}
+      # Keep the persistent OAI namespace identical to app and queue.
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
@@ -597,9 +657,26 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - DB_QUEUE_RETRY_AFTER=${DB_QUEUE_RETRY_AFTER:-7260}
+      - FUNDING_AWARD_URI_ENABLED=${FUNDING_AWARD_URI_ENABLED:-false}
+      - CROSSREF_MAILTO=${CROSSREF_MAILTO:-}
       - ASSISTANCE_QUEUE=${ASSISTANCE_QUEUE:-assistance}
       - ASSISTANCE_JOB_TIMEOUT=${ASSISTANCE_JOB_TIMEOUT:-3600}
       - ASSISTANCE_QUEUE_RETRY_AFTER=${ASSISTANCE_QUEUE_RETRY_AFTER:-3660}
+      - B2INST_HOST=${B2INST_HOST:-https://b2inst.pid.gwdg.de}
+      - B2INST_PAGE_SIZE=${B2INST_PAGE_SIZE:-100}
+      - B2INST_CONNECT_TIMEOUT=${B2INST_CONNECT_TIMEOUT:-10}
+      - B2INST_TIMEOUT=${B2INST_TIMEOUT:-30}
+      - B2INST_MAX_DURATION=${B2INST_MAX_DURATION:-900}
+      - B2INST_MAX_PAGES=${B2INST_MAX_PAGES:-1000}
+      - B2INST_MAX_RECORDS=${B2INST_MAX_RECORDS:-100000}
+      - B2INST_RESOLVER_CACHE_TTL=${B2INST_RESOLVER_CACHE_TTL:-900}
+      - PIDINST_MAX_DURATION=${PIDINST_MAX_DURATION:-${B2INST_MAX_DURATION:-900}}
+      - PIDINST_DATACITE_HOST=${PIDINST_DATACITE_HOST:-https://api.datacite.org}
+      - PIDINST_DATACITE_PAGE_SIZE=${PIDINST_DATACITE_PAGE_SIZE:-1000}
+      - PIDINST_DATACITE_CONNECT_TIMEOUT=${PIDINST_DATACITE_CONNECT_TIMEOUT:-10}
+      - PIDINST_DATACITE_TIMEOUT=${PIDINST_DATACITE_TIMEOUT:-30}
+      - PIDINST_DATACITE_MAX_PAGES=${PIDINST_DATACITE_MAX_PAGES:-1000}
+      - PIDINST_DATACITE_MAX_RECORDS=${PIDINST_DATACITE_MAX_RECORDS:-100000}
       - ELMO_CACHE_REFRESH_ENABLED=${ELMO_CACHE_REFRESH_ENABLED:-false}
       - ELMO_MSL_CACHE_REFRESH_READY=${ELMO_MSL_CACHE_REFRESH_READY:-false}
       - ELMO_BASE_URL=${ELMO_BASE_URL:-https://dataservices.gfz.de/elmo}
@@ -611,6 +688,12 @@ services:
       - ELMO_CACHE_REFRESH_JOB_TIMEOUT=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
       - ELMO_CACHE_REFRESH_RETRY_AFTER=${ELMO_CACHE_REFRESH_RETRY_AFTER:-390}
       - DATACITE_LINKED_DATA_CONTEXT_URL=${DATACITE_LINKED_DATA_CONTEXT_URL:-}
+      - DCATAP_ENABLED=${DCATAP_ENABLED:-false}
+      - EPOS_DCAT_AP_ENABLED=${EPOS_DCAT_AP_ENABLED:-false}
+      - DCATAP_CATALOG_URI=${DCATAP_CATALOG_URI:-https://dataservices.gfz.de/}
+      - DCATAP_CATALOG_TITLE=${DCATAP_CATALOG_TITLE:-GFZ Data Services}
+      - DCATAP_CATALOG_DESCRIPTION=${DCATAP_CATALOG_DESCRIPTION:-Research data published by GFZ Data Services.}
+      - DCATAP_CATALOG_PUBLISHER=${DCATAP_CATALOG_PUBLISHER:-GFZ Data Services}
 
 networks:
   dockerized-laravel-network:

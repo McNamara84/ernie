@@ -1,16 +1,15 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { Braces, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CloudUpload, Download, FileJson, Globe, RefreshCw } from 'lucide-react';
+import { Braces, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CloudUpload, FileJson, Globe, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { CitationLabelReviewDialog } from '@/components/citations/citation-label-review-dialog';
 import { DataCiteUrlUpdateModal, type DataCiteUrlUpdateRun } from '@/components/datacite-url-update-modal';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
 import { type IgsnFilterOptions, IgsnFilters, type IgsnFilterState } from '@/components/igsns/igsn-filters';
 import { type IgsnRegistrationRun, IgsnRegistrationRunModal } from '@/components/igsns/igsn-registration-run-modal';
-import ImportIgsnsModal from '@/components/igsns/modals/ImportIgsnsModal';
-import ImportSingleIgsnModal from '@/components/igsns/modals/ImportSingleIgsnModal';
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
 import SetupIgsnLandingPageModal from '@/components/landing-pages/modals/SetupIgsnLandingPageModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -58,12 +57,17 @@ interface Igsn {
     latitude: number | null;
     longitude: number | null;
     upload_status: string;
+    registration_operation?: 'register' | 'update' | 'verify';
     upload_error_message: string | null;
     parent_resource_id: number | null;
     collector: string | null;
     has_landing_page: boolean;
     created_at: string | null;
     updated_at: string | null;
+}
+
+function isMetadataUpdate(igsn: Igsn): boolean {
+    return igsn.registration_operation ? igsn.registration_operation === 'update' : igsn.upload_status === 'registered';
 }
 
 interface PaginationInfo {
@@ -87,19 +91,19 @@ interface IgsnCountResponse {
 }
 
 interface IgsnsPageProps {
+    contactSelection?: import('@/types/contact-persons').ContactSelection | null;
     igsns: Igsn[];
     pagination: PaginationInfo;
     sort: SortState<SortKey>;
     canDelete: boolean;
-    canImport: boolean;
     canRegister: boolean;
     canUpdateDataCiteLandingPageUrls?: boolean;
     dataCiteUrlUpdateRun?: DataCiteUrlUpdateRun | null;
     igsnRegistrationRun?: IgsnRegistrationRun | null;
-    igsnPrefix: string;
     search: string;
     totalCount: number | null;
     filters: {
+        contact?: string;
         prefix: string;
         status: string;
         datacenter_id?: number;
@@ -164,16 +168,15 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // ============================================================================
 
 function IgsnsPage({
+    contactSelection,
     igsns: initialIgsns,
     pagination: initialPagination,
     sort: initialSort,
     canDelete,
-    canImport,
     canRegister,
     canUpdateDataCiteLandingPageUrls,
     dataCiteUrlUpdateRun,
     igsnRegistrationRun: initialIgsnRegistrationRun,
-    igsnPrefix,
     search: initialSearch,
     totalCount: initialTotalCount,
     filters: initialFilters,
@@ -192,9 +195,6 @@ function IgsnsPage({
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-    const [isDatacenterImportModalOpen, setIsDatacenterImportModalOpen] = useState(false);
-    const [isSingleImportModalOpen, setIsSingleImportModalOpen] = useState(false);
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [isDataCiteUrlUpdateModalOpen, setIsDataCiteUrlUpdateModalOpen] = useState(false);
     const [isIgsnRegistrationRunModalOpen, setIsIgsnRegistrationRunModalOpen] = useState(false);
@@ -205,6 +205,7 @@ function IgsnsPage({
 
     // Filter state
     const [activeFilters, setActiveFilters] = useState<IgsnFilterState>({
+        contact: initialFilters?.contact,
         search: initialSearch || undefined,
         prefix: initialFilters?.prefix || undefined,
         status: initialFilters?.status || undefined,
@@ -216,16 +217,16 @@ function IgsnsPage({
     const attemptedPreferenceRestoreRef = useRef(false);
 
     // Selection state for bulk actions
+    const [citationReviewIds, setCitationReviewIds] = useState<number[] | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
     // Update state when props change (after navigation)
     useEffect(() => {
         setIgsns(initialIgsns);
-        setPagination(initialPagination);
-        setTotalCount(initialTotalCount);
         setSortState(initialSort || DEFAULT_SORT);
         setSearchQuery(initialSearch || '');
         setActiveFilters({
+            contact: initialFilters?.contact,
             search: initialSearch || undefined,
             prefix: initialFilters?.prefix || undefined,
             status: initialFilters?.status || undefined,
@@ -235,7 +236,12 @@ function IgsnsPage({
         setFilterOptions(initialFilterOptions);
         // Clear selection when data changes (e.g., after pagination or sorting)
         setSelectedIds(new Set());
-    }, [initialIgsns, initialPagination, initialSort, initialSearch, initialFilters, initialFilterOptions, initialTotalCount]);
+    }, [initialIgsns, initialSort, initialSearch, initialFilters, initialFilterOptions]);
+
+    useEffect(() => {
+        setPagination(initialPagination);
+        setTotalCount(initialTotalCount);
+    }, [initialPagination, initialTotalCount]);
 
     useEffect(() => {
         setIgsnRegistrationRun(initialIgsnRegistrationRun ?? null);
@@ -362,6 +368,7 @@ function IgsnsPage({
             const currentFilters = overrides.filters ?? activeFilters;
             const search = overrides.search ?? currentFilters.search ?? searchQuery;
             const params = new URLSearchParams();
+            if (currentFilters.contact) params.set('contact', currentFilters.contact);
             params.set('sort', sort.key);
             params.set('direction', sort.direction);
             if (search) {
@@ -398,6 +405,7 @@ function IgsnsPage({
         const params = new URLSearchParams({ per_page: String(initialPagination.per_page) });
 
         if (initialSearch) params.set('search', initialSearch);
+        if (initialFilters.contact) params.set('contact', initialFilters.contact);
         if (initialFilters.prefix) params.set('prefix', initialFilters.prefix);
         if (initialFilters.status) params.set('status', initialFilters.status);
         if (initialFilters.without_datacenter) {
@@ -435,14 +443,12 @@ function IgsnsPage({
 
         return () => controller.abort();
     }, [
+        initialFilters.contact,
         initialFilters.datacenter_id,
         initialFilters.prefix,
         initialFilters.status,
         initialFilters.without_datacenter,
-        initialPagination.count_status,
-        initialPagination.current_page,
-        initialPagination.filter_fingerprint,
-        initialPagination.per_page,
+        initialPagination,
         initialSearch,
     ]);
 
@@ -601,9 +607,19 @@ function IgsnsPage({
     const handleRegister = useCallback(async (igsn: Igsn) => {
         setRegisteringIgsns((prev) => new Set(prev).add(igsn.id));
         try {
-            const response = await axios.post<{ success: boolean; doi?: string; mode?: string; updated?: boolean; message?: string }>(
-                `/igsns/${igsn.id}/register`,
-            );
+            const response = await axios.post<{
+                success?: boolean;
+                doi?: string;
+                mode?: string;
+                updated?: boolean;
+                message?: string;
+                run?: IgsnRegistrationRun;
+            }>(`/igsns/${igsn.id}/register`);
+            if (response.data.mode === 'simulation' && response.data.run) {
+                setIgsnRegistrationRun(response.data.run);
+                setIsIgsnRegistrationRunModalOpen(true);
+                return;
+            }
             if (response.status === 202 || response.data.success !== true) {
                 toast.warning(response.data.message || 'DOI publication needs reconciliation. Resume registration to check the saved attempt.');
                 router.reload();
@@ -647,7 +663,9 @@ function IgsnsPage({
             setIgsnRegistrationRun(response.data.run);
             setIsIgsnRegistrationRunModalOpen(true);
             setSelectedIds(new Set());
-            toast.success(`${response.data.run.total} IGSN(s) queued for DataCite registration.`);
+            toast.success(
+                response.data.run.is_simulation ? 'Preparing IGSN previews.' : `${response.data.run.total} IGSN(s) queued for DataCite registration.`,
+            );
         } catch (error) {
             const message =
                 isAxiosError(error) && error.response?.data?.message ? (error.response.data.message as string) : 'Batch registration failed.';
@@ -658,7 +676,7 @@ function IgsnsPage({
     }, [selectedIds, igsns]);
 
     const handleRegistrationTerminal = useCallback(() => {
-        router.reload({ only: ['igsns', 'pagination', 'igsnRegistrationRun'] });
+        router.reload({ only: ['igsns', 'pagination', 'igsnRegistrationRun', 'filterOptions'] });
     }, []);
 
     const handleBulkDeleteConfirm = useCallback(() => {
@@ -710,7 +728,7 @@ function IgsnsPage({
                                 <CardTitle>Physical Samples (IGSNs)</CardTitle>
                                 <CardDescription>Manage physical sample metadata with International Generic Sample Numbers.</CardDescription>
                             </div>
-                            {(canImport || canUpdateDataCiteLandingPageUrls || (canRegister && igsnRegistrationRun)) && (
+                            {(canUpdateDataCiteLandingPageUrls || (canRegister && igsnRegistrationRun)) && (
                                 <div className="flex flex-wrap items-center gap-2">
                                     {canUpdateDataCiteLandingPageUrls && (
                                         <Button
@@ -732,22 +750,6 @@ function IgsnsPage({
                                             View registration progress
                                         </Button>
                                     )}
-                                    {canImport && (
-                                        <>
-                                            <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Import all IGSNs
-                                            </Button>
-                                            <Button variant="outline" onClick={() => setIsSingleImportModalOpen(true)}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Import single IGSN
-                                            </Button>
-                                            <Button variant="outline" onClick={() => setIsDatacenterImportModalOpen(true)}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Import by datacenter
-                                            </Button>
-                                        </>
-                                    )}
                                 </div>
                             )}
                         </div>
@@ -756,6 +758,7 @@ function IgsnsPage({
                         <div className="space-y-4">
                             {/* Filters (Search + Prefix + Status) */}
                             <IgsnFilters
+                                contactSelection={contactSelection}
                                 filters={activeFilters}
                                 onFilterChange={handleFilterChange}
                                 filterOptions={filterOptions}
@@ -769,6 +772,7 @@ function IgsnsPage({
                             <BulkActionsToolbar
                                 selectedCount={selectedIds.size}
                                 onDelete={handleBulkDeleteClick}
+                                onReviewCitations={() => setCitationReviewIds([...selectedIds])}
                                 onRegister={canRegister ? handleBulkRegister : undefined}
                                 canDelete={canDelete}
                                 isDeleting={isDeleting}
@@ -908,14 +912,14 @@ function IgsnsPage({
                                                                             onClick={() => handleRegister(igsn)}
                                                                             disabled={!igsn.has_landing_page || registeringIgsns.has(igsn.id)}
                                                                             aria-label={
-                                                                                igsn.upload_status === 'registered'
+                                                                                isMetadataUpdate(igsn)
                                                                                     ? 'Update Metadata at DataCite'
                                                                                     : 'Register at DataCite'
                                                                             }
                                                                         >
                                                                             {registeringIgsns.has(igsn.id) ? (
                                                                                 <Spinner size="sm" />
-                                                                            ) : igsn.upload_status === 'registered' ? (
+                                                                            ) : isMetadataUpdate(igsn) ? (
                                                                                 <RefreshCw className="size-4" />
                                                                             ) : (
                                                                                 <CloudUpload className="size-4" />
@@ -926,7 +930,7 @@ function IgsnsPage({
                                                                 <TooltipContent>
                                                                     {!igsn.has_landing_page
                                                                         ? 'Set up a landing page first'
-                                                                        : igsn.upload_status === 'registered'
+                                                                        : isMetadataUpdate(igsn)
                                                                           ? 'Update Metadata at DataCite'
                                                                           : 'Register at DataCite'}
                                                                 </TooltipContent>
@@ -1097,22 +1101,10 @@ function IgsnsPage({
                     }}
                     isOpen={isLandingPageModalOpen}
                     onClose={handleCloseLandingPageModal}
+                    onSuccess={() => router.reload({ only: ['igsns'] })}
                 />
             )}
 
-            <ImportIgsnsModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onSuccess={() => router.reload()} />
-            <ImportSingleIgsnModal
-                isOpen={isSingleImportModalOpen}
-                igsnPrefix={igsnPrefix}
-                onClose={() => setIsSingleImportModalOpen(false)}
-                onSuccess={() => router.reload()}
-            />
-            <ImportIgsnsModal
-                mode="datacenter"
-                isOpen={isDatacenterImportModalOpen}
-                onClose={() => setIsDatacenterImportModalOpen(false)}
-                onSuccess={() => router.reload()}
-            />
             {canUpdateDataCiteLandingPageUrls && (
                 <DataCiteUrlUpdateModal
                     scope="igsns"
@@ -1123,6 +1115,7 @@ function IgsnsPage({
             )}
             {canRegister && (
                 <IgsnRegistrationRunModal
+                    key={igsnRegistrationRun?.id}
                     open={isIgsnRegistrationRunModalOpen}
                     onOpenChange={setIsIgsnRegistrationRunModalOpen}
                     initialRun={igsnRegistrationRun}
@@ -1130,6 +1123,7 @@ function IgsnsPage({
                     onTerminal={handleRegistrationTerminal}
                 />
             )}
+            {citationReviewIds && <CitationLabelReviewDialog ids={citationReviewIds} onClose={() => setCitationReviewIds(null)} />}
         </AppLayout>
     );
 }

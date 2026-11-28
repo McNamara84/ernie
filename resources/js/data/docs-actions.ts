@@ -16,6 +16,23 @@ export interface DocsAction {
 
 export const DOCS_ACTIONS: DocsAction[] = [
     {
+        id: 'editor-curation',
+        label: 'Curation',
+        area: 'editor',
+        requirements:
+            'Saved DOI resource or draft. Beginners can read; active Curators, Group Leaders and Admins can write. IGSNs are excluded and tombstones are read-only.',
+        onClick: 'Opens the checklist, responsible curators, working state, data locations and history without saving metadata.',
+        afterConfirmation:
+            'Each curation action saves separately. Start curation explicitly includes a published record; a handover keeps the old lead as a member.',
+        localEffect:
+            'Stores checklist decisions and an activity history. Authors can edit or delete their notes within 24 hours. Not applicable requires a reason.',
+        externalEffect:
+            'New assignments to other colleagues and selected mentions queue notifications. Review evidence confirms queuing, not delivery. Explicit start may verify an existing DOI at DataCite.',
+        publicEffect: 'Curation data is internal and does not block or trigger publication. It is excluded from public metadata exports.',
+        failure:
+            'A concurrent change returns a conflict: reload curation, reopen the form and apply your changes. Unsubmitted metadata remains in the editor.',
+    },
+    {
         id: 'editor-save-draft',
         label: 'Save Draft',
         area: 'editor',
@@ -127,6 +144,18 @@ export const DOCS_ACTIONS: DocsAction[] = [
             'A failed setup must be corrected before DOI registration can continue. Unavailable registration verification hides new tombstone activation and can be retried; active tombstones remain accessible. A failed DataCite tombstone sync leaves the local change active, displays the pending or failed status and supports retry.',
     },
     {
+        id: 'resources-review-citation-labels',
+        label: 'Review citation labels',
+        area: 'resources',
+        requirements: 'Select resources or IGSNs with published ERNIE landing pages.',
+        onClick: 'Compares stored DOI labels with the historical formatter and previews matching papers in APA 7.',
+        afterConfirmation: 'Apply selected updates only the checked proposals that still match their preview.',
+        localEffect: 'Saves the reviewed text and italics on each selected related identifier.',
+        externalEffect: 'Reads DOI metadata to identify the paper and its source.',
+        publicEffect: 'The published landing page displays the updated citation immediately.',
+        failure: 'Review skipped counts and reopen the preview for entries that changed.',
+    },
+    {
         id: 'resources-related-items',
         label: 'Manage Related Items',
         area: 'resources',
@@ -225,20 +254,6 @@ export const DOCS_ACTIONS: DocsAction[] = [
         externalEffect: 'Existing DataCite records are not deleted or redirected.',
         publicEffect: 'A published DOI may continue to exist at DataCite while its former ERNIE landing page returns 404.',
         failure: 'Check the reported result and remaining rows before retrying; deletion cannot be undone in this interface.',
-    },
-    {
-        id: 'resources-legacy-import',
-        label: 'Import old resources',
-        area: 'resources',
-        capability: 'importFromDataCite',
-        requirements: 'Admin or Group Leader access. Choose all old resources, one datacenter, or a single legacy DOI.',
-        onClick: 'Opens the selected import flow and its scope controls.',
-        afterConfirmation:
-            'Imports eligible existing external metadata into ERNIE; existing ERNIE records are skipped or enriched only as described in the import result.',
-        localEffect: 'Creates local ERNIE records for eligible imports.',
-        externalEffect: 'Reads legacy or DataCite metadata; does not mint a new DOI.',
-        publicEffect: 'Importing is not a new DataCite publication.',
-        failure: 'Inspect skipped and failed items, then retry the appropriate import scope.',
     },
     {
         id: 'resources-datacite-url-migration',

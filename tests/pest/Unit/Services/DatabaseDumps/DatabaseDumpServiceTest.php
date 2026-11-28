@@ -171,6 +171,27 @@ it('creates a compressed dump and never places credentials in process arguments'
     expect(is_file($optionPath))->toBeFalse();
 });
 
+it('excludes raw COUNTER contents while preserving table schemas in ERNIE dumps', function (): void {
+    config(['database_dumps.targets.ernie.exclude_table_data' => ['usage_events', 'usage_search_events']]);
+    $runner = new FakeDatabaseDumpProcessRunner(['--ignore-table-data']);
+    $export = DatabaseDumpExport::factory()->for(User::factory()->admin()->create())->create([
+        'target_key' => 'ernie', 'connection_name' => 'dump_test', 'database_name' => 'ernie_test', 'disk' => 'local',
+    ]);
+    databaseDumpService($runner)->createDump($export);
+    expect($runner->lastCommand)->toContain('--ignore-table-data=ernie_test.usage_events', '--ignore-table-data=ernie_test.usage_search_events');
+    expect($runner->lastCommand)->not->toContain('--ignore-table=ernie_test.usage_events');
+});
+
+it('fails ERNIE dumps when the client cannot exclude raw event data', function (): void {
+    config(['database_dumps.targets.ernie.exclude_table_data' => ['usage_events', 'usage_search_events']]);
+    $runner = new FakeDatabaseDumpProcessRunner;
+    $export = DatabaseDumpExport::factory()->for(User::factory()->admin()->create())->create([
+        'target_key' => 'ernie', 'connection_name' => 'dump_test', 'database_name' => 'ernie_test', 'disk' => 'local',
+    ]);
+    expect(fn () => databaseDumpService($runner)->createDump($export))->toThrow(RuntimeException::class, 'ERNIE dumps require');
+    expect($runner->runs)->toBe(0);
+});
+
 it('marks the export failed and removes partial files when the dump process fails', function (): void {
     $runner = new FakeDatabaseDumpProcessRunner;
     $runner->result = new DatabaseDumpProcessResult(2, 'mysqldump failed with password=top-secret');

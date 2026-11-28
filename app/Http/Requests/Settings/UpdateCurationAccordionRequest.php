@@ -21,6 +21,7 @@ class UpdateCurationAccordionRequest extends FormRequest
         'authors',
         'contributors',
         'descriptions',
+        'format-size',
         'controlled-vocabularies',
         'free-keywords',
         'msl-laboratories',

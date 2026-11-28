@@ -29,6 +29,9 @@ test('preserves the complete DataCite profile and produces independent semantic 
     $normalizer = new DataCiteJsonImportNormalizerService;
     $validator = new JsonSchemaValidator;
     $variants = ['complete' => $attributes];
+    foreach (['minimal', 'full'] as $example) {
+        $variants['documentation '.$example] = json_decode(file_get_contents(resource_path('data/schema-docs/datacite/4.7/v1/'.$example.'.json')), true, flags: JSON_THROW_ON_ERROR);
+    }
     $draft = $attributes;
     unset($draft['doi']);
     $variants['draft'] = $draft;
@@ -68,7 +71,7 @@ test('preserves the complete DataCite profile and produces independent semantic 
         // The normalizer restores numeric coordinates and DataCite's related-item year type.
         expect($roundTrip)->toEqual($normalizer->normalize($expected));
         $errors = null;
-        expect($validator->isValid($roundTrip, $errors, strictMode: $name !== 'draft'))->toBeTrue(json_encode($errors));
+        expect($validator->isValid($roundTrip, $errors, strictMode: isset($expected['doi'])))->toBeTrue(json_encode($errors));
         $report['profiles'][] = ['name' => $name, 'attributes' => $expected, 'document' => $document];
     }
 

@@ -27,6 +27,7 @@ final class SendResourceReviewLinksRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'operation_id' => ['sometimes', 'uuid'],
             'ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_BATCH_SIZE],
             'ids.*' => ['required', 'integer', 'distinct', 'exists:resources,id'],
         ];

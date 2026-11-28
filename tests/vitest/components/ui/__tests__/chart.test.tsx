@@ -1,14 +1,7 @@
 import { render } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-    type ChartConfig,
-    ChartContainer,
-    ChartLegend,
-    ChartLegendContent,
-    ChartTooltip,
-    ChartTooltipContent,
-} from '@/components/ui/chart';
+import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 // Simple mock recharts components for testing
 const MockBarChart = ({ children }: { children: React.ReactNode }) => <div data-testid="bar-chart">{children}</div>;
@@ -28,7 +21,7 @@ describe('ChartContainer', () => {
                 <MockBarChart>
                     <MockBar />
                 </MockBarChart>
-            </ChartContainer>
+            </ChartContainer>,
         );
 
         // ChartContainer wraps content in a responsive container
@@ -41,7 +34,7 @@ describe('ChartContainer', () => {
                 <MockBarChart>
                     <MockBar />
                 </MockBarChart>
-            </ChartContainer>
+            </ChartContainer>,
         );
 
         const chartDiv = container.querySelector('[data-chart]');
@@ -54,7 +47,7 @@ describe('ChartContainer', () => {
                 <MockBarChart>
                     <MockBar />
                 </MockBarChart>
-            </ChartContainer>
+            </ChartContainer>,
         );
 
         const chartDiv = container.querySelector('[data-chart]');
@@ -68,7 +61,7 @@ describe('ChartContainer', () => {
                 <MockBarChart>
                     <MockBar />
                 </MockBarChart>
-            </ChartContainer>
+            </ChartContainer>,
         );
 
         const chartDiv = container.querySelector('[data-chart]');
@@ -150,3 +143,9 @@ describe('ChartLegendContent', () => {
         expect(ChartLegendContent).toBeDefined();
     });
 });
+
+// jsdom has no layout; supply an actual nonzero chart viewport for these contracts.
+beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 400, 300));
+});
+afterEach(() => vi.restoreAllMocks());

@@ -7,11 +7,24 @@ for `main` bugfixes, `dev` features, automatic synchronization, and publishing.
 To test immutable Production candidates while Stage follows `dev`, use
 [Release Candidate Testing](release-candidate-testing.md).
 
+For PIDINST instrument refreshes, dry runs, identity checks and recovery, see
+[B2INST v3 Integration](b2inst-integration.md).
+
+For environment-specific COUNTER activation, aggregation, retention and recovery,
+see [COUNTER Usage Statistics](counter-usage.md). New usage collection stays
+inactive until explicitly activated; migrations alone preserve legacy counting.
+
 - Fast Mode is the default path for day-to-day development.
 - Optional profiles are available for assessment-specific and parity-specific work.
 - Canonical validation entry points remain `npm run check:backend`, `npm run check:frontend`, and `npm run check:parity`.
 
 Host-side frontend commands require local `node_modules` in the repository checkout. Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm install` only when intentionally adding or updating dependencies so npm can update the lockfile.
+
+Frontend validation includes jsdom tests and Chromium component tests. After
+`npm ci`, run `npm run test:browser:install` once to install the browser version
+required by the lockfile. `npm run check:frontend` runs both projects; focused
+browser runs, failure traces and optional incremental feedback are documented
+in [Frontend Validation](testing.md#frontend-validation).
 
 | Mode               | Purpose                                                                                                                                                   | Command                         |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
@@ -145,11 +158,41 @@ and record the explicit identifier information used for conflict detection.
 The update is available even when the remote and local instrument counts match:
 equal counts do not prove that names or identifiers are unchanged.
 
+If B2INST has no provider PID for an instrument and its Handle is explicitly
+reported as unregistered, the refresh excludes that instrument and updates the
+remaining selection. Settings shows the exclusion count and record details,
+including after reloading the page. Existing dataset links and curated names are
+preserved. Network errors, uncertain identity checks and incomplete downloads
+retain the previous registry. A later successful refresh can restore an instrument
+once its Handle has been registered.
+
+Empty entries in the optional `MeasuredVariable` list are treated as missing
+measurements and do not exclude the instrument. Invalid field types still protect
+the previous registry. Full refreshes can take several minutes when many records
+require external Handle identity checks; a hard error in an existing record now
+stops further instrument processing as soon as it is detected.
+
 **Resolve names again** in the editor rereads the local registry without
 discarding unsaved form changes or contacting B2INST. If an instrument remains
 unknown, ask an Admin or Group Leader to update the registry in Settings and then
 retry. Opening an existing resource does not write names to the database; save
 the resource normally to retain any newly resolved names.
+
+### Historical and projected dataset dates
+
+The Data Editor's Dates section accepts years 0001 through 9999, including
+year-only and year-month values. Collected, Valid and Other allow future single
+dates and both endpoints of a period, so historical observations and climate
+projections can be saved together. Created, Copyrighted, Submitted and Withdrawn
+retain their restriction to past and present dates.
+
+The calendar offers a direct Year input and a month dropdown. Navigating to a
+year does not change the metadata until a day is selected. Years below 0100 keep
+their actual year, and saving or reopening retains the supplied precision.
+
+Available continues to use the existing embargo workflow. Validated embargoed
+records require one complete Available day; drafts retain their existing relaxed
+completeness rules. Future Collected, Valid and Other dates do not enable an embargo.
 
 ### Download URL suggestion default
 
@@ -199,6 +242,35 @@ npm run docker:dev:assessment
 npm run docker:dev:parity
 ```
 
+### Curation mail queue
+
+The standard stack includes `curation-queue` for review invitations, review-link
+migration emails, mentions and assignment notifications. It runs
+`php artisan queue:work curation --queue=curation --sleep=1 --tries=3 --timeout=60`.
+The `curation` connection always uses the application's database and its `jobs`
+table, even when `DB_QUEUE_CONNECTION`, `DB_QUEUE_TABLE` or `DB_QUEUE` sends the
+general worker elsewhere. Queue insertion and the curation audit receipt share
+one transaction; rolling it back removes both. Keep `after_commit=false` on this
+connection so a queue insertion failure also rolls back the receipt.
+
+The worker's 60-second timeout is shorter than the 90-second reservation, and
+Compose allows 75 seconds for graceful shutdown. New messages use the dedicated
+`curation` queue so the general worker does not reserve them with its longer
+timeout. Stage, Production and the isolated release candidate include this worker
+using the same application image and mail settings as the general worker.
+
+After pulling the change, start the consumer with:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml up -d curation-queue
+```
+
+Earlier issue-409 builds queued these messages on the application database's
+`default` queue. Existing jobs retain that routing: let the general worker finish
+them if it uses that database. With a separate general queue database, drain the
+old application `default` queue using the `curation` connection before completing
+the rollout. Do not delete pending jobs or their audit receipts.
+
 ### Assistant discovery queue
 
 The standard stack includes `assistance-queue`, separate from the general queue
@@ -224,6 +296,20 @@ npm run test:php:mysql-sensitive -- --slice editor-background
 
 These checks pause background work inside its HTTP call and save the same resource
 through an authenticated editor request on an independent database connection.
+
+### Funding award URI enrichment
+
+The optional Award URI assistant uses Crossref Grants and the public CORDIS SPARQL
+endpoint. Set `FUNDING_AWARD_URI_ENABLED=true` in `.env.docker`, configure a monitored
+`CROSSREF_MAILTO`, and recreate the application and Assistance worker. Keep the
+existing Redis cache available for shared provider locks and cooldowns. ROR-based
+inputs also require the existing ROR/FundRef index to be current.
+
+Discovery proposes values only for empty award URI fields. Review is manual and
+retains source evidence and reviewer identity permanently. Partial checks expose
+source errors and can be resumed with Check. See the
+[award URI operating guide](funding-award-uri-enrichment.md) for source limitations,
+cache and timeout defaults, deployment/rollback steps and focused test commands.
 
 ### Persistent FAIR assessment queue
 
@@ -269,6 +355,35 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assess
 
 ## Command Reference
 
+### Contact person index
+
+Admins, Group Leaders and Curators reach **Contact Persons** under **Tools** in
+either sidebar workspace. The overview and exact contact filters read the
+derived `resource_contact_points` table. Deploy the migration and build the index
+in the deployment maintenance window before reopening the application:
+
+```bash
+npm run artisan -- migrate --force
+npm run artisan -- contact-persons:rebuild
+```
+
+The rebuild is idempotent, processes resources in batches and replaces only the
+derived contact index. It does not edit person identities or metadata. Run it
+again after a bulk data repair that bypasses model events. Resource edits and
+contact-role changes refresh the index automatically. Changes to shared person
+names or ORCIDs propagate through the existing listing dependency queue; ensure
+those workers finish before judging the new grouping. Restart workers with the
+new application code during deployment. Rollback removes only the derived table;
+restore the previous application code before rolling back its migration.
+
+Focused validation uses `npm run test:php -- tests/pest/Feature/ContactPersons`,
+`npm run test:php:mysql-sensitive -- --slice contact-persons` and
+`npm run test:e2e:devstack -- workflows/contact-persons.spec.ts`. On Windows use
+`npm.cmd` if PowerShell consumes arguments after `--`. The browser fixtures are
+included in `PlaywrightTestSeeder` through `ContactPersonsPlaywrightSeeder`.
+
+### Development commands
+
 | Task                                             | Recommended place              | Command                                             |
 | ------------------------------------------------ | ------------------------------ | --------------------------------------------------- |
 | Start the core stack                             | Host shell                     | `npm run docker:dev:up`                             |
@@ -305,10 +420,121 @@ bind-mount reads. PHPStan also inherits the 2 GB PHP configuration when its
 analyzer restarts or launches workers. Run these wrappers sequentially because
 they share that workspace.
 
+## Homepage news
+
+Admins and Group Leaders open **Administration → Configuration → Manage News**
+at `/manage-news`. Create contributions with a separate title and Markdown text;
+the preview uses the same renderer as the public homepage. Formatting includes
+headings, emphasis, lists, links and external HTTPS images. HTML and unsafe URL
+schemes are removed. Images are not uploaded or fetched by the ERNIE server.
+
+Saving a new contribution creates a draft. **Set as active** selects the regular
+announcement, replacing the previous selection. The active regular contribution
+cannot be archived until another one is selected. **Schedule** explicitly
+publishes a temporary contribution for its saved start and end. All management
+times use Europe/Berlin; UTC is used for persistence and comparisons. The start is
+inclusive and the end exclusive. Adjacent intervals are allowed; overlapping
+planned intervals are rejected. Nonexistent spring-transition times are rejected;
+ambiguous autumn times require choosing +02:00 or +01:00 explicitly.
+
+Temporary announcements are selected when the homepage is requested and return
+to the then active regular news after their end. No scheduler or queue worker is
+needed. Open tabs update on the next visit or reload. **Cancel schedule** stops
+the override. **Archive** retains content and cancels its schedule; **Restore**
+returns it to a draft. Expired contributions stay stored. Concurrent changes are
+rejected rather than overwriting a newer version; copy edits before reloading the
+latest version if they need to be reapplied.
+
+Run the two `2026_11_18_*news*` migrations before using the feature. They create
+the tables and copy the original ELMO announcement into the active regular
+selection, including on fresh databases. No optional seeding step is needed and
+repeated deployments do not reset content. News are never initialized by public
+requests. The singleton selection also serializes publication changes, including
+the first temporary schedule. Its lock behavior is tested on the pinned MySQL
+9.7 server with `npm run test:php:mysql-sensitive -- --slice news`; focused
+business tests run with `npm run test:php -- tests/pest/Feature/News`, frontend
+tests with `npm run test:run -- tests/vitest/pages/manage-news`, and browser tests
+with `npm run test:e2e:devstack -- workflows/manage-news.spec.ts --workers=1`.
+The publishing browser workflow requires one worker because all browser projects
+share the same homepage selection; it restores that selection and archives its
+test contributions afterward. Parallel runs skip these global mutation cases.
+For validation with built assets and the Linux workspace, use:
+
+```powershell
+$env:ERNIE_PLAYWRIGHT_ASSETS = 'build'
+$env:ERNIE_PLAYWRIGHT_BACKEND = 'native'
+npm.cmd run test:e2e:devstack -- workflows/manage-news.spec.ts --workers=1
+```
+
+## Resource formats and sizes
+
+The Data Editor has an optional **Format & Size** section. Formats and sizes are
+independent resource metadata lists, using the same `formats` and `sizes` records
+as the Format and Size Suggestion Assistant. They can be saved before a landing
+page or download URL exists. Each format uses a searchable IANA MIME-type list;
+each digital size uses a decimal input and a separate decimal or binary unit.
+Decimal commas and points are accepted, with up to 16 integer digits and four
+decimal places. Values are transported as strings to preserve precision.
+
+The format picker shows familiar names such as **CSV**, **JSON** and **Excel (XLSX)**,
+with the MIME type underneath for disambiguation. Both names and MIME types are
+searchable; persistence still uses the MIME type. Options are ordered by the
+number of ERNIE Resources using that format, then alphabetically by display name
+and MIME type. Each resource contributes at most once per normalized format,
+including legacy aliases such as `CSV` and MIME values with parameters. IGSN
+Physical Objects are excluded, matching the Resources workspace. Counts are
+cached for one minute and supplied when an editor is loaded. Unused formats
+remain available in the same complete IANA catalog.
+
+Existing non-IANA formats remain visible and can be preserved or deliberately
+replaced. Assistant size meanings such as **Uncompressed Primary Data Size** are
+retained when their numeric value changes. Physical and unstructured size
+metadata remains visible and is preserved. XML, JSON and JSON-LD uploads carry
+these values into the editor. Import evidence is stored server-side, belongs to
+the uploading user, and expires after 24 hours. Each row can be consumed once,
+only while creating a resource. Consumption shares the resource transaction, so
+a failed save can be retried. Existing resources preserve their stored legacy
+rows by ID; upload tokens cannot authorize new exceptions on other resources.
+This permits imported free-text metadata without allowing arbitrary new format
+entries in the regular field. Deployments must run the migration that creates
+`content_metadata_import_rows` before accepting uploads.
+
+Landing-page setup edits URLs, button labels and layout. It no longer edits
+formats or sizes. Existing download assignments retain their record IDs across
+editor changes, label changes and link reordering. Resource sizes, including
+uncompressed archive contents, are not automatically assigned as download file
+sizes. A stale editor snapshot cannot overwrite newer assistant or editor
+metadata; reload the resource and review the changes if a conflict is reported.
+
+The complete local MIME catalog is `resources/data/iana-media-types.json`.
+Its source is the official [IANA Media Types registry](https://www.iana.org/assignments/media-types/).
+The initial snapshot was retrieved on 2026-11-16 from the registry dated
+2026-11-10. The JSON records the source URL, registry date and source SHA-256.
+Editing does not require an external registry request. To update the catalog:
+
+```sh
+npm run artisan -- mime-types:update
+# Alternatively, process a previously downloaded complete IANA XML snapshot:
+npm run artisan -- mime-types:update --source=/var/www/html/path/to/media-types.xml
+```
+
+In Windows PowerShell, use `npm.cmd` for commands with forwarded options.
+The updater validates the registry and atomically replaces the catalog only
+after a successful complete parse. Review and commit the resulting JSON.
+No database migration is required for the editor fields.
+
 ## Environment Files
 
 JSON-LD exports use `APP_URL` as their canonical public origin. The versioned context
-is served anonymously at `/metadata/contexts/datacite-4.7-v1.jsonld`. Leave
+is served anonymously at `/schemas/datacite/4.7/v1/context.jsonld`; the previous
+`/metadata/contexts/datacite-4.7-v1.jsonld` URL remains available. The DataCite JSON
+Schema is published at `/schemas/datacite/4.7/schema.json` and its fixed `v1/` URL,
+following the existing `/schemas/igsn/2.0/core.xsd` pattern. The public
+[IGSN Core guide](https://dataservices.gfz.de/schemas/igsn/2.0/docs) explains the XML
+fields; its [implementation notes](igsn-2.0-core-export.md) record the sources and
+export mapping. See [the public schema README](../resources/data/scheme/datacite/4.7/v1/README.md)
+for DataCite URLs and external validation.
+Leave
 `DATACITE_LINKED_DATA_CONTEXT_URL` unset unless an independently verified compatible
 mirror is required. Docker forwards this optional override from `.env.docker` to
 the app and workers; recreate them after changing it. See
@@ -521,15 +747,11 @@ and offers rolling 4-, 12-, and 52-week views. Recommendations remain in the
 collecting state until every weekday/hour cell has at least one complete
 observation.
 
-### DataCite import mode
+### DataCite mode and repository credentials
 
-Keep `DATACITE_TEST_MODE=true` for local development and Stage. Eligible imported resources and every newly imported IGSN receive their local landing page, but the import never writes metadata to either DataCite API in this mode.
+Keep `DATACITE_TEST_MODE=true` for local development and Stage. Ordinary DOI registration and metadata-update checks use the configured test repository. On `/igsns`, single and batch registrations generate local JSON previews.
 
-GEOFON Seismic Events keep the external landing-page target supplied by DataCite when it points to a GEOFON host. Legacy `http://` GEOFON URLs are stored as `https://`, and retired `/db/eqpage.php?id=...` event targets are stored directly under the canonical `https://geofon.gfz.de/eqinfo/event.php?id=...` URL. Findable records receive a published external landing page, so their ERNIE workflow status is `published`; this applies based on the selected or assigned datacenter and is not limited to one DOI prefix.
-
-With `DATACITE_TEST_MODE=false` on Production, the same local landing pages are created and the newly imported, published records enter a separate DataCite synchronization phase. That phase exports the complete ERNIE metadata and changes the DOI target URL to the new landing page. Failed updates do not roll back the import or landing page and can be retried from the completed import dialog.
-
-Production uses separate DataCite Repository accounts for ordinary GFZ DOIs and legacy IGSNs. Configure `DATACITE_USERNAME` / `DATACITE_PASSWORD` and `DATACITE_CLIENT_ID` for the ordinary DOI repository and `DATACITE_IGSN_USERNAME` / `DATACITE_IGSN_PASSWORD` for the `GFZ.IGSN` repository that owns prefix `10.60510`. ERNIE selects the IGSN credentials automatically for that prefix; using the ordinary DOI credentials results in a DataCite HTTP 403 response. Audits against the test API additionally require `DATACITE_TEST_CLIENT_ID`.
+Production uses separate Repository accounts for ordinary GFZ DOIs and IGSNs. Configure `DATACITE_USERNAME`, `DATACITE_PASSWORD`, and `DATACITE_CLIENT_ID` for the ordinary repository, and `DATACITE_IGSN_USERNAME`, `DATACITE_IGSN_PASSWORD`, and `DATACITE_IGSN_CLIENT_ID` for the IGSN repository. ERNIE selects the IGSN credentials for the configured IGSN prefix. Test API audits additionally require `DATACITE_TEST_CLIENT_ID`.
 
 ### GEOFON seismic-event landing-page repair
 
@@ -604,99 +826,15 @@ Apply runs send only `doi`, `schemaVersion`, and the existing `types` object. Be
 
 After applying, repeat the dry run. Successfully upgraded records appear as `already_current` and do not cause another write, making the process idempotent. Archive the apply report and private snapshots according to the operating retention policy.
 
-### Legacy line coverage enrichment
+### Completed legacy migration
 
-Newly created resources from DataCite are optionally enriched with profile lines from non-empty `sumario-pmd.coverage.wkt` values. ERNIE stores each valid coordinate chain as `geo_type = line` with its ordered points in `polygon_points`, so the Data Editor and landing pages retain the original line geometry. On later DataCite exports, the existing thin-polygon workaround is used because DataCite does not provide a line geometry type.
+The Resources and IGSNs legacy import actions, background jobs, and legacy metadata backfill commands have been retired. Editing, file uploads, citation-label hydration, registration, and public search use ERNIE and the current external metadata providers without accessing the old SUMARIOPMD, MetaWorks, Solr, or IGSN DIF sources. Existing migrated metadata and provenance remain stored.
 
-The enrichment replaces a DataCite bounding box only when all four legacy bounds match and exactly one safe candidate can be identified, using the place description to resolve equal boxes where possible. Other GeoLocations are preserved. Invalid geometry, incomplete bounds, ambiguous matches, and legacy database failures keep the imported DataCite metadata and do not fail the import.
+Citation-label hydration preserves supplied labels and resolves missing DOI and DOI-URL citations through the current metadata providers. Arbitrary URLs without a supplied citation remain without an automatic label. The old MetaWorks citation cache is no longer queried.
 
-This enrichment runs only while creating a new DataCite resource. Duplicate, skipped, and repair paths do not add lines to resources that already exist in ERNIE; there is no automatic backfill.
+The admin-only `/database` exports still support SUMARIOPMD, MetaWorks and IGSN for final backups. Keep their `DB_SUMARIOPMD_*`, `DB_METAWORKS_*`, `DB_IGSN_*`, TLS configuration and `DATABASE_DUMP_IGSN_BINARY` until these exports are retired. The separate MySQL 8.4 dump-client build stage remains necessary for the legacy IGSN export; the development and test server remains MySQL 9.7.
 
-### Legacy description break cleanup
-
-New SUMARIO imports correct the duplicated paragraph breaks produced by the legacy XML export before storing descriptions. The correction is pairwise: two consecutive `<br>` tags become one, three become two, four become two, and in general a run of `n` break tags or plain-text newline tokens becomes `ceil(n / 2)`. Whitespace between tags and the variants `<br>`, `<br/>`, and `<br />` are supported; unrelated text and HTML remain unchanged.
-
-The migration adds `resources.legacy_description_breaks_normalized_at` as a durable one-time marker because applying the pairwise rule twice would remove intentional spacing. The cleanup considers both resources marked with `legacy_source = sumario-pmd` and older unmarked resources whose normalized DOI has exactly one match in SUMARIO. Ambiguous DOI matches are reported for manual review. The configured `metaworks` connection must therefore be reachable for every run, although the command never writes to the legacy database.
-
-Deploy the migration, take the normal ERNIE database backup, and audit the complete selection before applying changes:
-
-```bash
-npm run artisan -- migrate --force
-npm run artisan -- resources:repair-legacy-description-breaks \
-    --report=storage/app/legacy-description-breaks-dry-run.csv
-npm run artisan -- resources:repair-legacy-description-breaks \
-    --apply --after-id=0 --limit=500 --chunk=100 \
-    --report=storage/app/legacy-description-breaks-applied.csv
-```
-
-Use repeatable `--doi` or `--legacy-id` options for targeted audits. `--after-id` refers to the ERNIE `resources.id`; the command always prints the last scanned ID, including batches containing only non-legacy candidates whose CSV has no data rows. Review the CSV and use that printed ID before continuing with another bounded batch. Apply runs update all descriptions of one resource transactionally, reject concurrent edits, invalidate a changed published landing-page cache, and never process an already marked resource again.
-
-With `DATACITE_TEST_MODE=false`, every changed resource with a DOI is queued for a complete metadata synchronization through the `imports` queue. In test mode the local repair still applies but no DataCite request is made. Sync failures do not roll back local changes; retry them with the run UUID printed by the apply command:
-
-```bash
-npm run artisan -- resources:repair-legacy-description-breaks --retry-sync=<sync-run-uuid>
-```
-
-### Legacy temporal coverage backfill
-
-The temporal-coverage migration adds nullable columns to `geo_locations`; it does not guess or manufacture values for existing rows. After deploying the migration, the original `sumario-pmd.coverage.start` and `coverage.end` values can be copied into already imported ERNIE resources with the dry-run-first backfill command.
-
-By default, the command considers only resources with the exact `legacy_source = sumario-pmd` and `legacy_source_id` recorded by the SUMARIO import. It matches each legacy coverage to an existing GeoLocation by its spatial coordinates, then uses a normalized description or the original one-to-one position only where that is unambiguous. A legacy coverage without spatial identity is added as a temporal/place-only GeoLocation. Existing equal values are left unchanged. If any temporal field conflicts, the matched GeoLocation remains completely unchanged and is reported for manual review; missing fields are filled only when the complete merge is conflict-free.
-
-Run the migration and audit before applying changes:
-
-```bash
-npm run artisan -- migrate --force
-npm run artisan -- resources:backfill-legacy-temporal-coverages --report=storage/app/legacy-temporal-coverage-dry-run.csv
-```
-
-Review every `manual_review`, `missing_legacy`, and `error` row in the CSV. Then apply the safe rows in bounded batches:
-
-```bash
-npm run artisan -- resources:backfill-legacy-temporal-coverages --apply --after-id=0 --limit=500 --chunk=100 --report=storage/app/legacy-temporal-coverage-applied.csv
-```
-
-Use repeatable `--doi` or `--legacy-id` options for a targeted rollout. `--after-id` always refers to the ERNIE `resources.id` shown in the report. The command is idempotent and invalidates the rendered cache of a changed published landing page.
-
-Imports created before ERNIE recorded `legacy_source_id` require an explicit DOI fallback. Audit a small selection first because this mode also inspects otherwise unlinked ERNIE resources whose DOI exists in SUMARIO:
-
-```bash
-npm run artisan -- resources:backfill-legacy-temporal-coverages --match-by-doi --doi=10.5880/example --report=storage/app/legacy-temporal-coverage-doi-audit.csv
-npm run artisan -- resources:backfill-legacy-temporal-coverages --apply --match-by-doi --doi=10.5880/example
-```
-
-The application and queue containers need working access to the configured `metaworks` connection while the command runs. The backfill reads but never modifies the legacy database. Take the normal ERNIE database backup before the apply run; a nonzero exit code indicates processing errors, while manual-review rows deliberately remain unchanged and do not fail the complete run.
-
-### Legacy creator names and EPOS MSL keyword backfill
-
-Legacy SUMARIO resources can contain a more precise creator spelling than the shared ERNIE person record, for example `Philipp S. Sommer` on one resource and `Philipp Sommer` on another resource with the same ORCID. ERNIE keeps the shared person and ORCID as the identity, but stores the spelling used by an individual resource on `resource_creators`. Landing pages, editors, resource lists and searches, citations, and metadata exports prefer this resource-specific snapshot. New SUMARIO imports add a snapshot only when the legacy author can be matched unambiguously and its name is equal to or more precise than the DataCite spelling.
-
-The retired `EPOS WP16 Analogue ...` and `EPOS WP16 Rock Physics ...` schemes are display and search aliases of the MSL family. They are not silently remapped to the current MSL 1.3 concepts: the original legacy scheme and a real legacy source URI are retained, missing URIs remain empty, and ERNIE never manufactures a current MSL URI. This applies to all nine WP16 categories in both scheme families.
-
-After deploying the creator snapshot migration, audit already imported resources with the combined dry-run-first command. The configured `metaworks` connection is read-only for this operation:
-
-```bash
-npm run artisan -- migrate --force
-npm run artisan -- resources:backfill-legacy-creator-and-msl-metadata \
-    --report=storage/app/legacy-creator-msl-dry-run.csv
-```
-
-Review all `manual_review`, `missing_legacy`, and `error` rows. Pilot the two reported resources before applying a bounded production batch:
-
-```bash
-npm run artisan -- resources:backfill-legacy-creator-and-msl-metadata \
-    --doi=10.5880/gfz.1.4.2021.008 --doi=10.5880/fidgeo.2024.038 \
-    --report=storage/app/legacy-creator-msl-pilot.csv
-npm run artisan -- resources:backfill-legacy-creator-and-msl-metadata \
-    --apply --after-id=0 --limit=500 --chunk=100 \
-    --report=storage/app/legacy-creator-msl-applied.csv
-```
-
-Repeatable `--doi` and `--legacy-id` options restrict the audit. `--after-id` refers to the ERNIE `resources.id`. Resources imported before `legacy_source_id` was recorded require the explicit `--match-by-doi` fallback and should first be audited in a small DOI-filtered scope. The command only fills missing, unambiguous creator snapshots and adds or enriches non-conflicting legacy MSL subjects; it never overwrites a different curated name or URI. Apply runs are idempotent, invalidate changed published landing pages, and queue full-metadata DataCite synchronization for changed registered resources. A failed sync run can be retried without rerunning the backfill:
-
-```bash
-npm run artisan -- resources:backfill-legacy-creator-and-msl-metadata --retry-sync=<sync-run-uuid>
-```
+Before deploying this removal, prevent new imports and drain or explicitly resolve existing import and import-sync jobs using the old application version. Include delayed and failed jobs, and inspect their actual queues before changing workers. Do not clear unrelated queues. Deploy the application and worker configuration together, rebuild route/configuration caches and Wayfinder assets, and verify the remaining DataCite and database-dump workers. No legacy import jobs may be retried against the new code.
 
 ### Exact subject duplicate cleanup
 
@@ -723,105 +861,87 @@ npm run artisan -- subjects:deduplicate --apply \
 
 The repeatable `--doi` option narrows an audit further. Use `--include-free` only when exact free-keyword duplicates should also be considered. Apply runs are transactional per resource and idempotent; they remove stale Subject assistance rows and invalidate affected keyword and landing-page caches. A nonzero exit code indicates processing errors.
 
+### Equivalent keyword variants (issue #1531)
+
+Imports, editor saves and landing pages also recognize variants confirmed by the
+same local vocabulary concept. This includes historical paths and missing URIs
+when the local vocabulary uniquely identifies the term. Language differences,
+conflicting metadata, ambiguous matches and free versus controlled keywords remain
+separate. GCMD category labels such as **In Situ/Laboratory Instruments** are
+preserved as terms, rather than stripped as vocabulary headings. Unresolved GCMD
+imports retain the editor's legacy marker for review.
+
+The default `subjects:deduplicate` mode remains exact. Use `--mode=equivalent` for
+a reviewed repair of existing variants. It performs no remote vocabulary requests
+and requires a new JSON report filename. Prepare the local vocabulary caches
+first. Start with the two affected DOI and inspect the report's `subjects`,
+`analysis.groups`, proposed `row`, `diagnostics` and vocabulary evidence:
+
+```powershell
+npm run artisan -- subjects:deduplicate --mode=equivalent --doi=10.5880/gfz.4.8.2023.004 --doi=10.5880/gfz.4.6.2020.005 --report=storage/app/issue-1531-review.json
+```
+
+After the normal database backup and report review, apply that exact selection:
+
+```powershell
+npm run artisan -- subjects:deduplicate --mode=equivalent --apply --from-report=storage/app/issue-1531-review.json --report=storage/app/issue-1531-apply.jsonl
+```
+
+Apply accepts no new DOI/scheme/resume/limit filters. It locks each resource,
+rechecks subjects and vocabulary fingerprints, and rejects changed proposals.
+This also applies when the last duplicate group has disappeared or the report
+has already been applied successfully. Use a new audit for another apply run;
+use `--refresh-caches` below when only cache recovery is needed.
+Do not edit a resource snapshot in the report; altered content is rejected.
+Create a fresh filtered audit when a different repair selection is needed.
+The JSONL journal records original subjects and affected assistance records before
+mutation, then the result after the transaction. Existing files are never
+overwritten. A journal `before` entry alone does not prove commit: check the
+database before recovery. Retain the backup, reviewed report and journal; restore
+only after comparing any newer edits. Pending embargo registrations are excluded
+from apply until reconciled.
+
+Cache errors are reported separately after a committed repair. Retry invalidation
+without changing subjects using a new journal file:
+
+```powershell
+npm run artisan -- subjects:deduplicate --mode=equivalent --refresh-caches --from-report=storage/app/issue-1531-review.json --report=storage/app/issue-1531-cache-retry.jsonl
+```
+
+Repeat the dry run with a new report filename after repair. For larger audits use
+bounded `--limit`, `--chunk` and `--after-resource-id` batches; the last scanned ID
+is reported for continuation. `--scheme` in equivalent mode includes known scheme
+aliases. Free keywords still require `--include-free` and only exact duplicates
+are removed. Unresolved groups remain in the report and need curator review.
+
+Landing pages combine only confirmed groups during rendering and do not write
+metadata. Local XML/JSON exports reflect the stored records, so verify them after
+the actual repair. The command does not update external DataCite records: publish
+the reviewed corrections through the existing explicit metadata synchronization
+workflow and verify that separately. Use the deployment's normal Artisan entry
+point on Stage/Production; the npm examples above address the local Docker stack.
+
 ### Testing Data Editor registration safely
 
 Keep `DATACITE_TEST_MODE=true` and use test Repository credentials when exercising the Data Editor's `Register` or `Update Metadata` actions locally. `Validate`, `Save Draft`, autosave, `Preview LP`, and `Show LP` are local-only actions and must not produce a DataCite request. The two DataCite write actions run complete client validation, show an explicit confirmation before their action-specific save, and automatically continue through landing-page setup when a page is missing.
 
 After a new test DOI is registered, the success dialog displays the number of locally published Resources plus published IGSNs. This is deliberately smaller than or equal to the combined sidebar badges: a record counts only when it has a non-empty DOI and a published landing page. Draft, curation, and review records are excluded. The dialog redirects to `/resources` after five seconds; operating-system reduced-motion settings suppress confetti without changing the result or countdown.
 
-There is no separate post-import sync flag: `DATACITE_TEST_MODE` is the only switch. The queue worker must consume the `imports` queue so the bounded synchronization jobs can complete.
-
 ### Testing queued IGSN batch registration safely
 
-The IGSN list can queue up to 1000 selected samples for DataCite registration or metadata updates. Keep `DATACITE_TEST_MODE=true`, configure valid DataCite Test credentials, and use only disposable identifiers when testing this workflow locally. The start request returns `202 Accepted`; it never performs the DataCite writes in the web request.
+On `/igsns`, `DATACITE_TEST_MODE=true` prepares the DataCite request locally. Beginners also use this mode when the global setting is off. Set up a landing page, select the row's registration action or check up to 1000 samples and choose **Register Selected**. Local previews work without DataCite credentials and can use a draft landing page.
 
-Each run and its ordered items are stored in `igsn_registration_runs` and `igsn_registration_items`. One short-lived job processes one item and dispatches the next job on the queue configured by `DATACITE_QUEUE`, which defaults to `datacite`. Both the app and queue services must use a persistent queue connection such as `database`; `sync` and `null` are deliberately rejected. Every Docker environment forwards `DATACITE_QUEUE` to both services, and its worker consumes the configured queue.
+The preview shows the color-coded JSON that ERNIE prepares for each sample. Choose an IGSN and use **Copy JSON** to copy it. Closing a finished preview marks its successful entries **Registered** for everyone using test mode. A second login or reload shows the same result. A draft landing page stays private. In production, a sample with only a simulated registration offers **Register at DataCite**.
 
-The effective DataCite test/production mode and endpoint are snapshotted when a run starts. Credentials are never stored with the run and are read from the current server configuration by each job. A changed mode or endpoint pauses the run before another write. Beginner runs remain on DataCite Test even when a worker executes without a signed-in browser user.
+A single preview is prepared immediately. A batch uses the persistent `DATACITE_QUEUE` worker (default `datacite`). Closing a running batch lets preparation continue. Select **View registration progress** to return to the results. Errors identify individual samples. If a sample changes before confirmation, start a fresh preview for that sample.
 
-Closing the progress dialog, navigating away, restarting a worker, or reloading the browser does not cancel a run. Return to `/igsns` and use **View registration progress** to inspect it. Cancellation takes effect between external requests. Failed items can be retried without resending successful items; a resumed item also checks whether DataCite already accepted an earlier create request before it attempts another create.
+Production registration uses the configured IGSN repository and confirms DataCite's Findable state. The production queue supports cancellation, retries and reconciliation. An **Unverified** status identifies an older registration whose production origin needs checking. ERNIE verifies it with the repository on the next production action.
 
-For a safe local check:
+### Migrated IGSN metadata and images
 
-1. Start the Docker stack and confirm the queue service consumes `datacite`.
-2. Create a small set of synthetic IGSNs with published landing pages.
-3. Confirm the progress dialog says **DataCite Test**, then use **Register Selected**.
-4. Close and reopen the dialog while the run is active, and verify the same run and counters return.
-5. Exercise cancellation or retry only with disposable test identifiers. Never use production credentials for automated or local development tests.
+Existing IGSN classifications, descriptions, geological and drilling metadata, sample families, and repository contacts remain available in local records and landing pages. Legacy-source enrichment and repair commands have been removed after the completed migration.
 
-### Legacy IGSN enrichment
-
-Single-IGSN imports preload their complete DataCite family and the corresponding legacy DIF metadata before writing resources. The public legacy IGSN portal is the mandatory source for this strict preflight. If the portal is unreachable, returns invalid JSON, or contains malformed DIF data, the complete single import fails without creating any new resource, IGSN metadata, relationship, datacenter assignment, or landing page. Existing ERNIE resources remain unchanged and are not backfilled.
-
-The default portal endpoint and retry settings are defined by:
-
-- `GFZ_IGSN_PORTAL_PROXY_URL`
-- `GFZ_IGSN_PORTAL_CONNECT_TIMEOUT`
-- `GFZ_IGSN_PORTAL_TIMEOUT`
-- `GFZ_IGSN_PORTAL_RETRY_TIMES`
-- `GFZ_IGSN_PORTAL_RETRY_SLEEP_MS`
-- `GFZ_IGSN_PORTAL_RETRY_JITTER_MS`
-
-Keep the portal URL on HTTPS. Retries include the observed failure mode in which the proxy answers with HTTP 200 but the body is not valid JSON. The queue job records a stable `error_code` such as `legacy_source_unavailable` or `legacy_invalid_payload` in the import progress instead of silently creating a DataCite-only partial record.
-
-Authenticated Solr and the direct legacy database remain optional enrichment sources for non-single imports. Enable `IGSN_LEGACY_DB_ENABLED` only after the configured TLS and credentials have been verified from both the app and queue containers. Network reachability of port 3306 alone does not prove that the legacy database connection works.
-
-Both app and queue services must use `QUEUE_CONNECTION=database`, and the worker command must consume `imports`. The single-import start endpoint returns `202 Accepted`; later portal or persistence failures are reported through the import status endpoint.
-
-#### Backfill complete legacy IGSN DIF metadata
-
-New legacy imports inspect every non-empty DIF 1.1, 1.2, and 1.3 leaf across all sample blocks and project the approved metadata into typed ERNIE columns and relations. This includes root `hasDocument` publication DOIs as DataCite `Cites`, funders, Available and Collected dates, contributors, geological ages, Rock Type, request information, structured methods, drilling lengths, launch/navigation values, and elevation ranges. ERNIE does not retain a raw DIF payload: unknown non-empty paths are reported with their complete namespace-independent path and sample index so that they require an explicit mapping decision. The known supplemental `IsCitedBy` copies are intentionally ignored because their direction is wrong and the equivalent root publications are authoritative. Total Length remains local IGSN drilling metadata and is never exported as DataCite `sizes`.
-
-Use the dry-run-first command to audit and repair IGSNs already stored in ERNIE across all configured legacy datacenters:
-
-```bash
-npm run artisan -- igsn:backfill-legacy-dif-metadata --report=storage/app/igsn-dif-dry-run.csv
-npm run artisan -- igsn:backfill-legacy-dif-metadata --datacenter=IGSNDB.ICDP --doi=ICDP5052ECZI101
-npm run artisan -- igsn:backfill-legacy-dif-metadata --apply --report=storage/app/igsn-dif-applied.csv
-```
-
-Review missing DIF records, unknown non-empty paths, scalar and privacy conflicts, image availability, and technical errors before using `--apply`. Apply mode is additive: it fills missing values and appends missing repeated values while preserving conflicting local values for manual review. The same command validates allowlisted external ICDP sample images. A definitive 404/410 or invalid image response is reported as `unavailable` and removes only the public `sample_image_external_url`; the validated source descriptor remains stored for auditing. A timeout, transport failure, rate limit, or temporary 5xx response is reported as an image probe error and does not remove a previously published URL. Repeat `--doi` or `--datacenter` for a restricted scope, use `--limit` for a bounded batch, and resume after the printed Resource ID with `--after-id`. Portal requests are limited to 100 handles per request even when a larger `--chunk` is supplied.
-
-The console summary reports unavailable images and temporary probe errors separately. CSV reports include `sample_image_status`, `sample_image_url`, and `sample_image_message`. Image-only changes use the same transaction, landing-page cache invalidation, DataCite synchronization, CSV audit, and `--retry-sync` path as every other field handled by `igsn:backfill-legacy-dif-metadata`; no additional repair command is required for legacy DIF metadata.
-
-Every changed registered IGSN is queued automatically for a full-metadata DataCite synchronization after its local transaction completes. The console and CSV report contain the sync-run UUID. Local changes remain intact if an asynchronous DataCite item fails; retry only those failures with:
-
-```bash
-npm run artisan -- igsn:backfill-legacy-dif-metadata --retry-sync=<sync-run-uuid>
-```
-
-After each applied scope, repeat the same dry run. It should report no further automatic changes; unresolved conflicts, unknown paths, and missing DIF records remain visible for manual follow-up.
-
-#### Repair legacy IGSN classifications
-
-New legacy imports preserve all supported classifications from every `<sample>` block in their original order. This includes the Medusa, Sonne273, Earth Shape, and ICDP values covered by issues #1191, #1200, #1202, and #1210. Unknown controlled values remain rejected and are reported without rolling back unrelated DIF metadata.
-
-Existing IGSNs are deliberately skipped by the DataCite importer, but they no longer need to be deleted and reimported to recover classifications. The dedicated command audits every imported IGSN, fetches its DIF metadata from the public legacy portal in batches of at most 100, and only appends missing classifications or fills an empty classification type. Existing values, positions, and non-empty types are never removed or overwritten. The command is a dry run unless `--apply` is supplied:
-
-```bash
-npm run artisan -- igsn:backfill-classifications --doi=ICDP5054ES1O201
-npm run artisan -- igsn:backfill-classifications --report=storage/app/igsn-classification-dry-run.csv
-npm run artisan -- igsn:backfill-classifications --apply --report=storage/app/igsn-classification-applied.csv
-```
-
-Deploy the updated classification catalogs and application code before running the command. Review rejected values, type conflicts, missing DIF documents, and technical errors in the dry-run report before applying changes globally. Use `--limit` for a bounded run, repeat `--doi` for selected handles or DOIs, and resume after the last completed Resource ID with `--after-id`. A successful apply invalidates only changed published landing-page caches. A second global dry run must report no remaining supported classifications as `would_update`.
-
-The command also repairs still-incomplete classification data from the earlier issues, so their former delete-and-reimport procedure is obsolete. The separate `igsn_metadata.user_code` schema correction from issue #1192 still requires its existing migration. The rejected vocabulary request from issue #1201 remains intentionally excluded.
-
-#### Legacy IGSN sample images
-
-When a legacy DIF record contains a sample image, the import stores its validated source description with the IGSN metadata. Known GFZ Data Services images are downloaded only after the metadata transaction has committed and are served from the persistent Laravel `public` disk. Known ICDP image URLs are normalized to `https://data.icdp-online.org/...`, checked with a bounded allowlist-protected request, and published as external images only after a valid JPEG response. Definitive missing responses are reported as unavailable and do not produce a public image card; temporary probe failures remain distinct and retryable. Unknown hosts, unsafe paths, placeholders, invalid MIME types, oversized files, and failed downloads likewise do not roll back an otherwise successful metadata import. The completed import dialog reports unavailable images separately from technical failures.
-
-Configure the storage disk and download limits with `IGSN_IMAGE_DISK`, `IGSN_IMAGE_CONNECT_TIMEOUT`, `IGSN_IMAGE_TIMEOUT`, and `IGSN_IMAGE_MAX_BYTES`. External probes additionally use `IGSN_IMAGE_EXTERNAL_PROBE_TIMEOUT` and `IGSN_IMAGE_EXTERNAL_PROBE_MAX_BYTES`, which default to 10 seconds and 256 KiB. The managed-image size limit defaults to 20 MiB and only validated JPEG files are accepted. In production, the selected disk must be persistent, backed up, and publicly linked in the same way as the existing Laravel `public` disk.
-
-The older image-only backfill deliberately considers only IGSNs that already exist in ERNIE. It remains available for downloading or replacing managed GFZ images, but it is not required to repair the complete Legacy-DIF projection or remove unavailable external ICDP links. It is a dry run unless `--apply` is supplied:
-
-```bash
-npm run artisan -- igsn:backfill-images --doi=GFSO273N39
-npm run artisan -- igsn:backfill-images --apply --after-id=0 --chunk=100 --report=storage/app/igsn-image-backfill.csv
-```
-
-Use `--limit` for bounded rollout batches, repeat `--doi` to select multiple handles or DOIs, and use `--force` only when already processed images must be revalidated or replaced. A failed run can resume after the last reported resource ID with `--after-id`. The command is idempotent; missing legacy DIF records and records without an image are reported separately from real processing failures.
+Already stored sample images continue to use `IGSN_IMAGE_DISK`. Keep that disk persistent, backed up and publicly linked. Existing external image and download URLs remain stored; removal of the metadata import does not migrate external files or change their hosting.
 
 IGSN landing-page templates partition every module exactly once across a left column, a right column, and `Hidden cards`. Modules can be reordered or moved among all three zones; visible cards also provide a Hide action, and hidden cards can be restored directly to either column. `version_notice` may move between the visible columns but can never be hidden. The built-in `Templates IGSN` copy template uses General, Sample Family, Repositories, Map, Related Work, Download Metadata, Dates, and Citation on the left; Version Notice, Contributors, Authors, Location, Acquisition, and Funding References on the right; and hides the remaining optional modules. IGSN Location details and the Leaflet Map are independent cards, while Resource templates retain their combined Location / Map card.
 
@@ -940,14 +1060,14 @@ Each of the four new public pages can be enabled independently in `.env.docker`:
 | `PUBLIC_DATA_CENTRES_ENABLED` | `/data-centres` |
 | `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` | `/data-centres/description` |
 
-Local development and Stage default to `true`; Production defaults to `false`.
-Use the literal `true` to serve the ERNIE page or `false` to temporarily redirect
-to its existing TYPO3 counterpart. Run `npm run docker:dev:backend:d` after
+All environments default to `true`. Use the literal `true` to serve the ERNIE
+page or `false` to return a local HTTP 404. Disabled pages no longer redirect
+to the old portal. Run `npm run docker:dev:backend:d` after
 changing `.env.docker` to recreate the app container with the new values. The
 switches apply equally to direct visits and Inertia navigation, including
 signed-in users. They do not disable the search portals or other public pages.
 
-For the exact fallback URLs and Portainer instructions, see [public page routing
+For route configuration and Portainer instructions, see [public page routing
 and feature switches](production-container-deployment.md#public-page-routing-and-feature-switches).
 
 ## Maintaining the Public Data Centres Catalogue
@@ -1010,7 +1130,7 @@ This command:
 - starts the backend and optional `test` profile once
 - verifies MySQL 9.7 before resetting a schema; `db-test` uses the exact image pinned for `db`
 - uses `ernie_test` on the disposable `db-test` server, backed by a bounded 2 GiB tmpfs without a host port
-- runs the manifest in `tests/mysql-sensitive-slices.json` with 27 serial reset boundaries, including editor/background concurrency, shared-Redis DOI retry checks and identifier-pattern collation conflicts
+- runs the manifest in `tests/mysql-sensitive-slices.json` with 28 serial reset boundaries, including COUNTER aggregation/activation concurrency, editor/background concurrency, shared-Redis DOI retry checks and identifier-pattern collation conflicts
 - copies the checkout into the Linux-native Pest workspace for the complete run; focused aliases keep using the checkout
 
 The development server and its versioned data volume are preserved. Focused
@@ -1224,6 +1344,92 @@ npm run test:php:mysql-sensitive:editor-settings
 npm run check:backend
 ```
 
+## Curation tracking
+
+Until all curation tables and projection columns exist, curation overview, export,
+panel, history and write requests return HTTP 503. Dashboard and user-list counts
+remain zero. Review invitations and review-link migration emails continue through
+the configured default mail queue, without curation receipts or operation-ID
+deduplication. Schema readiness is rechecked on subsequent requests, so normal
+curation tracking resumes once the migration is complete.
+
+After deploying the additive curation migration, finish or pause running imports
+before initializing existing unpublished resources:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan curation:initialize
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan curation:initialize --apply
+```
+
+The first command is a dry run. Repeated runs preserve existing curation work.
+Published resources, IGSNs and tombstones are excluded; eligible older drafts
+start unassigned. Published records require the editor's explicit **Start curation**
+action. Newly saved drafts and finished unpublished imports start automatically.
+Beginner users can read every curation section but cannot write or be newly assigned.
+
+Review dispatch receipts are recorded only for resources whose curation has
+already started. Untracked resources continue using the configured default mail
+queue without receipts or operation-ID deduplication, even after the migration.
+Initializing curation later does not retroactively count those earlier emails
+as observed review evidence or complete the automatic review-link checklist item.
+
+Keep the scheduler and dedicated `curation-queue` worker running. Assignment and mention
+notifications use the `curation` database connection's `curation` queue so the job
+and its receipt commit atomically. The scheduler retries pending notifications
+every minute. Existing DOI verification uses the configured DataCite queue.
+Review events mean queued, not delivered. Internal notes and locations are not
+included in public metadata exports; the authenticated curation CSV is intentional.
+
+`CURATION_WAITING_OVERDUE_DAYS` defaults to 14 (overdue on calendar day 15).
+The start date is day 1: a wait started at any time on October 1 becomes overdue
+at 00:00 on October 15 in the application timezone. The same boundary applies to
+the panel, overview filters, CSV export and dashboard counts, including DST changes.
+Deadlines become overdue the following day for unpublished records. Application
+timezone boundaries apply. Completion requires publication, all applicable manual
+items, no waiting and no help request. Missing historical review evidence does
+not prevent completion. Embargos remain open and tombstones retain read-only history.
+
+Focused checks use the pinned Node version and MySQL 9.7:
+
+```bash
+npm run test:php -- tests/pest/Feature/Curation
+npm run test:run -- tests/vitest/components/curation-workflow
+npm run test:php:mysql-sensitive -- --slice curation
+npm run test:e2e:devstack -- workflows/curation-performance.spec.ts workflows/curation-tracking.spec.ts --workers=1
+```
+
+The browser performance measurement requires a single worker so concurrent test
+fixtures and editor actions do not distort the one-second target. Its separate
+`curation-performance.spec.ts` file uses a common 1280 x 720 viewport at pixel
+ratio 1 in every browser and disables video and trace recording to avoid
+measuring capture overhead; timing attachments and failure screenshots remain
+available. Functional curation scenarios retain normal recording settings and
+also run with the normal parallel browser configuration.
+Set `ERNIE_PLAYWRIGHT_ASSETS=build` for performance acceptance with production
+assets; the wrapper restores the usual Vite development setup afterwards.
+On Docker Desktop, also set `ERNIE_PLAYWRIGHT_BACKEND=native` to serve the same
+PHP sources from the prepared Linux workspace, as the backend test wrapper does.
+This excludes Windows bind-mount file latency from the application benchmark.
+The native backend requires built assets and uses separate local storage; use it
+for database-backed scenarios such as curation. The default `bind` backend keeps
+the development filesystem for scenarios with file fixtures. Run native browser
+checks separately from PHP test/style wrappers because they share the Linux
+workspace. For example:
+
+```powershell
+$env:ERNIE_PLAYWRIGHT_ASSETS = 'build'
+$env:ERNIE_PLAYWRIGHT_BACKEND = 'native'
+npm run test:e2e:devstack -- workflows/curation-performance.spec.ts workflows/curation-tracking.spec.ts --workers=1
+Remove-Item Env:ERNIE_PLAYWRIGHT_ASSETS, Env:ERNIE_PLAYWRIGHT_BACKEND
+```
+
+Each sort path is warmed once before measuring from the actual change event
+through Inertia completion and browser painting. The attached JSON records
+response time, native PHP request time, navigation completion, browser frames, time until the page is
+usable, and Playwright control time separately. The rendered row IDs must match
+the response order. Sorting and filtering preserve the mounted overview and
+expanded details without replaying the page transition.
+
 ## Advisory PHP 8.6 compatibility check
 
 Run the same sequential compatibility probe locally with the pinned Node/npm
@@ -1304,8 +1510,8 @@ can pass this stage; the probe does not substitute unreviewed development code.
 The version inventory, upstream constraints, validation results and image findings
 for the 19 November 2026 update are recorded in
 [dependency-update-audit.json](dependency-update-audit.json). Composer and npm
-audits report no known vulnerabilities. The inventory records version changes
-and upstream requirements that prevent selected upgrades.
+audits for that update reported no known package vulnerabilities. The inventory
+records version changes and upstream requirements that prevent selected upgrades.
 
 PHP [8.5.13](https://www.php.net/releases/8_5_13.php) is the 19 November security
 release. Both Dockerfiles pin the same verified image digest for Linux amd64 and
@@ -1327,6 +1533,22 @@ HIGH/CRITICAL findings with component fixes, but no newer official MySQL 9.7
 image is available. These remain unresolved. MySQL stays on the required 9.7
 server line. Existing security overrides, the local deepmerge fix and CI
 security gates are preserved.
+
+The 18 November 2026 development dependency refresh is recorded separately in
+[dev-dependency-update-audit.json](dev-dependency-update-audit.json). All 36 direct
+npm development dependencies and all 14 direct Composer development dependencies
+were checked against their latest stable releases. Vitest and its browser and
+coverage packages move together to 5.1.1. React Query also moves to 5.108.0 to
+satisfy the updated React Query Devtools peer requirement. Both host and Docker
+npm installations were refreshed with `npm ci`.
+
+Composer's updated package audit reports no known advisories. npm reports six
+HIGH entries caused by one existing Picomatch advisory,
+[GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf). As of
+18 November, the latest Picomatch release is still affected and no patched
+release is available. The suggested major downgrades of Vite, Vitest and the
+Laravel Vite plugin conflict with the current dependency requirements. The
+finding remains open; security gates and overrides retain their existing policy.
 
 ### DOI publication and metadata update safety
 

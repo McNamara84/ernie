@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use App\Enums\ScienceTopic;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
+use Opis\JsonSchema\Errors\ErrorFormatter;
+use Opis\JsonSchema\Validator;
 
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
@@ -52,9 +55,8 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('tags.0.name', 'Editor Configuration')
         ->assertJsonPath('tags.1.name', 'Vocabularies')
         ->assertJsonPath('tags.0.summary', 'Metadata types and editor option endpoints')
-        ->assertJsonPath('tags.3.name', 'IGSN Imports')
-        ->assertJsonPath('tags.4.name', 'Portal')
-        ->assertJsonPath('tags.5.name', 'Changelog')
+        ->assertJsonPath('tags.3.name', 'Portal')
+        ->assertJsonPath('tags.4.name', 'Changelog')
         ->assertJsonPath('paths./api/changelog.get.tags.0', 'Changelog')
         ->assertJsonPath('paths./api/changelog.get.security.0.LaravelSession', [])
         ->assertJsonPath('paths./api/changelog.get.responses.401.description', 'Authentication required. The request must include a valid ERNIE session.')
@@ -134,26 +136,6 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/RaidProjects')
         ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
         ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.responses.404.description', 'RAiD is disabled or data file not found')
-        // Authenticated IGSN import endpoints
-        ->assertJsonPath('paths./igsns/import/datacenters.get.tags.0', 'IGSN Imports')
-        ->assertJsonPath('paths./igsns/import/datacenters.get.security.0.LaravelSession', [])
-        ->assertJsonPath('paths./igsns/import/datacenters.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/LegacyIgsnDatacenterListResponse')
-        ->assertJsonPath('paths./igsns/import/datacenters.get.responses.403.$ref', '#/components/responses/ForbiddenError')
-        ->assertJsonPath('paths./igsns/import/datacenters.get.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
-        ->assertJsonPath('paths./igsns/import/start-datacenter.post.tags.0', 'IGSN Imports')
-        ->assertJsonPath('paths./igsns/import/start-datacenter.post.security.0.LaravelSession', [])
-        ->assertJsonPath('paths./igsns/import/start-datacenter.post.security.0.CsrfToken', [])
-        ->assertJsonPath('paths./igsns/import/start-datacenter.post.requestBody.content.application/json.schema.$ref', '#/components/schemas/DatacenterIgsnImportRequest')
-        ->assertJsonPath('paths./igsns/import/start-datacenter.post.responses.200.content.application/json.schema.$ref', '#/components/schemas/IgsnImportStartResponse')
-        ->assertJsonPath('paths./igsns/import/start-datacenter.post.responses.403.$ref', '#/components/responses/ForbiddenError')
-        ->assertJsonPath('paths./igsns/import/start-datacenter.post.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
-        ->assertJsonPath('paths./igsns/import/start-datacenter.post.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
-        ->assertJsonPath('paths./igsns/import/start-single.post.tags.0', 'IGSN Imports')
-        ->assertJsonPath('paths./igsns/import/start-single.post.requestBody.content.application/json.schema.$ref', '#/components/schemas/SingleIgsnImportRequest')
-        ->assertJsonPath('paths./igsns/import/start-single.post.responses.202.content.application/json.schema.$ref', '#/components/schemas/IgsnImportStartResponse')
-        ->assertJsonPath('paths./igsns/import/start-single.post.responses.403.$ref', '#/components/responses/ForbiddenError')
-        ->assertJsonPath('paths./igsns/import/start-single.post.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
-        ->assertJsonPath('paths./igsns/import/start-single.post.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         // Authenticated Related Work citation label endpoint
         ->assertJsonPath('paths./api/v1/related-identifiers/citation-label.get.tags.0', 'DataCite')
         ->assertJsonPath('paths./api/v1/related-identifiers/citation-label.get.security.0.LaravelSession', [])
@@ -169,6 +151,8 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./api/v1/related-identifiers/citation-label.get.responses.422.content.application/json.schema.oneOf.0.$ref', '#/components/schemas/ValidationErrorResponse')
         ->assertJsonPath('paths./api/v1/related-identifiers/citation-label.get.responses.429.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('components.schemas.RelatedIdentifierCitationLabelResponse.additionalProperties', false)
+        ->assertJsonPath('components.schemas.RelatedIdentifierCitationLabelResponse.required', ['citation', 'identifier', 'identifier_type'])
+        ->assertJsonPath('components.schemas.RelatedIdentifierCitationLabelResponse.properties.citation_proof.type', 'string')
         ->assertJsonPath('components.schemas.RelatedIdentifierCitationLabelResponse.properties.identifier_type.enum.1', 'URL')
         ->assertJsonPath('components.schemas.ErrorResponse.required.0', 'error')
         // Public portal keyword suggestion, count, resource preview, and map endpoints
@@ -237,11 +221,6 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('components.schemas.PortalMapIgsnSummary.additionalProperties', false)
         ->assertJsonPath('components.schemas.PortalMapComposition.additionalProperties', false)
         ->assertJsonPath('components.schemas.PortalMapMeta.properties.coarsened.type', 'boolean')
-        ->assertJsonPath('components.schemas.DatacenterIgsnImportRequest.properties.datacenter_id.pattern', '^IGSNDB\\.[A-Z0-9_-]+$')
-        ->assertJsonPath('components.schemas.DatacenterIgsnImportRequest.properties.datacenter_id.maxLength', 100)
-        ->assertJsonPath('components.schemas.LegacyIgsnDatacenter.properties.name.type', 'string')
-        ->assertJsonPath('components.schemas.LegacyIgsnDatacenter.properties.resource_count.minimum', 0)
-        ->assertJsonPath('components.schemas.LegacyIgsnDatacenterListResponse.properties.datacenters.items.$ref', '#/components/schemas/LegacyIgsnDatacenter')
         // PID schemas
         ->assertJsonPath('components.schemas.RaidProjects.description', 'Public RAiD project records with metadata wrapper')
         ->assertJsonPath('components.schemas.RaidProject.properties.raidId.type.0', 'string')
@@ -323,7 +302,6 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('components.securitySchemes.ElmoApiKey.name', 'X-API-Key')
         ->assertJsonPath('components.securitySchemes.ElmoApiKey.type', 'apiKey')
         ->assertJsonPath('components.securitySchemes.LaravelSession.in', 'cookie')
-        ->assertJsonPath('components.securitySchemes.CsrfToken.name', 'X-CSRF-TOKEN')
         ->assertJsonPath('components.schemas.Role.properties.slug.type', 'string')
         ->assertJsonPath('components.schemas.ElmoResourceType.properties.id.type', 'integer')
         ->assertJsonPath('components.schemas.ElmoResourceType.properties.name.type', 'string')
@@ -392,6 +370,56 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->not->toContain('zoom');
 });
 
+it('publishes the ORCID search parameters and schemas matching its API responses', function () {
+    $path = '/api/v1/orcid/search';
+    $docUrl = url('/api/v1/doc');
+    $document = getJson($docUrl)->assertOk();
+    $operation = $document->json('paths')[$path]['get'];
+    $parameters = array_column($operation['parameters'], null, 'name');
+
+    expect($operation['security'])->toBe([])
+        ->and($parameters['q']['required'])->toBeTrue()
+        ->and($parameters['q']['schema'])->toMatchArray(['minLength' => 2, 'maxLength' => 200])
+        ->and($parameters['mode']['required'])->toBeFalse()
+        ->and($parameters['mode']['schema']['enum'])->toBe(['person'])
+        ->and($parameters['limit']['schema'])->toMatchArray(['default' => 10, 'minimum' => 1, 'maximum' => 50]);
+
+    Http::fake([
+        '*/expanded-search/*' => Http::sequence()
+            ->push(['num-found' => 2, 'expanded-result' => [['orcid-id' => '0000-0002-1825-0097']]])
+            ->pushStatus(429)
+            ->pushStatus(503),
+        '*/v3.0/search*' => Http::sequence()
+            ->push(['num-found' => 0, 'result' => []])
+            ->pushStatus(500),
+    ]);
+    $personSearch = $path.'?'.http_build_query(['q' => 'Carberry, Josiah', 'mode' => 'person', 'limit' => 1]);
+    $validator = new Validator;
+    $validator->resolver()->registerRaw($document->getContent(), $docUrl);
+
+    $responses = [
+        getJson($personSearch)->assertOk(),
+        getJson($path.'?q=Carberry')->assertOk(),
+        getJson($path.'?q=Carberry')->assertStatus(400),
+        getJson($path)->assertUnprocessable(),
+        getJson($path.'?q=Carberry,,GFZ&mode=person')->assertUnprocessable(),
+        getJson($personSearch)->assertStatus(429),
+        getJson($personSearch)->assertStatus(503),
+    ];
+
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.75']);
+    for ($attempt = 0; $attempt < 30; $attempt++) {
+        getJson($path)->assertUnprocessable();
+    }
+    $responses[] = getJson($path)->assertTooManyRequests()->assertHeader('Retry-After')->assertJsonMissingPath('success');
+
+    foreach ($responses as $response) {
+        $schema = $operation['responses'][$response->status()]['content']['application/json']['schema']['$ref'];
+        $result = $validator->validate($response->getData(), $docUrl.$schema);
+        expect((new ErrorFormatter)->formatOutput($result->error(), 'basic'))->toBe(['valid' => true]);
+    }
+});
+
 it('documents the complete DOI-only science-topic contract for each public filter endpoint', function (string $path) {
     $spec = getJson('/api/v1/doc')->assertOk()->json();
     $parameters = collect($spec['paths'][$path]['get']['parameters'])->where('name', 'topic');
@@ -420,6 +448,38 @@ it('documents the complete DOI-only science-topic contract for each public filte
     'map' => '/{portal}-search/map',
     'cluster members' => '/{portal}-search/map/clusters/{clusterId}',
 ]);
+
+it('publishes the map area filter on every portal operation that uses search bounds', function () {
+    $response = getJson('/api/v1/doc')->assertOk();
+    $parameter = $response->json('components.parameters.PortalMapFilter');
+
+    expect($parameter)->toMatchArray([
+        'name' => 'map_filter',
+        'in' => 'query',
+        'required' => false,
+        'schema' => ['type' => 'string', 'default' => '1'],
+        'example' => '0',
+    ]);
+
+    $reference = ['$ref' => '#/components/parameters/PortalMapFilter'];
+    $operations = collect($response->json('paths'))
+        ->filter(static fn (array $path): bool => in_array($reference, $path['get']['parameters'] ?? [], true));
+
+    expect($operations->keys()->all())->toEqualCanonicalizing([
+        '/{portal}-search',
+        '/{portal}-search/count',
+        '/{portal}-search/map',
+        '/{portal}-search/map/clusters/{clusterId}',
+    ]);
+
+    $page = $operations['/{portal}-search']['get'];
+    $count = $operations['/{portal}-search/count']['get'];
+    $pageFilters = collect($page['parameters'])->where('in', 'query')->pluck('name')->all();
+    $countFilters = collect($count['parameters'])->where('in', 'query')->pluck('name')->all();
+
+    expect($pageFilters)->toEqualCanonicalizing([...$countFilters, 'page'])
+        ->and($page['responses']['200']['content'])->toHaveKeys(['text/html', 'application/json']);
+});
 
 it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {
     $spec = getJson('/api/v1/doc')

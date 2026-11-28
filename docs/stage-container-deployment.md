@@ -66,7 +66,7 @@ The Compose files on `main` and `dev` contains the deliberately unpublished
 direct Portainer deployment target. The workflow requires and replaces every
 marker before advancing `deploy/stage`.
 
-The `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler` services share
+The `app`, `queue`, `curation-queue`, `assistance-queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler` services share
 the same application image. `webserver` uses the Nginx image.
 
 ## One-time rollout
@@ -165,8 +165,8 @@ The public homepage, Find overview and both data-centre pages are enabled by
 default on Stage.
 Set `PUBLIC_HOME_ENABLED`, `PUBLIC_FIND_ENABLED`, `PUBLIC_DATA_CENTRES_ENABLED`, or
 `PUBLIC_DATA_CENTRE_DESCRIPTION_ENABLED` individually to `false` in the Portainer
-stack environment to preview the temporary TYPO3 fallback, then redeploy.
-Production defaults all four to `false`. See [public page routing and feature
+stack environment to disable that page with a local HTTP 404, then redeploy.
+Production also defaults all four to `true`; existing explicit overrides must be reviewed. See [public page routing and feature
 switches](production-container-deployment.md#public-page-routing-and-feature-switches)
 for the route mapping and release procedure.
 
@@ -178,11 +178,23 @@ PORTAL_MAP_BASEMAP_STYLE_URL=https://maps.example.org/styles/liberty
 
 The default is `https://tiles.openfreemap.org/styles/liberty`. OpenFreeMap does not provide an SLA; keep the default for ordinary use or self-host when operational guarantees are required.
 
+### COUNTER usage collection
+
+Set a dedicated `COUNTER_SESSION_SECRET` (at least 32 random characters) in the
+Stage stack environment and redeploy all PHP services before enabling collection.
+Use a different secret from Production and `APP_KEY`. Migrations prepare the
+tables without enabling tracking. Run `php artisan counter:activate` in the app
+container only after checking the complete Stage flow, then inspect
+`php artisan counter:tracking status` and the scheduler's daily aggregation.
+Activation permanently freezes the legacy counters. Follow the
+[activation and recovery guide](counter-usage.md) for pauses, backup exclusions,
+retention and recovery; an old image must not restart legacy writes.
+
 ### 6. Verify the first deployment
 
 Portainer must show these image references:
 
-- `app`, `queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
+- `app`, `queue`, `curation-queue`, `assistance-queue`, `elmo-cache-refresh`, `assessment-queue`, and `scheduler`:
   `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
 - `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`;
 - `fuji`: `ghcr.io/mcnamara84/ernie-fuji@sha256:<digest>`.
@@ -302,6 +314,16 @@ transition can invalidate encrypted cookies and make application-encrypted
 values unreadable. Audit encrypted data first and use Laravel's previous-key
 support during the transition.
 
+
+## Curation mail worker
+
+The `curation-queue` service consumes the `curation` connection and queue from the
+application database, independently of the general worker's `DB_QUEUE_CONNECTION`.
+It inherits the pinned application image, database and mail configuration from
+`queue`. Redeploy the full stack to start it; restarting only `app` is insufficient.
+The worker has a 60-second timeout, three attempts and a 90-second reservation.
+See [curation mail queue](local-development.md#curation-mail-queue) for the atomic
+audit guarantee and draining pending jobs from earlier issue-409 builds.
 
 ## ELMO cache refresh worker
 

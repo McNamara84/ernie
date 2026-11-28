@@ -20,7 +20,7 @@ export default function PortalLayout({ children, portalKind = 'doi' }: PropsWith
                 <PortalHeader portalKind={portalKind} />
             </div>
             <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <PageTransition>{children}</PageTransition>
+                <PageTransition transitionKey={portalKind}>{children}</PageTransition>
             </main>
         </div>
     );

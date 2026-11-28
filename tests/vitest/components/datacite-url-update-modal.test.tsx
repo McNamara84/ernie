@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
+import { installCsrfFixture } from '@tests/vitest/helpers/csrf-fixture';
 import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -252,3 +253,5 @@ describe('DataCiteUrlUpdateModal', () => {
         expect(await screen.findByText('Queued')).toBeInTheDocument();
     });
 });
+
+installCsrfFixture();

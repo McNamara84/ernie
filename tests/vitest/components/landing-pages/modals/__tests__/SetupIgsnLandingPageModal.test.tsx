@@ -85,6 +85,42 @@ describe('SetupIgsnLandingPageModal', () => {
 
     const mockOnClose = vi.fn();
 
+    const mockNewLandingPageRequests = ({ templatesError, inheritanceError }: { templatesError?: unknown; inheritanceError?: unknown } = {}) => {
+        mockedAxiosGet.mockImplementation((url: string) => {
+            if (url === '/api/landing-page-templates') {
+                return templatesError ? Promise.reject(templatesError) : Promise.resolve({ data: { templates: [] } });
+            }
+            if (url === '/api/landing-page-domains/list') return Promise.resolve({ data: { domains: [] } });
+            if (url.endsWith('/landing-page/template-options')) {
+                return inheritanceError ? Promise.reject(inheritanceError) : Promise.resolve({ data: {
+                    templates: [], datacenter: null, datacenter_template: null,
+                    system_default: { id: 2, name: 'Templates IGSN', slug: 'default_gfz_igsn' },
+                    automatic_template: { id: 2, name: 'Templates IGSN', slug: 'default_gfz_igsn' },
+                    automatic_source: 'system_default', supports_datacenter_inheritance: true,
+                } });
+            }
+            return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+        });
+    };
+
+    it('reports template inheritance failure and retains the system fallback', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const failure = new Error('Inheritance offline');
+        mockNewLandingPageRequests({ inheritanceError: failure });
+        render(<SetupIgsnLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+        await waitFor(() => expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to load IGSN template inheritance context:', failure));
+        expect(screen.getByText('Templates IGSN', { exact: true })).toBeInTheDocument();
+    });
+
+    it('reports custom template failure without closing the modal', async () => {
+        using diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const failure = new Error('Template catalogue offline');
+        mockNewLandingPageRequests({ templatesError: failure });
+        render(<SetupIgsnLandingPageModal resource={mockResource} isOpen onClose={mockOnClose} />);
+        await waitFor(() => expect(diagnostic).toHaveBeenCalledExactlyOnceWith('Failed to load custom templates:', failure));
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         mockUsePage.mockReturnValue({
@@ -94,10 +130,7 @@ describe('SetupIgsnLandingPageModal', () => {
 
     describe('Rendering', () => {
         it('renders modal when open', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockNewLandingPageRequests();
 
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
@@ -114,10 +147,7 @@ describe('SetupIgsnLandingPageModal', () => {
         });
 
         it('displays IGSN title in description', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockNewLandingPageRequests();
 
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
@@ -131,10 +161,7 @@ describe('SetupIgsnLandingPageModal', () => {
         });
 
         it('uses FlaskConical icon in title', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockNewLandingPageRequests();
 
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
@@ -148,10 +175,7 @@ describe('SetupIgsnLandingPageModal', () => {
 
     describe('IGSN-specific Form Fields', () => {
         it('renders template selection', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockNewLandingPageRequests();
 
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
@@ -197,10 +221,7 @@ describe('SetupIgsnLandingPageModal', () => {
         });
 
         it('does NOT render FTP URL field', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockNewLandingPageRequests();
 
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
@@ -213,10 +234,7 @@ describe('SetupIgsnLandingPageModal', () => {
         });
 
         it('renders publish toggle', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockNewLandingPageRequests();
 
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
@@ -226,10 +244,7 @@ describe('SetupIgsnLandingPageModal', () => {
         });
 
         it('shows default IGSN template value', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockNewLandingPageRequests();
 
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
@@ -239,10 +254,7 @@ describe('SetupIgsnLandingPageModal', () => {
         });
 
         it('does not offer the resource-only default_gfz template', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockNewLandingPageRequests();
 
             const user = userEvent.setup();
 
@@ -265,6 +277,8 @@ describe('SetupIgsnLandingPageModal', () => {
     describe('External Landing Pages', () => {
         it('renders external configuration fields when the external template is selected', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
@@ -291,6 +305,8 @@ describe('SetupIgsnLandingPageModal', () => {
 
         it('saves an external landing page with domain and path', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
@@ -343,6 +359,8 @@ describe('SetupIgsnLandingPageModal', () => {
 
         it('opens the computed external URL directly for preview', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
@@ -378,6 +396,8 @@ describe('SetupIgsnLandingPageModal', () => {
 
         it('shows the resulting external URL using the normalized previewable path', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
@@ -411,6 +431,8 @@ describe('SetupIgsnLandingPageModal', () => {
 
         it('does not preview the bare external domain when the path is empty', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
@@ -445,6 +467,8 @@ describe('SetupIgsnLandingPageModal', () => {
 
         it('does not fall back to the saved external URL when unsaved edits make the current external preview invalid', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: [] } });
                 }
@@ -493,10 +517,7 @@ describe('SetupIgsnLandingPageModal', () => {
         });
 
         it('creates new landing page without ftp_url', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockNewLandingPageRequests();
             mockedAxiosPost.mockResolvedValue({
                 data: {
                     landing_page: mockExistingConfig,
@@ -618,6 +639,7 @@ describe('SetupIgsnLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-templates')) {
                     return Promise.resolve({
                         data: {
@@ -696,10 +718,7 @@ describe('SetupIgsnLandingPageModal', () => {
 
     describe('Preview Functionality', () => {
         it('opens preview without ftp_url in payload', async () => {
-            mockedAxiosGet.mockRejectedValue({
-                isAxiosError: true,
-                response: { status: 404 },
-            });
+            mockNewLandingPageRequests();
             mockedAxiosPost.mockResolvedValue({
                 data: { preview_url: '/resources/456/landing-page/preview' },
             });
@@ -764,6 +783,7 @@ describe('SetupIgsnLandingPageModal', () => {
 
         it('shows only igsn custom templates in the dropdown', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-templates')) {
                     return Promise.resolve({
                         data: {
@@ -795,6 +815,7 @@ describe('SetupIgsnLandingPageModal', () => {
 
         it('keeps an igsn custom template id in the save payload', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-templates')) {
                     return Promise.resolve({
                         data: {
@@ -854,6 +875,7 @@ describe('SetupIgsnLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-templates')) {
                     return Promise.resolve({
                         data: {
@@ -894,6 +916,7 @@ describe('SetupIgsnLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-templates')) {
                     return Promise.resolve({
                         data: {
@@ -943,6 +966,7 @@ describe('SetupIgsnLandingPageModal', () => {
 
         it('keeps an igsn custom template id in the preview payload', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
                 if (url.includes('/api/landing-page-templates')) {
                     return Promise.resolve({
                         data: {
@@ -1129,6 +1153,8 @@ describe('SetupIgsnLandingPageModal', () => {
             // The IGSN modal currently issues no other GETs, but this pattern
             // future-proofs the test and avoids any stray console.error noise.
             mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.endsWith('/landing-page/template-options')) return Promise.resolve({ data: { templates: [] } });
+            if (url === '/api/landing-page-templates') return Promise.resolve({ data: { templates: [] } });
                 if (url.includes(`/resources/${longTitleResource.id}/landing-page`)) {
                     return Promise.reject({ isAxiosError: true, response: { status: 404 } });
                 }

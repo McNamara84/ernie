@@ -6,6 +6,7 @@ namespace App\Services\Statistics;
 
 use App\Models\PortalSearchDailyStatistic;
 use App\Services\BotProtection\BotClassifierService;
+use App\Services\Usage\CounterTrackingStateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -16,6 +17,11 @@ class PortalSearchAnalyticsService
     ) {}
 
     public function recordSearch(Request $request, ?string $term): void
+    {
+        app(CounterTrackingStateService::class)->legacy(fn () => $this->writeSearch($request, $term));
+    }
+
+    private function writeSearch(Request $request, ?string $term): void
     {
         $normalizedTerm = $this->normalizeTerm($term);
 

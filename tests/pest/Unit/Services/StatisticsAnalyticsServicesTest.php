@@ -11,15 +11,15 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\BotProtection\BotClassifierService;
 use App\Services\Statistics\LandingPageAnalyticsService;
+use App\Services\Statistics\LegacyStatisticsDashboardService;
 use App\Services\Statistics\PortalSearchAnalyticsService;
-use App\Services\Statistics\StatisticsDashboardService;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 covers(
-    StatisticsDashboardService::class,
+    LegacyStatisticsDashboardService::class,
     PortalSearchAnalyticsService::class,
     LandingPageAnalyticsService::class,
     LandingPageDailyStatistic::class,
@@ -160,7 +160,7 @@ describe('PortalSearchAnalyticsService', function () {
     });
 });
 
-describe('StatisticsDashboardService', function () {
+describe('LegacyStatisticsDashboardService', function () {
     it('builds the statistics dashboard from landing page and portal aggregates', function (): void {
         $mainTitleType = statisticsTitleType('MainTitle', 'Main Title');
         $alternativeTitleType = statisticsTitleType('AlternativeTitle', 'Alternative Title');
@@ -258,11 +258,11 @@ describe('StatisticsDashboardService', function () {
             'search_count' => 4,
         ]);
 
-        $dashboard = (new StatisticsDashboardService)->build();
+        $dashboard = (new LegacyStatisticsDashboardService)->build();
 
         expect($dashboard['overview'])->toBe([
             'totalPageViews' => 24,
-            'totalDownloadClicks' => 12,
+            'totalDownloadClicks' => 5,
             'totalPortalSearches' => 11,
             'trackedLandingPages' => 4,
         ]);
@@ -286,8 +286,8 @@ describe('StatisticsDashboardService', function () {
         expect($dashboard['topLandingPagesByViews'][0]['total'])->toBe(15)
             ->and($dashboard['topLandingPagesByViews'][2]['resourceTypeLabel'])->toBe('Other')
             ->and(count($dashboard['topLandingPagesByViews']))->toBe(4)
-            ->and($dashboard['topLandingPagesByDownloads'][0]['title'])->toBe('Sample Beta')
-            ->and($dashboard['topLandingPagesByDownloads'][0]['total'])->toBe(7)
+            ->and($dashboard['topLandingPagesByDownloads'][0]['title'])->toBe('Dataset Alpha')
+            ->and($dashboard['topLandingPagesByDownloads'][0]['total'])->toBe(3)
             ->and($dashboard['portalSearchTerms'][0])->toBe([
                 'term' => 'climate',
                 'total' => 9,
@@ -296,12 +296,11 @@ describe('StatisticsDashboardService', function () {
                 'resourcePageViews' => 20,
                 'physicalObjectPageViews' => 4,
                 'resourceDownloadClicks' => 5,
-                'physicalObjectDownloadClicks' => 7,
             ]);
     });
 
     it('returns empty dashboard state when no statistics exist', function (): void {
-        $dashboard = (new StatisticsDashboardService)->build();
+        $dashboard = (new LegacyStatisticsDashboardService)->build();
 
         expect($dashboard['overview'])->toBe([
             'totalPageViews' => 0,
@@ -316,7 +315,6 @@ describe('StatisticsDashboardService', function () {
                 'resourcePageViews' => 0,
                 'physicalObjectPageViews' => 0,
                 'resourceDownloadClicks' => 0,
-                'physicalObjectDownloadClicks' => 0,
             ])
             ->and($dashboard['trends']['days'])->toHaveCount(14)
             ->and(array_sum($dashboard['trends']['pageViews']))->toBe(0)

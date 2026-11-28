@@ -27,7 +27,7 @@ interface UsePortalFiltersReturn {
     setGeologicalAges: (values: string[]) => void;
     setGeologicalUnits: (values: string[]) => void;
     setBounds: (bounds: GeoBounds | null) => void;
-    clearBounds: () => void;
+    setMapFilterEnabled: (enabled: boolean) => void;
     setTemporal: (temporal: TemporalFilterValue | null) => void;
     clearFilters: () => void;
     clearTopic: () => void;
@@ -42,18 +42,18 @@ interface UsePortalFiltersReturn {
  */
 export function usePortalFilters({ filters, currentPage, basePath = '/doi-search' }: UsePortalFiltersOptions): UsePortalFiltersReturn {
     const updateFilters = useCallback(
-        (newFilters: Partial<PortalFilters>, resetPage = true, preserveScroll = true) => {
+        (newFilters: Partial<PortalFilters>, resetPage = true, preserveScroll = true, searchSubmit = false) => {
             const resolvedFilters = mergePortalFilters(filters, newFilters);
             const url = buildPortalFilterUrl(resolvedFilters, basePath, !resetPage && currentPage > 1 ? currentPage : null);
 
-            router.get(url, {}, { preserveState: true, preserveScroll });
+            router.get(url, {}, { preserveState: true, preserveScroll, ...(searchSubmit ? { headers: { 'X-Ernie-Search-Intent': 'submit' } } : {}) });
         },
         [basePath, filters, currentPage],
     );
 
     const setSearch = useCallback(
         (query: string) => {
-            updateFilters({ query }, true);
+            updateFilters({ query }, true, true, true);
         },
         [updateFilters],
     );
@@ -130,14 +130,15 @@ export function usePortalFilters({ filters, currentPage, basePath = '/doi-search
 
     const setBounds = useCallback(
         (bounds: GeoBounds | null) => {
-            updateFilters({ bounds }, true);
+            updateFilters({ mapFilterEnabled: true, bounds }, true);
         },
         [updateFilters],
     );
 
-    const clearBounds = useCallback(() => {
-        updateFilters({ bounds: null }, true);
-    }, [updateFilters]);
+    const setMapFilterEnabled = useCallback(
+        (enabled: boolean) => updateFilters({ mapFilterEnabled: enabled, bounds: null }, filters.bounds !== null),
+        [filters.bounds, updateFilters],
+    );
 
     const setTemporal = useCallback(
         (temporal: TemporalFilterValue | null) => {
@@ -197,7 +198,7 @@ export function usePortalFilters({ filters, currentPage, basePath = '/doi-search
         setGeologicalAges,
         setGeologicalUnits,
         setBounds,
-        clearBounds,
+        setMapFilterEnabled,
         setTemporal,
         clearFilters,
         clearTopic,

@@ -47,7 +47,6 @@ describe('useFeedbackDiagnostics', () => {
     let rejected: (error: unknown) => Promise<never>;
 
     beforeEach(() => {
-        vi.clearAllMocks();
         window.history.replaceState({}, '', '/dashboard?private=yes');
         mocks.routerOn.mockImplementation((_event: string, callback: typeof finish) => {
             finish = callback;

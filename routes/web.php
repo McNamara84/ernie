@@ -9,13 +9,17 @@ use App\Http\Controllers\BatchIgsnRegistrationController;
 use App\Http\Controllers\BatchResourceExportController;
 use App\Http\Controllers\BatchResourceRegistrationController;
 use App\Http\Controllers\ChangelogController;
+use App\Http\Controllers\CitationLabelReviewController;
 use App\Http\Controllers\ContactMessageController;
+use App\Http\Controllers\ContactPersonController;
 use App\Http\Controllers\CsrfCookieController;
+use App\Http\Controllers\CurationOverviewController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardMetricsController;
 use App\Http\Controllers\DatabaseDumpController;
 use App\Http\Controllers\DatacenterController;
-use App\Http\Controllers\DataCiteImportController;
+use App\Http\Controllers\DataCiteDocumentationController;
+use App\Http\Controllers\DataCiteSchemaController;
 use App\Http\Controllers\DataCiteUrlUpdateController;
 use App\Http\Controllers\DataEmbargoReleaseController;
 use App\Http\Controllers\DebugController;
@@ -26,7 +30,8 @@ use App\Http\Controllers\EditorLoadProgressController;
 use App\Http\Controllers\GuidedTourAssignmentController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\IgsnController;
-use App\Http\Controllers\IgsnImportController;
+use App\Http\Controllers\IgsnCoreDocumentationController;
+use App\Http\Controllers\IgsnCoreSchemaController;
 use App\Http\Controllers\JsonLdContextController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPageDomainController;
@@ -35,6 +40,7 @@ use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Http\Controllers\LandingPageTemplateController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\NewsController;
 use App\Http\Controllers\OaiPmh\OaiPmhController;
 use App\Http\Controllers\OaiPmh\OaiPmhDocsController;
 use App\Http\Controllers\PortalController;
@@ -49,12 +55,14 @@ use App\Http\Controllers\PublicTrafficController;
 use App\Http\Controllers\RelatedItemController;
 use App\Http\Controllers\ResolveInstrumentNamesController;
 use App\Http\Controllers\ResourceController;
+use App\Http\Controllers\ResourceCurationController;
 use App\Http\Controllers\ResourceDoiRegistrationController;
 use App\Http\Controllers\ResourceExportController;
 use App\Http\Controllers\ResourceFilterController;
 use App\Http\Controllers\ResourceInventoryController;
 use App\Http\Controllers\ResourceReviewLinkController;
 use App\Http\Controllers\ResourceTombstoneController;
+use App\Http\Controllers\SchemaCatalogController;
 use App\Http\Controllers\Settings\PidSettingsController;
 use App\Http\Controllers\Settings\ThesaurusReviewCompletionController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
@@ -82,6 +90,34 @@ Route::get('/metadata/contexts/datacite-4.7-v1.jsonld', JsonLdContextController:
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
     ->name('metadata.context.datacite');
 
+Route::get('/schemas/docs', SchemaCatalogController::class)->name('schemas.docs');
+
+Route::get('/schemas/datacite/docs', [DataCiteDocumentationController::class, 'latest'])->name('schemas.datacite.docs.latest');
+Route::get('/schemas/datacite/4.7/docs', [DataCiteDocumentationController::class, 'overview'])->name('schemas.datacite.docs');
+Route::get('/schemas/datacite/4.7/docs/{format}/examples/{example}.{extension}', [DataCiteDocumentationController::class, 'example'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.datacite.docs.example');
+Route::get('/schemas/datacite/4.7/docs/{format}', [DataCiteDocumentationController::class, 'format'])->name('schemas.datacite.docs.format');
+Route::get('/schemas/datacite/4.7/{revision}/docs', [DataCiteDocumentationController::class, 'overview'])
+    ->where('revision', 'v[1-9][0-9]*')->name('schemas.datacite.docs.revision');
+Route::get('/schemas/datacite/4.7/{revision}/docs/{format}/examples/{example}.{extension}', [DataCiteDocumentationController::class, 'revisionExample'])
+    ->where('revision', 'v[1-9][0-9]*')
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.datacite.docs.revision-example');
+Route::get('/schemas/datacite/4.7/{revision}/docs/{format}', [DataCiteDocumentationController::class, 'revisionFormat'])
+    ->where('revision', 'v[1-9][0-9]*')->name('schemas.datacite.docs.revision-format');
+
+Route::get('/schemas/datacite/4.7/{revision}/{path}', [DataCiteSchemaController::class, 'revision'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->where('revision', 'v[1-9][0-9]*')
+    ->where('path', '.+')
+    ->name('schemas.datacite.revision');
+
+Route::get('/schemas/datacite/4.7/{path}', [DataCiteSchemaController::class, 'current'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->where('path', '.+')
+    ->name('schemas.datacite');
+
 // Sanctum-compatible CSRF cookie endpoint (/sanctum/csrf-cookie).
 // Sanctum itself is not installed – this lightweight route provides the
 // same contract: the PreventRequestForgery middleware automatically sets the
@@ -96,7 +132,7 @@ if (app()->environment('local', 'testing')) {
     Route::get('/debug', DebugController::class)->name('debug');
 }
 
-Route::get('/', [StaticPageController::class, 'home'])->name('home');
+Route::get('/', [StaticPageController::class, 'home'])->middleware('cache.headers:no_store;private')->name('home');
 
 Route::get('/find', [StaticPageController::class, 'find'])->name('find');
 
@@ -106,6 +142,8 @@ Route::get('/data-centres/description', [StaticPageController::class, 'dataCentr
 Route::get('/about', [StaticPageController::class, 'about'])->name('about');
 
 Route::get('/legal-notice', [StaticPageController::class, 'legalNotice'])->name('legal-notice');
+
+Route::get('/usage-statistics', [StaticPageController::class, 'usageStatistics'])->name('usage-statistics');
 
 // Public Portals (DOI and IGSN discovery)
 // ===========================================================
@@ -169,6 +207,11 @@ Route::get('landing-page-downloads/{landingPage}/files/{landingPageFile}', [Land
     ->whereNumber('landingPage')
     ->whereNumber('landingPageFile');
 
+Route::get('landing-page-downloads/{landingPage}/links/{landingPageLink}', [LandingPageDownloadRedirectController::class, 'link'])
+    ->middleware('throttle:public-landing-page')
+    ->name('landing-page.download.link')
+    ->whereNumber(['landingPage', 'landingPageLink']);
+
 // Landing Pages with DOI (e.g., /10.5880/test.001/my-dataset-title)
 // DOI prefix format: 10.NNNN/suffix where suffix contains valid DOI characters.
 // The regex pattern '10\.[0-9]+/[a-zA-Z0-9._/-]+' is intentionally permissive to
@@ -183,6 +226,28 @@ Route::get('landing-page-downloads/{landingPage}/files/{landingPageFile}', [Land
 // cannot contain slashes, so the slug is always unambiguous.
 
 // Canonical metadata downloads for published landing pages.
+Route::get('schemas/igsn/2.0/docs', [IgsnCoreDocumentationController::class, 'current'])->name('schemas.igsn-core.docs');
+Route::get('schemas/igsn/2.0/docs/examples/{example}.xml', [IgsnCoreDocumentationController::class, 'example'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.igsn-core.docs.example');
+Route::get('schemas/igsn/2.0/{revision}/docs', [IgsnCoreDocumentationController::class, 'revision'])
+    ->where('revision', 'v[1-9][0-9]*')->name('schemas.igsn-core.docs.revision');
+Route::get('schemas/igsn/2.0/{revision}/docs/examples/{example}.xml', [IgsnCoreDocumentationController::class, 'revisionExample'])
+    ->where('revision', 'v[1-9][0-9]*')
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->name('schemas.igsn-core.docs.revision-example');
+
+Route::get('schemas/igsn/2.0/{revision}/{path}', [IgsnCoreSchemaController::class, 'revision'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->where('revision', 'v[1-9][0-9]*')
+    ->where('path', '.+')
+    ->name('schemas.igsn-core.revision');
+
+Route::get('schemas/igsn/2.0/{path}', [IgsnCoreSchemaController::class, 'current'])
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+    ->where('path', '.+')
+    ->name('schemas.igsn-core');
+
 // These routes must be defined BEFORE the catch-all show route.
 Route::prefix('{doiPrefix}/{slug}/metadata')
     ->middleware('throttle:public-landing-jsonld')
@@ -191,14 +256,22 @@ Route::prefix('{doiPrefix}/{slug}/metadata')
         'slug' => '[a-z0-9-]+',
     ])
     ->group(function (): void {
+        Route::get('igsn-core-2.0.xml', [PublicMetadataExportController::class, 'igsnCore'])
+            ->name('landing-page.metadata.igsn-core');
         Route::get('datacite.xml', [PublicMetadataExportController::class, 'dataCiteXml'])
             ->name('landing-page.metadata.datacite-xml');
+        Route::get('dcat-ap.rdf', [PublicMetadataExportController::class, 'dcatAp'])
+            ->name('landing-page.metadata.dcat-ap');
+        Route::get('epos-dcat-ap.rdf', [PublicMetadataExportController::class, 'eposDcatAp'])
+            ->name('landing-page.metadata.epos-dcat-ap');
         Route::get('datacite.json', [PublicMetadataExportController::class, 'dataCiteJson'])
             ->name('landing-page.metadata.datacite-json');
         Route::get('datacite.jsonld', [PublicMetadataExportController::class, 'dataCiteJsonLd'])
             ->name('landing-page.metadata.datacite-jsonld');
         Route::get('iso-19115-3.xml', [PublicMetadataExportController::class, 'iso19115'])
             ->name('landing-page.metadata.iso19115-3');
+        Route::get('iso-19115-4.json', [PublicMetadataExportController::class, 'iso19115Json'])
+            ->name('landing-page.metadata.iso19115-4');
     });
 
 // Legacy JSON-LD download route retained for backwards compatibility.
@@ -281,6 +354,34 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])->group(function () {
+    Route::middleware(['can:manage-news', 'cache.headers:no_store;private'])->prefix('manage-news')->name('news.')->group(function () {
+        Route::get('/', [NewsController::class, 'index'])->name('index');
+        Route::post('/', [NewsController::class, 'store'])->name('store');
+        Route::post('preview', [NewsController::class, 'preview'])->middleware('throttle:120,1')->name('preview');
+        Route::patch('{news}', [NewsController::class, 'update'])->whereNumber('news')->name('update');
+        foreach (['activate', 'schedule', 'cancel-schedule', 'archive', 'restore'] as $operation) {
+            Route::post('{news}/'.$operation, [NewsController::class, 'action'])->whereNumber('news')
+                ->defaults('operation', $operation)->name($operation);
+        }
+    });
+
+    Route::get('contact-persons', ContactPersonController::class)
+        ->middleware('can:access-contact-persons')->name('contact-persons.index');
+
+    Route::get('curation', [CurationOverviewController::class, 'index'])->name('curation.index');
+    Route::get('curation/export', [CurationOverviewController::class, 'export'])->name('curation.export');
+    Route::get('curation/users', [CurationOverviewController::class, 'users'])->name('curation.users');
+    Route::get('resources/{resource}/curation', [ResourceCurationController::class, 'show'])->name('curation.resource.show');
+    Route::get('resources/{resource}/curation/events', [ResourceCurationController::class, 'events'])->name('curation.resource.events');
+    foreach ([
+        ['post', 'start', 'start'], ['patch', 'checklist/{key}', 'checklist'],
+        ['put', 'curators', 'assign'], ['post', 'handover', 'handover'], ['patch', 'state', 'state'],
+        ['post', 'notes', 'note'], ['patch', 'notes/{event}', 'note'], ['delete', 'notes/{event}', 'note'],
+        ['post', 'locations', 'location'], ['patch', 'locations/{location}', 'location'], ['delete', 'locations/{location}', 'location'],
+    ] as [$method, $path, $operation]) {
+        Route::$method('resources/{resource}/curation/'.$path, [ResourceCurationController::class, $operation.ucfirst($method)])
+            ->defaults('operation', $operation)->name('curation.resource.'.$operation.'.'.$method);
+    }
     // Assistance routes are registered dynamically by AssistantServiceProvider.
     // @see \App\Providers\AssistantServiceProvider::registerRoutes()
 
@@ -332,6 +433,8 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
     Route::middleware(['can:access-statistics'])->group(function () {
         Route::get('statistics', [StatisticsController::class, 'index'])
             ->name('statistics');
+        Route::get('statistics/usage.csv', [StatisticsController::class, 'export'])
+            ->name('statistics.usage-export');
     });
 
     // Logs routes (Admin only - Issue #379)
@@ -475,6 +578,11 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
         ->middleware('throttle:30,1')
         ->name('api.citation-lookup');
 
+    Route::post('resources/citation-labels/preview', [CitationLabelReviewController::class, 'preview'])
+        ->middleware('throttle:citation-label-preview')
+        ->name('resources.citation-labels.preview');
+    Route::post('resources/citation-labels/apply', [CitationLabelReviewController::class, 'apply'])->name('resources.citation-labels.apply');
+
     Route::post('resources/batch-register', [BatchResourceRegistrationController::class, 'register'])
         ->name('resources.batch-register');
 
@@ -514,27 +622,6 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
 
     Route::delete('resources/{resource}', [ResourceController::class, 'destroy'])
         ->name('resources.destroy');
-
-    // DataCite Import (Admin/Group Leader only)
-    Route::get('datacite/import/datacenters', [DataCiteImportController::class, 'datacenters'])
-        ->name('datacite.import.datacenters');
-
-    Route::post('datacite/import/start', [DataCiteImportController::class, 'start'])
-        ->name('datacite.import.start');
-
-    Route::post('datacite/import/start-single', [DataCiteImportController::class, 'startSingle'])
-        ->name('datacite.import.start-single');
-
-    Route::post('datacite/import/start-datacenter', [DataCiteImportController::class, 'startDatacenter'])
-        ->name('datacite.import.start-datacenter');
-
-    Route::get('datacite/import/{importId}/status', [DataCiteImportController::class, 'status'])
-        ->name('datacite.import.status');
-
-    Route::post('datacite/import/{importId}/cancel', [DataCiteImportController::class, 'cancel'])
-        ->name('datacite.import.cancel');
-    Route::post('datacite/import/{importId}/retry-sync', [DataCiteImportController::class, 'retrySync'])
-        ->name('datacite.import.retry-sync');
 
     // Landing Page Management (Admin)
     Route::get('resources/{resource}/landing-page/tombstone', [ResourceTombstoneController::class, 'show'])->name('landing-page.tombstone.show');
@@ -626,21 +713,6 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
         ->name('igsns.filter-options');
     Route::get('igsns/count', [IgsnController::class, 'count'])
         ->name('igsns.count');
-    // IGSN Import from DataCite
-    Route::post('igsns/import/start', [IgsnImportController::class, 'start'])
-        ->name('igsns.import.start');
-    Route::get('igsns/import/datacenters', [IgsnImportController::class, 'datacenters'])
-        ->name('igsns.import.datacenters');
-    Route::post('igsns/import/start-datacenter', [IgsnImportController::class, 'startDatacenter'])
-        ->name('igsns.import.start-datacenter');
-    Route::post('igsns/import/start-single', [IgsnImportController::class, 'startSingle'])
-        ->name('igsns.import.start-single');
-    Route::get('igsns/import/{importId}/status', [IgsnImportController::class, 'status'])
-        ->name('igsns.import.status');
-    Route::post('igsns/import/{importId}/cancel', [IgsnImportController::class, 'cancel'])
-        ->name('igsns.import.cancel');
-    Route::post('igsns/import/{importId}/retry-sync', [IgsnImportController::class, 'retrySync'])
-        ->name('igsns.import.retry-sync');
     // Batch operations must be defined before routes with {resource} parameter
     Route::delete('igsns/batch', [BatchIgsnController::class, 'destroy'])
         ->name('igsns.batch.destroy');
@@ -650,6 +722,10 @@ Route::middleware(['auth', 'verified', PrioritizeInteractiveApiRequests::class])
         ->name('igsns.batch-register.show');
     Route::get('igsns/batch-register/{registrationRun}/items', [BatchIgsnRegistrationController::class, 'items'])
         ->name('igsns.batch-register.items');
+    Route::get('igsns/batch-register/{registrationRun}/items/{item}/preview', [BatchIgsnRegistrationController::class, 'preview'])
+        ->whereNumber('item')->name('igsns.batch-register.preview');
+    Route::post('igsns/batch-register/{registrationRun}/confirm-preview', [BatchIgsnRegistrationController::class, 'confirm'])
+        ->name('igsns.batch-register.confirm-preview');
     Route::post('igsns/batch-register/{registrationRun}/cancel', [BatchIgsnRegistrationController::class, 'cancel'])
         ->name('igsns.batch-register.cancel');
     Route::post('igsns/batch-register/{registrationRun}/resume', [BatchIgsnRegistrationController::class, 'resume'])

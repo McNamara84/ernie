@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import UsedInstrumentsField from '@/components/curation/fields/used-instruments-field';
 import type { InstrumentSelection } from '@/types';
@@ -63,15 +63,12 @@ describe('UsedInstrumentsField', () => {
         onChange: mockOnChange,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
-
     it('renders the component with info banner', () => {
         render(<UsedInstrumentsField {...defaultProps} />);
 
         expect(screen.getByText(/Select the research instruments/)).toBeInTheDocument();
-        expect(screen.getByText('b2inst Registry (PID4INST)')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'B2INST registry' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'DataCite' })).toBeInTheDocument();
     });
 
     it('renders combobox trigger', () => {

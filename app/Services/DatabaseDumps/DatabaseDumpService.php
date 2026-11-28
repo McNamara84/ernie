@@ -289,6 +289,13 @@ final class DatabaseDumpService
             $flags[] = "--default-character-set={$connection['charset']}";
         }
 
+        foreach ($target['exclude_table_data'] ?? [] as $table) {
+            if (! $this->processRunner->supportsOption($client, '--ignore-table-data')) {
+                throw new \RuntimeException('ERNIE dumps require a client supporting --ignore-table-data to exclude short-lived COUNTER events while preserving their schema.');
+            }
+            $flags[] = '--ignore-table-data='.$connection['database'].'.'.$table;
+        }
+
         return $flags;
     }
 

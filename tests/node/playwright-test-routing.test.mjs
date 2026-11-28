@@ -57,3 +57,16 @@ test('unexpected or already modified Nginx inputs fail before the test configura
         assert.throws(() => createPlaywrightNginxConfig(source), /Unexpected development Nginx/u);
     }
 });
+
+test('native PHP routing uses the Linux copy while static assets retain the development root', () => {
+    const source = readFileSync(new URL('../../docker/nginx/conf.d/dev.conf', import.meta.url), 'utf8');
+    const configuration = createPlaywrightNginxConfig(source, { nativeBackend: true });
+    assert.ok(configuration.includes('root /var/www/html/public;'));
+    assert.ok(configuration.includes('SCRIPT_FILENAME /var/www/pest-workspace/public$fastcgi_script_name;'));
+    assert.ok(configuration.includes('add_header X-ERNIE-Backend-Time $upstream_header_time always;'));
+    assert.ok(configuration.includes('HTTP_X_FORWARDED_FOR $ernie_playwright_forwarded_for;'));
+    assert.throws(
+        () => createPlaywrightNginxConfig(source.replace('SCRIPT_FILENAME', 'OTHER'), { nativeBackend: true }),
+        /Unexpected development PHP routing/u,
+    );
+});

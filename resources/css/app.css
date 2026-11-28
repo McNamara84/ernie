@@ -1,11 +1,10 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 @import 'driver.js/dist/driver.css';
 @import '@yaireo/tagify/dist/tagify.css';
 @import 'nprogress/nprogress.css';
 @import './home.css';
 @import './data-centres.css';
-
-@plugin 'tailwindcss-animate';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';

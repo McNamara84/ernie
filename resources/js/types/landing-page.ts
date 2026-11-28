@@ -14,7 +14,8 @@ export type RightColumnSection =
     | 'funders'
     | 'keywords'
     | 'metadata_download'
-    | 'location';
+    | 'location'
+    | 'usage';
 
 /**
  * Left column section identifiers for landing page templates.
@@ -62,7 +63,8 @@ export type IgsnSection =
     | 'sample_image'
     | 'location'
     | 'map'
-    | 'version_notice';
+    | 'version_notice'
+    | 'usage';
 
 /** Every module supported by regular resource landing-page templates. */
 export type ResourceSection =
@@ -83,7 +85,8 @@ export type ResourceSection =
     | 'funders'
     | 'keywords'
     | 'metadata_download'
-    | 'location';
+    | 'location'
+    | 'usage';
 
 export type TemplateSection = LeftColumnSection | RightColumnSection | IgsnSection | ResourceSection;
 
@@ -291,7 +294,7 @@ export interface LandingPageDownloadUrlSuggestions {
  * Landing Page File
  *
  * Represents a download file entry from the landing_page_files table.
- * Files are imported from the legacy metaworks database during DataCite import.
+ * Includes files retained from the completed legacy migration.
  */
 export interface LandingPageFile {
     /** Primary key */
@@ -318,6 +321,7 @@ export interface LandingPageFile {
  * Displayed below the primary download link on the public landing page.
  */
 export interface LandingPageLink {
+    tracked_url?: string | null;
     /** Primary key (undefined for new unsaved links) */
     id?: number;
 
@@ -536,6 +540,11 @@ export interface LandingPageLicense {
 /**
  * Related identifier entry for landing pages
  */
+export interface CitationLabelPart {
+    text: string;
+    italic: boolean;
+}
+
 export interface LandingPageRelatedIdentifier {
     id: number;
     /** The identifier value (e.g., DOI URL) */
@@ -546,6 +555,7 @@ export interface LandingPageRelatedIdentifier {
     relation_type: string;
     /** Persisted citation label for display without runtime DOI lookups */
     citation_label?: string | null;
+    citation_label_parts?: CitationLabelPart[] | null;
     /** Internal ERNIE provenance assigned by a trusted server-side workflow */
     source?: 'relation_suggestion_assistant' | 'legacy_igsn_dif' | null;
     /** True when ERNIE added the identifier through repository curation */
@@ -950,8 +960,8 @@ export interface LandingPageResource {
  * Canonical, anonymously retrievable metadata representation.
  */
 export interface LandingPageMetadataLink {
-    format: 'datacite-xml' | 'datacite-json' | 'datacite-jsonld' | 'iso19115-3';
-    standard: 'DataCite' | 'ISO 19115-3';
+    format: 'datacite-xml' | 'datacite-json' | 'datacite-jsonld' | 'iso19115-3' | 'iso19115-4' | 'igsn-core-2.0' | 'dcat-ap' | 'epos-dcat-ap';
+    standard: 'DataCite' | 'ISO 19115-3' | 'ISO/TR 19115-4' | 'IGSN 2.0 Core' | 'DCAT-AP' | 'EPOS-DCAT-AP';
     label: string;
     url: string;
     mediaType: string;

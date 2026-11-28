@@ -8,7 +8,11 @@ uses()->group('landing-page-templates');
 
 function expandedRightColumnOrder(): array
 {
-    return LandingPageTemplate::RIGHT_COLUMN_SECTIONS;
+    // This migration predates Usage and must retain its historical catalog.
+    return [
+        'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents',
+        'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location',
+    ];
 }
 
 function expandedLocationFirstRightColumnOrder(): array
@@ -16,7 +20,7 @@ function expandedLocationFirstRightColumnOrder(): array
     return [
         'location',
         ...array_values(array_filter(
-            LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+            expandedRightColumnOrder(),
             static fn (string $key): bool => $key !== 'location',
         )),
     ];

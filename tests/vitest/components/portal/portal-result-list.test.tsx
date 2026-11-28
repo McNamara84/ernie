@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
 import { render, screen } from '@tests/vitest/utils/render';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PortalResultList } from '@/components/portal/PortalResultList';
 import type { PortalPagination, PortalResource } from '@/types/portal';
@@ -54,9 +54,6 @@ describe('PortalResultList', () => {
         isLoading: false,
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
 
     describe('Results Display', () => {
         it('renders all resource cards', () => {
@@ -270,9 +267,7 @@ describe('PortalResultList', () => {
         it('highlights current page button', () => {
             render(<PortalResultList {...paginatedProps} />);
 
-            // Current page is 2
-            const pageButtons = screen.getAllByRole('button').filter((btn) => btn.textContent === '2');
-            expect(pageButtons.length).toBeGreaterThan(0);
+            expect(screen.getByRole('button', { current: 'page' })).toHaveAccessibleName('2');
         });
 
         it('calls onPageChange when page number is clicked', async () => {
@@ -309,43 +304,25 @@ describe('PortalResultList', () => {
             }
         });
 
-        it('shows ellipsis for large page counts', () => {
-            const props = {
-                ...defaultProps,
-                resources: Array.from({ length: 12 }, (_, i) => createMockResource(i + 1)),
-                pagination: createMockPagination({
-                    current_page: 5,
-                    last_page: 10,
-                    from: 49,
-                    to: 60,
-                    total: 120,
-                }),
-            };
-            render(<PortalResultList {...props} />);
+        it.each([
+            { page: 1, numbers: ['1', '2', '20'], gaps: 1 },
+            { page: 2, numbers: ['1', '2', '3', '20'], gaps: 1 },
+            { page: 10, numbers: ['1', '9', '10', '11', '20'], gaps: 2 },
+            { page: 20, numbers: ['1', '19', '20'], gaps: 1 },
+        ])('shows the current page, nearby pages and endpoints on page $page of 20', ({ page, numbers, gaps }) => {
+            const pagination = createMockPagination({
+                current_page: page,
+                last_page: 20,
+                from: (page - 1) * 12 + 1,
+                to: page * 12,
+                total: 240,
+                has_more: page < 20,
+            });
+            render(<PortalResultList {...defaultProps} pagination={pagination} />);
 
-            // Should show ellipsis (may be multiple)
-            const ellipsis = screen.getAllByText('...');
-            expect(ellipsis.length).toBeGreaterThan(0);
-        });
-
-        it('always shows first and last page with ellipsis', () => {
-            const props = {
-                ...defaultProps,
-                resources: Array.from({ length: 12 }, (_, i) => createMockResource(i + 1)),
-                pagination: createMockPagination({
-                    current_page: 10,
-                    last_page: 20,
-                    from: 109,
-                    to: 120,
-                    total: 240,
-                }),
-            };
-            render(<PortalResultList {...props} />);
-
-            // First page always visible
-            expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument();
-            // Last page always visible
-            expect(screen.getByRole('button', { name: '20' })).toBeInTheDocument();
+            expect(screen.getAllByRole('button', { name: /^\d+$/ }).map((button) => button.textContent)).toEqual(numbers);
+            expect(screen.getAllByText('...')).toHaveLength(gaps);
+            expect(screen.getByRole('button', { current: 'page' })).toHaveAccessibleName(String(page));
         });
     });
 

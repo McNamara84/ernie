@@ -18,9 +18,12 @@ use App\Services\Imports\Subjects\ImportedSubjectData;
 use App\Services\Imports\Subjects\SubjectImportNormalizer;
 use App\Services\Imports\Subjects\SubjectImportResult;
 use App\Services\InstrumentNameResolutionService;
+use App\Services\InstrumentReferenceClassifierService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\RorLookupService;
+use App\Services\SizeFormat\ContentMetadataImportEvidenceService;
+use App\Services\SizeFormat\ContentMetadataImportService;
 use App\Services\TemporalCoverageValueService;
 use App\Services\UploadLogService;
 use App\Services\Uploads\DataCiteRelatedItemNormalizerService;
@@ -81,6 +84,7 @@ class UploadJsonController extends Controller
 
     public function __construct(
         private readonly InstrumentNameResolutionService $instrumentResolver,
+        private readonly InstrumentReferenceClassifierService $instrumentClassifier,
         private readonly ContactPersonImportService $contactPersonResolver,
         private readonly UploadLogService $uploadLogService,
         private readonly JsonSchemaValidator $jsonSchemaValidator,
@@ -257,6 +261,8 @@ class UploadJsonController extends Controller
             'coverages' => $coverages,
             'relatedWorks' => $relatedWorks,
             'relatedItems' => $relatedItems,
+            'formats' => app(ContentMetadataImportService::class)->formats($attributes['formats'] ?? []),
+            'sizes' => app(ContentMetadataImportService::class)->sizes($attributes['sizes'] ?? []),
             'instruments' => $instruments,
             'controlledKeywords' => $subjects->controlledKeywords,
             'freeKeywords' => $subjects->freeKeywords,
@@ -266,6 +272,8 @@ class UploadJsonController extends Controller
         ];
 
         if ($request->routeIs('editor.upload-json.preview')) {
+            $sessionPayload = app(ContentMetadataImportEvidenceService::class)->issue($sessionPayload, $request->user()?->id);
+
             return response()->json([
                 'success' => true,
                 'metadata' => $sessionPayload,
@@ -871,6 +879,7 @@ class UploadJsonController extends Controller
         $instruments = [];
         $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
 
+        $instrumentReferences = $this->instrumentClassifier->classify($relatedIdentifiers);
         foreach ($relatedIdentifiers as $index => $ri) {
             $identifier = $ri['relatedIdentifier'] ?? '';
             $identifierTypeRaw = $ri['relatedIdentifierType'] ?? null;
@@ -897,7 +906,7 @@ class UploadJsonController extends Controller
             }
 
             // Separate instrument PIDs
-            if ($relationType === 'IsCollectedBy' && $identifierType === 'Handle') {
+            if ($instrumentReferences[$index]) {
                 $instruments[] = [
                     'pid' => $identifier,
                     'pidType' => $identifierType,
@@ -907,12 +916,14 @@ class UploadJsonController extends Controller
                 continue;
             }
 
+            $citation = $this->citationLabelService->lookupBestEffort($identifier, $identifierType, $citationResolutionDeadline);
             $relatedWorks[] = [
                 'identifier' => $identifier,
                 'identifier_type' => $identifierType,
                 'relation_type' => $relationType,
                 'relation_type_information' => is_string($relationTypeInformation) && trim($relationTypeInformation) !== '' ? trim($relationTypeInformation) : null,
-                'citation_label' => $this->citationLabelService->resolveBestEffort($identifier, $identifierType, $citationResolutionDeadline),
+                'citation_label' => $citation?->text,
+                ...($citation?->parts !== null ? ['citation_proof' => $citation->proof()] : []),
                 'position' => count($relatedWorks),
             ];
         }

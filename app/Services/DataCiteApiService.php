@@ -106,7 +106,7 @@ class DataCiteApiService
      * Fetch CSL metadata for multiple DOIs with bounded concurrency and retries.
      *
      * Transient-failure cache sentinels are deliberately retried here: this path
-     * backs strict single-resource imports, where a previous best-effort timeout
+     * backs citation-label hydration, where a previous best-effort timeout
      * must not turn into a guaranteed incomplete result.
      *
      * @param  array<int, string>  $dois
@@ -466,7 +466,7 @@ class DataCiteApiService
      * @param  string  $doi  The DOI to fetch metadata for
      * @return array<string, mixed>|null The DataCite attributes or null on failure
      */
-    public function getDataCiteMetadata(string $doi): ?array
+    public function getDataCiteMetadata(string $doi, float $timeoutSeconds = self::DEFAULT_TIMEOUT_SECONDS, bool $cacheTransientFailure = true): ?array
     {
         $cleanDoi = $this->normalizeDoi($doi);
 
@@ -487,13 +487,13 @@ class DataCiteApiService
             return $cached;
         }
 
-        $result = $this->fetchDataCiteMetadataFromApi($cleanDoi, $doi);
+        $result = $this->fetchDataCiteMetadataFromApi($cleanDoi, $doi, $timeoutSeconds);
 
         if (is_array($result)) {
             $cache->put($cacheKey, $result, CacheKey::DOI_DATACITE_METADATA->ttl());
         } elseif ($result === self::CACHE_NULL_SENTINEL) {
             $cache->put($cacheKey, self::CACHE_NULL_SENTINEL, CacheKey::DOI_DATACITE_METADATA->ttl());
-        } else {
+        } elseif ($cacheTransientFailure) {
             $cache->put($cacheKey, self::CACHE_TRANSIENT_FAILURE, 300);
         }
 
@@ -505,10 +505,10 @@ class DataCiteApiService
      *
      * @return array<string, mixed>|string
      */
-    private function fetchDataCiteMetadataFromApi(string $cleanDoi, string $originalDoi): array|string
+    private function fetchDataCiteMetadataFromApi(string $cleanDoi, string $originalDoi, float $timeoutSeconds): array|string
     {
         try {
-            $response = Http::timeout(10)
+            $response = Http::timeout($timeoutSeconds)
                 ->withHeaders([
                     'Accept' => 'application/vnd.api+json',
                 ])

@@ -1,16 +1,19 @@
 import { FileUp, Info, Upload, X } from 'lucide-react';
+import Papa from 'papaparse';
 import { useCallback, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { isSwhidCandidate, normalizeSwhid, validateSwhid } from '@/lib/swhid';
 import type { IdentifierType, RelatedIdentifierFormData, RelationType } from '@/types';
 
 /**
  * Detect identifier type from identifier value
  */
 function detectIdentifierType(identifier: string): IdentifierType {
+    if (isSwhidCandidate(identifier)) return 'SWHID';
     // Check for DOI URL first (before generic URL pattern)
     const doiUrlMatch = identifier.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
     if (doiUrlMatch) {
@@ -148,7 +151,12 @@ export default function RelatedWorkCsvImport({ onImport, onClose, activeRelation
 
             try {
                 const text = await csvFile.text();
-                const lines = text.split('\n').filter((line) => line.trim());
+                const parsed = Papa.parse<string[]>(text, { delimiter: ',', skipEmptyLines: 'greedy' });
+                if (parsed.errors.length > 0) {
+                    setErrors(parsed.errors.map((error) => ({ row: (error.row ?? 0) + 1, field: 'file', value: '', message: error.message })));
+                    return;
+                }
+                const lines = parsed.data;
 
                 if (lines.length < 2) {
                     setErrors([
@@ -164,7 +172,7 @@ export default function RelatedWorkCsvImport({ onImport, onClose, activeRelation
                 }
 
                 // Parse header
-                const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
+                const header = lines[0].map((h) => h.trim().toLowerCase());
 
                 // Required: identifier and relation_type
                 // Optional: identifier_type (will be auto-detected if missing)
@@ -192,15 +200,14 @@ export default function RelatedWorkCsvImport({ onImport, onClose, activeRelation
                 const data: RelatedIdentifierFormData[] = [];
 
                 for (let i = 1; i < lines.length; i++) {
-                    const line = lines[i];
-                    const values = line.split(',').map((v) => v.trim());
+                    const values = lines[i].map((v) => v.trim());
 
-                    const minColumns = hasIdentifierType ? 3 : 2;
+                    const minColumns = Math.max(header.indexOf('identifier'), header.indexOf('relation_type'), identifierTypeIndex) + 1;
                     if (values.length < minColumns) {
                         validationErrors.push({
                             row: i + 1,
                             field: 'row',
-                            value: line,
+                            value: values.join(', '),
                             message: 'Row has insufficient columns',
                         });
                         continue;
@@ -215,6 +222,13 @@ export default function RelatedWorkCsvImport({ onImport, onClose, activeRelation
 
                     // Normalize DOI if it has URL prefix
                     let normalizedIdentifier = identifier;
+                    if (identifierType === 'SWHID') {
+                        normalizedIdentifier = normalizeSwhid(identifier);
+                        const validation = validateSwhid(identifier);
+                        if (!validation.valid) {
+                            validationErrors.push({ row: i + 1, field: 'identifier', value: identifier, message: validation.errors[0].message });
+                        }
+                    }
                     if (identifierType === 'DOI') {
                         const doiUrlMatch = identifier.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
                         if (doiUrlMatch) {

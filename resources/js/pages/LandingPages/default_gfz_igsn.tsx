@@ -29,6 +29,7 @@ import { RepositoriesSection } from './components/RepositoriesSection';
 import { ResourceHero } from './components/ResourceHero';
 import { SampleFamilySection } from './components/SampleFamilySection';
 import { SampleImageSection } from './components/SampleImageSection';
+import { type UsageData, UsageSection } from './components/UsageSection';
 import { VersionNotice } from './components/VersionNotice';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
@@ -42,6 +43,7 @@ import { IGSN_HIDDEN_SECTIONS, IGSN_LEFT_COLUMN_SECTIONS, IGSN_RIGHT_COLUMN_SECT
  */
 interface DefaultGfzIgsnTemplatePageProps {
     resource: LandingPageResource;
+    usage?: UsageData;
     documentTitle: string;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
@@ -74,6 +76,7 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
 export default function DefaultGfzIgsnTemplate() {
     const {
         resource,
+        usage,
         documentTitle,
         landingPage,
         isPreview,
@@ -116,6 +119,7 @@ export default function DefaultGfzIgsnTemplate() {
                 resourceId={resource.id}
                 isPreview={isPreview}
                 supportsIso19115={supportsIso19115}
+                supportsIgsnCore
                 jsonLdExportUrl={jsonLdExportUrl}
                 metadataLinks={metadataLinks}
                 sectionOrder={[key]}
@@ -126,6 +130,7 @@ export default function DefaultGfzIgsnTemplate() {
         );
 
         return {
+            usage: usage ? <UsageSection key="usage" usage={usage} /> : null,
             licenses: <LicenseAndRightsSection key="licenses" licenses={resource.licenses || []} />,
             general: <GeneralSection key="general" igsn={resource.igsn_metadata} dates={resource.dates || []} />,
             sample_family: <SampleFamilySection key="sample_family" family={resource.igsn_sample_family} currentResourceId={resource.id} />,
@@ -213,6 +218,7 @@ export default function DefaultGfzIgsnTemplate() {
             ),
         };
     }, [
+        usage,
         resource,
         landingPage,
         isPreview,

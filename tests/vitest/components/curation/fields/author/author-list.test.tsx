@@ -123,7 +123,6 @@ describe('AuthorList Component', () => {
     };
 
     beforeEach(() => {
-        vi.clearAllMocks();
         dndState.event = {
             active: { id: 'author-1' },
             over: { id: 'author-2' },

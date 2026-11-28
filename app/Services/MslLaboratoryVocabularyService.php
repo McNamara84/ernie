@@ -129,9 +129,9 @@ class MslLaboratoryVocabularyService
     }
 
     /** @return PublicPayload|null */
-    public function getPublicPayload(): ?array
+    public function getPublicPayload(?string $snapshot = null): ?array
     {
-        $payload = $this->getLocalPayload();
+        $payload = $snapshot === null ? $this->getLocalPayload() : $this->decodeLocalPayload($snapshot);
 
         if ($payload === null) {
             return null;
