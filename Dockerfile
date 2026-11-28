@@ -55,7 +55,7 @@ RUN set -eux; \
     docker-php-ext-install redis; \
     rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
-COPY --from=composer:2.11.2@sha256:0c8e663f14c94d07b3c45b175c51f5a14718508f21fe4dd7e54f09488dd0ed71 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.11.3@sha256:5b2137f112f939a92788ceb5e55f54859d9dbf467a44037cf7760bdda949f365 /usr/bin/composer /usr/bin/composer
 
 COPY docker-entrypoint.sh docker/laravel-runtime.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \

@@ -12,6 +12,8 @@ services:
       MAIL_MAILER: log
       LANDING_PAGE_CONTACT_CC_EMAIL: data-publication-team@example.test
       QUEUE_CONNECTION: sync
+      # WebKit rejects Domain=localhost. Bind test sessions to the browser's actual host.
+      SESSION_DOMAIN: ""
       VIEW_COMPILED_PATH: /tmp/ernie-playwright-views
       INERTIA_DEVTOOLS_ENABLED: "false"
       DATACITE_TEST_MODE: "true"

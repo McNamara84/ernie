@@ -654,32 +654,27 @@ for (const portal of [
             });
         });
 
+        await page.setViewportSize({ width: 1280, height: 720 });
         await openPortal(page, portal.path);
         const map = page.locator('.leaflet-container').first();
         const mapPane = map.locator('.leaflet-map-pane');
         const cluster = () => map.locator('.portal-pie-cluster').first();
-        const zoomIn = map.locator('.leaflet-control-zoom-in');
-        const zoomOut = map.locator('.leaflet-control-zoom-out');
 
         await expect(cluster()).toBeVisible();
-        await expect(cluster()).toHaveClass(/leaflet-interactive/);
-
-        let currentZoom = requestedZooms.at(-1)!;
-        for (let adjustment = 0; currentZoom !== 4 && adjustment < 18; adjustment++) {
-            const targetZoom = currentZoom < 4 ? currentZoom + 1 : currentZoom - 1;
-            await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
-            await (currentZoom < 4 ? zoomIn : zoomOut).click();
-            await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
-            await expect.poll(() => requestedZooms.at(-1)).toBe(targetZoom);
-            currentZoom = targetZoom;
-        }
-        expect(currentZoom).toBe(4);
+        // Fit the Svalbard fixture after the map has opened at its desktop size.
+        await openFilterSection(page, 'Location');
+        await page.getByRole('spinbutton', { name: 'North latitude' }).fill('80');
+        await page.getByRole('spinbutton', { name: 'South latitude' }).fill('76');
+        await page.getByRole('spinbutton', { name: 'East longitude' }).fill('30');
+        await page.getByRole('spinbutton', { name: 'West longitude' }).fill('0');
+        await page.getByRole('button', { name: 'Apply', exact: true }).click();
+        await expect.poll(() => requestedZooms.at(-1)).toBe(4);
 
         // Recording the request does not mean its replacement clusters are ready.
         await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
         await expect(map.locator('..')).toHaveAttribute('aria-busy', 'false');
         await expect(cluster()).toHaveClass(/leaflet-interactive/);
-        await cluster().dispatchEvent('click');
+        await cluster().click();
         await expect.poll(() => requestedZooms.at(-1)).toBe(8);
         await expect(cluster()).not.toHaveClass(/leaflet-interactive/);
         const requestsWhileStale = requestedZooms.length;
@@ -694,7 +689,7 @@ for (const portal of [
         await expect(cluster()).toHaveClass(/leaflet-interactive/);
 
         const navigationZooms = [4, 8];
-        currentZoom = 8;
+        let currentZoom = 8;
         for (let click = 0; currentZoom < 18 && click < 8; click++) {
             const previousZoom = currentZoom;
             await cluster().click();

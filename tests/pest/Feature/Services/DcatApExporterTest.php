@@ -25,6 +25,7 @@ use App\Models\TitleType;
 use App\Services\DcatAp\DcatApDataThemeResolver;
 use App\Services\DcatAp\DcatApRdfXmlExporter;
 use App\Services\DcatAp\DcatApReadinessService;
+use App\Services\DcatAp\DcatApRecordService;
 use App\Services\DcatAp\RdfDocument;
 use App\Services\LandingPageMetadataLinkService;
 use Illuminate\Support\Facades\Artisan;
@@ -475,9 +476,12 @@ it('preserves the EU RDF/XML fingerprint used by existing harvest history', func
     $resource->landingPage->update(['ftp_url' => null, 'published_at' => now()]);
     $resource->update(['access_level' => AccessLevel::OPEN]);
     config(['dcatap.enabled' => true]);
-    $xml = DcatApFormat::Eu->exporter()->export($resource->refresh());
+    $xml = DcatApFormat::Eu->exporter()->export($resource->refresh(), forOaiPmh: true);
     // Captured from the preceding EU exporter for this fixed metadata and clock.
     expect(hash('sha256', $xml))->toBe('42051ce9fbd6835d52f6143d24c4fed1b6a39d4e3e1e0b8ff4aa7c78ae299f8b');
+    app(DcatApRecordService::class)->reconcile($resource->id);
+    $record = OaiPmhFormatRecord::where('resource_id', $resource->id)->where('metadata_prefix', DcatApFormat::Eu->value)->sole();
+    expect($record->fingerprint)->toBe(hash('sha256', $xml.json_encode($record->sets, JSON_THROW_ON_ERROR)));
 });
 
 it('withholds both downloads for incomplete and legacy records and resumes after correction', function () {

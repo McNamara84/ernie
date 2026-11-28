@@ -7,6 +7,7 @@ namespace App\Services\DcatAp;
 use App\Support\LanguageTag;
 use DOMDocument;
 use DOMElement;
+use DOMProcessingInstruction;
 
 /** A fresh, ordered RDF/XML graph per export; anonymous nodes need no generated IDs. */
 final class RdfDocument
@@ -29,7 +30,7 @@ final class RdfDocument
 
     public readonly DOMElement $root;
 
-    public function __construct(?string $schemaUrl = null)
+    public function __construct(?string $schemaUrl = null, bool $forOaiPmh = false)
     {
         $this->dom = new DOMDocument('1.0', 'UTF-8');
         $this->dom->formatOutput = true;
@@ -38,7 +39,14 @@ final class RdfDocument
         foreach (self::NS as $prefix => $namespace) {
             $this->root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:'.$prefix, $namespace);
         }
-        $this->root->setAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'xsi:schemaLocation', self::NS['rdf'].' '.($schemaUrl ?? url('/schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd')));
+        $schemaUrl ??= url('/schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd');
+        if ($forOaiPmh) {
+            $this->root->setAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'xsi:schemaLocation', self::NS['rdf'].' '.$schemaUrl);
+        } else {
+            $href = htmlspecialchars($schemaUrl, ENT_QUOTES | ENT_XML1, 'UTF-8');
+            $hint = new DOMProcessingInstruction('xml-model', 'href="'.$href.'" schematypens="http://www.w3.org/2001/XMLSchema"');
+            $this->dom->insertBefore($hint, $this->root);
+        }
     }
 
     public function element(DOMElement $parent, string $name): DOMElement
