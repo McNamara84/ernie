@@ -1,0 +1,123 @@
+name: Apply issue form selections
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    name: Set issue labels and fields
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Label affected areas
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          retries: 3
+          script: |
+            const issue = context.payload.issue;
+            // The area dropdown is the first submitted field in both issue forms.
+            const [firstSection] = (issue.body ?? '').trimStart().split(/\r?\n### /u, 1);
+            const [heading, ...answer] = firstSection.split(/\r?\n/u);
+            if (heading !== '### Affected areas') return;
+
+            const choices = new Set(answer.flatMap(line => line.split(',')).map(value => value.trim()));
+            const areas = [
+              { name: 'Data Editor', description: 'Editing and validating Resource metadata in the Data Editor' },
+              { name: 'Resources List', description: 'Browsing, filtering and managing Resources at /resources' },
+              { name: 'IGSN', choice: 'IGSN Curation & Registration', description: 'Physical sample records, relationships and IGSN registration' },
+              { name: 'DOI Search Portal', description: 'Public search, filters and maps for Resources at /doi-search' },
+              { name: 'IGSN Search Portal', description: 'Public search, filters and maps for samples at /igsn-search' },
+              { name: 'IGSN Landing Pages', description: 'Public landing pages for physical samples identified by an IGSN' },
+              { name: 'Resource Landing Pages', description: 'Public landing pages for ERNIE Resources' },
+              { name: 'Metadata Import', description: 'Importing Resource and sample metadata from files into ERNIE' },
+              { name: 'Metadata Export', description: 'Generating and downloading metadata files for Resources and samples' },
+              { name: 'APIs & Integrations', description: 'ERNIE APIs and connections to services such as DataCite and ELMO' },
+              { name: 'OAI-PMH', description: 'Metadata harvesting through the OAI-PMH endpoint at /oai-pmh' },
+              { name: 'Controlled Vocabularies', description: 'Thesauri, keywords and vocabulary synchronization' },
+              { name: 'Assistant', previousName: 'assistant', description: 'Metadata enrichment suggestions in Assistance' },
+              { name: 'Documentation', previousName: 'documentation', description: 'ERNIE user, developer and API documentation' },
+            ];
+            const selected = areas.filter(area => choices.has(area.choice ?? area.name));
+            if (selected.length === 0) return;
+
+            const issues = github.rest.issues;
+            const existing = await github.paginate(issues.listLabelsForRepo, { ...context.repo, per_page: 100 });
+            const existingNames = new Map(existing.map(label => [label.name.toLowerCase(), label.name]));
+            for (const { name, previousName, description } of selected) {
+              const existingName = existingNames.get(name.toLowerCase());
+              if (existingName) {
+                if (existingName === previousName) {
+                  await issues.updateLabel({ ...context.repo, name: existingName, new_name: name });
+                }
+                continue;
+              }
+              try {
+                await issues.createLabel({ ...context.repo, name, description, color: '1d76db' });
+              } catch (error) {
+                // Another newly opened issue may have created the same label.
+                const alreadyExists = error.status === 422 && error.response?.data?.errors?.some(detail => detail.code === 'already_exists');
+                if (!alreadyExists) throw error;
+              }
+            }
+            await issues.addLabels({
+              ...context.repo,
+              issue_number: issue.number,
+              labels: selected.map(area => area.name),
+            });
+
+      - name: Set reporting stakeholder
+        if: ${{ !cancelled() }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          retries: 3
+          script: |
+            const body = (context.payload.issue.body ?? '').trimStart().replaceAll('\r\n', '\n');
+            const [first, second] = body.split(/\n(?=### )/u, 2);
+            const [firstHeading] = first.split('\n', 1);
+            const section = firstHeading === '### Affected areas' ? second : first;
+            const [heading, ...answer] = (section ?? '').split('\n');
+            const stakeholder = answer.join('\n').trim();
+            if (heading !== '### Stakeholder' || !stakeholder || stakeholder === '_No response_') return;
+
+            const { repository } = await github.graphql(`
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issueFields(first: 100) {
+                    nodes { ... on IssueFieldSingleSelect { id name options { id name } } }
+                  }
+                  issue(number: $number) {
+                    id
+                    issueType { name }
+                    issueFieldValues(first: 100) {
+                      nodes { ... on IssueFieldSingleSelectValue { field { ... on IssueFieldSingleSelect { id } } } }
+                    }
+                  }
+                }
+              }`, { ...context.repo, number: context.payload.issue.number });
+            const issue = repository.issue;
+            if (!['Bug', 'Feature'].includes(issue?.issueType?.name)) return;
+
+            const field = repository.issueFields.nodes.find(candidate => candidate?.name === 'Stakeholder');
+            if (!field) {
+              throw new Error('Configure the Stakeholder single-select issue field for the repository owner and rerun this workflow.');
+            }
+            if (issue.issueFieldValues.nodes.some(value => value?.field?.id === field.id)) return;
+
+            const option = field.options.find(candidate => candidate.name === stakeholder);
+            if (!option) {
+              core.warning('The submitted stakeholder does not match a configured Stakeholder option.');
+              return;
+            }
+            await github.graphql(`
+              mutation($input: CreateIssueFieldValueInput!) {
+                createIssueFieldValue(input: $input) { issue { id } }
+              }`, {
+                input: {
+                  issueId: issue.id,
+                  issueField: { fieldId: field.id, singleSelectOptionId: option.id },
+                },
+              });

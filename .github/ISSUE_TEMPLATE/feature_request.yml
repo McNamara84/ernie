@@ -1,24 +1,63 @@
 name: Feature Request
 description: Suggest a new feature or improvement for ERNIE
-title: "[FEATURE] "
-labels: ["enhancement", "DoR not met"]
+type: Feature
+labels: ["DoR not met"]
 projects: ["McNamara84/14"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for suggesting a feature! Please describe your idea below.
+        Use the page names shown in ERNIE. When relevant, link the affected Resource or identify the physical sample by its IGSN.
 
-        ## Use ERNIE terms
+  # The workflow reads these two dropdowns before any free-text answers.
+  - type: dropdown
+    id: affected-areas
+    attributes:
+      label: Affected areas
+      description: Select all areas that apply. Your selections become issue labels. Leave blank if unsure.
+      multiple: true
+      options:
+        - Data Editor
+        - Resources List
+        - IGSN Curation & Registration
+        - DOI Search Portal
+        - IGSN Search Portal
+        - IGSN Landing Pages
+        - Resource Landing Pages
+        - Metadata Import
+        - Metadata Export
+        - APIs & Integrations
+        - OAI-PMH
+        - Controlled Vocabularies
+        - Assistant
+        - Documentation
 
-        Please use the exact terms shown in ERNIE. Do not use abbreviations. For example, a digital dataset is named **Resource**, and a physical sample is named **IGSN**.
+  - type: dropdown
+    id: stakeholder
+    attributes:
+      label: Stakeholder
+      description: Select the stakeholder who requested the feature, if known. Your choice appears in the issue text.
+      multiple: false
+      options:
+        - All DataCurators
+        - Repository Manager
+        - IT Services
+        - Data Protection Officer
+        - DataHub
+        - EPOS MSL
+        - SysAdmin
+        - Head of Section
+        - Data Curator K
+        - Data Curator A
+        - Data Curator M
+        - FAIR AIMS
 
   - type: textarea
     id: user-story
     attributes:
       label: User Story
       description: Describe the feature from a user's perspective.
-      value: |
+      placeholder: |
         As a **...**, I want **...**, so that **...**.
     validations:
       required: true
@@ -29,9 +68,7 @@ body:
       label: Acceptance Criteria
       description: Define the conditions that must be met for this feature to be considered complete.
       placeholder: |
-        - [ ] Criterion 1
-        - [ ] Criterion 2
-        - [ ] Criterion 3
+        - [ ] Given samples of different materials, when I filter by one material, then only matching samples appear.
     validations:
       required: true
 
