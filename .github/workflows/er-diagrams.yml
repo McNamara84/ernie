@@ -1,0 +1,74 @@
+name: ER diagrams
+
+on:
+  push:
+    branches:
+      - doc/better-er-diagram-rendering # Temporary preview before rollout
+      - dev
+      - main
+    paths:
+      - database/er-diagram.md
+      - database/er-diagram-plantuml.md
+      - scripts/ci/render-er-diagram.py
+      - scripts/ci/mermaid-er-config.json
+      - .github/workflows/er-diagrams.yml
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    if: github.event_name != 'release' || !github.event.release.prerelease
+    name: Render ${{ matrix.renderer }} SVG
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        renderer: [mermaid, plantuml]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Render and verify the full diagram
+        run: python3 scripts/ci/render-er-diagram.py ${{ matrix.renderer }} "$RUNNER_TEMP/er-diagrams"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: er-diagram-${{ matrix.renderer }}-${{ github.sha }}
+          path: ${{ runner.temp }}/er-diagrams/er-diagram-${{ matrix.renderer }}.svg
+          if-no-files-found: error
+          overwrite: true
+
+  release-assets:
+    name: Attach SVGs to the release
+    needs: render
+    if: github.event_name == 'release' && !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency: er-diagrams-release-${{ github.event.release.id }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: er-diagram-*-${{ github.sha }}
+          path: er-diagrams
+          merge-multiple: true
+
+      - name: Upload missing release assets
+        working-directory: er-diagrams
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          existing=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[] | select(.state == "uploaded") | .name')
+          for svg in er-diagram-mermaid.svg er-diagram-plantuml.svg; do
+            if ! grep -Fxq -- "$svg" <<< "$existing"; then
+              # A failed upload can leave an incomplete asset with this name.
+              gh release upload "$RELEASE_TAG" "$svg" --clobber
+            fi
+          done

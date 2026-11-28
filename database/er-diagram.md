@@ -1,5 +1,7 @@
 # ERNIE Database ER Diagram
 
+[Download or build the full Mermaid SVG](../docs/local-development.md#database-er-diagrams).
+
 ```mermaid
 erDiagram
     %% =========================================================================

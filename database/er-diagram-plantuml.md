@@ -1,5 +1,7 @@
 # ERNIE Database ER Diagram (PlantUML)
 
+[Download or build the full PlantUML SVG](../docs/local-development.md#database-er-diagrams).
+
 ```plantuml
 @startuml ERNIE_ER_Diagram
 
