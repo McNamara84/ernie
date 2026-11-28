@@ -49,6 +49,38 @@ test.describe('Editor Settings accordion', () => {
         await expect(page.getByRole('heading', { name: 'Editor Settings', exact: true })).toBeVisible();
     });
 
+    test('animates a panel to its content height and respects reduced motion', async ({ page }) => {
+        const button = trigger(page, 'resource-types');
+        const panel = card(page, 'resource-types').locator('[data-slot="accordion-content"]');
+        const durationMs = () =>
+            panel.evaluate((element) => {
+                const duration = getComputedStyle(element).animationDuration;
+                return Number.parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000);
+            });
+
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        await button.click();
+        await expect(panel).toHaveCSS('animation-name', 'accordion-down');
+        await expect.poll(durationMs).toBeGreaterThan(1);
+        await expect
+            .poll(() =>
+                panel.evaluate((element) => {
+                    const height = Number.parseFloat(getComputedStyle(element).getPropertyValue('--radix-accordion-content-height'));
+                    return height > 0 && Math.abs(element.getBoundingClientRect().height - height) <= 1;
+                }),
+            )
+            .toBe(true);
+        await button.click();
+        await expect(panel).toBeHidden();
+
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await button.click();
+        await expect(panel).toBeVisible();
+        await expect.poll(durationMs).toBeLessThanOrEqual(1);
+        await button.click();
+        await expect(panel).toBeHidden();
+    });
+
     for (const viewport of [
         { width: 1280, height: 800 },
         { width: 375, height: 812 },

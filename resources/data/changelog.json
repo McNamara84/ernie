@@ -130,6 +130,10 @@
         ],
         "fixes": [
             {
+                "title": "Editor Fields and Collapsible Settings",
+                "description": "Screen readers describe text and selection fields using their help text and visible validation messages. Searchable dropdowns, including the data centre list, open at the width of their field. Editor settings panels animate when opened or closed and respect your reduced-motion preference."
+            },
+            {
                 "title": "Keyword Suggestions in Portal Searches",
                 "description": "The DOI and IGSN search portals hide the keyword menu when no new matches are available. Escape closes the menu, including loading and error messages. Enter searches your text when no suggestion is highlighted."
             },
@@ -145,7 +149,7 @@
             },
             {
                 "title": "Scrolling in the Related Item Manager",
-                "description": "Long lists and forms now scroll inside the dialog, so all fields and the Save button are reachable on smaller screens.",
+                "description": "Long lists and forms scroll inside the dialog, so all fields and the Save button are reachable on smaller screens. The title and Close button stay in view when you tab through the form.",
                 "references": [{ "type": "issue", "number": 1580, "url": "https://github.com/McNamara84/ernie/issues/1580" }]
             },
             {

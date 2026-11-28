@@ -138,7 +138,8 @@ export function RelatedItemForm({
 
     return (
         <Form {...form}>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Keyboard focus scrolls to a field using the panel's final height. */}
+            <form onSubmit={handleSubmit} className="space-y-4 [&:has(:focus-visible)_[data-slot=accordion-content]]:animation-duration-0">
                 {/* Required */}
                 <div className="grid gap-4 sm:grid-cols-2">
                     <FormField

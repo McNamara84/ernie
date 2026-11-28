@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:e3a5d9f4f35dca4dfa1fd787c406afb7628354d04d415f4435dd91d19fc15a82}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:1124d7a736502488a560425ff704d4889d608e1c081bf5e9cb9ea7306180d252}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -179,7 +179,7 @@ services:
       - LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX=${LANDING_PAGE_DEFAULT_DOWNLOAD_URL_PREFIX-https://datapub.gfz.de/download}
 
   webserver:
-    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:86b92792a655a1703a4ce9caeba2c1f270c5e6ba8c99c9ac4af964de996e2cb2}"
+    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:1d534bc654c376d54bc8aa410b1defb60942b1e2600f40cdb76400d81472c629}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -239,7 +239,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: "${ERNIE_STAGE_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:f8e345a7ddbf929747daeb0be96f31f5861d88f0d5c2d1c8db3df8f3bf149a0c}"
+    image: "${ERNIE_STAGE_FUJI_IMAGE:-ghcr.io/mcnamara84/ernie-fuji@sha256:d7bffc9a2ee151d0a0091b61573b88958c3477381b579c958c9c12d78bcc5efe}"
     container_name: ernie-fuji-stage
     restart: unless-stopped
     entrypoint:
@@ -270,7 +270,7 @@ services:
       start_period: 60s
 
   queue: &ernie-queue
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:e3a5d9f4f35dca4dfa1fd787c406afb7628354d04d415f4435dd91d19fc15a82}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:1124d7a736502488a560425ff704d4889d608e1c081bf5e9cb9ea7306180d252}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -417,7 +417,7 @@ services:
     command: php artisan queue:work elmo --queue=elmo-cache-refresh --sleep=1 --tries=3 --timeout=${ELMO_CACHE_REFRESH_JOB_TIMEOUT:-330}
 
   assessment-queue:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:e3a5d9f4f35dca4dfa1fd787c406afb7628354d04d415f4435dd91d19fc15a82}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:1124d7a736502488a560425ff704d4889d608e1c081bf5e9cb9ea7306180d252}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -515,7 +515,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:e3a5d9f4f35dca4dfa1fd787c406afb7628354d04d415f4435dd91d19fc15a82}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:1124d7a736502488a560425ff704d4889d608e1c081bf5e9cb9ea7306180d252}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped

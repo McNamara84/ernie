@@ -103,7 +103,11 @@ export function CitationManagerModal({ open, onOpenChange, resourceId, resourceT
                     <DialogDescription>Manage DataCite related items for this resource.</DialogDescription>
                 </DialogHeader>
 
-                <div key={mode.type} data-slot={`citation-manager-${mode.type}`} className="-m-1 min-h-0 overflow-y-auto overscroll-y-contain p-1">
+                <div
+                    key={mode.type}
+                    data-slot={`citation-manager-${mode.type}`}
+                    className="relative -m-1 min-h-0 overflow-y-auto overscroll-y-contain p-1"
+                >
                     {mode.type === 'list' ? (
                         <div className="space-y-3">
                             {isLoading ? (

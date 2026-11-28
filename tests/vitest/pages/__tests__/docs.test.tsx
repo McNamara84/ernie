@@ -832,7 +832,8 @@ describe('Docs page', () => {
     it('documents the editor settings accordion and save behavior', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
-        expect(screen.getByRole('heading', { name: 'Page Layout and Saving' })).toBeInTheDocument();
+        const settings = screen.getByRole('heading', { name: 'Page Layout and Saving' }).closest('section');
+        expect(settings).toHaveTextContent('reduced motion enabled on your device, settings sections open and close immediately');
         expect(screen.getByText(/All sections start collapsed/i)).toBeInTheDocument();
         expect(screen.getByText(/All sections start collapsed/i)).toHaveTextContent('on each new visit or full page reload');
         expect(screen.getByText(/Multiple sections can stay open independently/i)).toBeInTheDocument();
@@ -1267,10 +1268,23 @@ describe('Docs page', () => {
         expect(screen.queryByText('Custom Landing Page Templates')).not.toBeInTheDocument();
     });
 
+    it('explains how screen readers describe editor fields to beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+        await openDatasetsTab(user);
+
+        const workflow = screen.getByRole('heading', { name: 'Curation Workflow', level: 2 }).closest('section');
+        expect(workflow).toHaveTextContent('screen reader can read the field label, any help text, and any visible validation messages');
+    });
+
     it('shows related item manager documentation for beginners', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
+
+        const manager = screen.getByRole('heading', { name: 'Related Item Manager', level: 2 }).closest('section');
+        expect(manager).toHaveTextContent('select one resource, open Actions, and choose Manage Related Items');
+        expect(manager).toHaveTextContent('Tab to move forward and Shift+Tab to move back');
+        expect(manager).toHaveTextContent('dialog title and Close button stay in view');
 
         expect(screen.getByText(/Related Items \(DataCite 4\.7/i)).toBeInTheDocument();
         expect(screen.getByText(/You can open this workflow anywhere ERNIE lets you edit a resource\./i)).toBeInTheDocument();
