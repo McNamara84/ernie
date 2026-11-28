@@ -695,7 +695,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                         src="/images/unicorn.png"
                         alt=""
                         aria-hidden="true"
-                        className="pointer-events-none fixed z-50 duration-300 animate-in fade-in zoom-in"
+                        className="pointer-events-none fixed z-50 animate-in duration-300 fade-in zoom-in"
                         style={{
                             left: `${unicorn.x}px`,
                             top: `${unicorn.y}px`,
