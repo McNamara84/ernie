@@ -140,7 +140,7 @@ final class OaiPmhDcatApService
             $this->xml->addDeletedRecord($container, $record->oai_identifier, $timestamp, $sets);
         } else {
             assert($record->resource !== null);
-            $this->xml->addRecord($container, $record->oai_identifier, $timestamp, $sets, $format->exporter()->export($record->resource));
+            $this->xml->addRecord($container, $record->oai_identifier, $timestamp, $sets, $format->exporter()->export($record->resource, forOaiPmh: true));
         }
     }
 

@@ -188,21 +188,26 @@ it('registers the format independently of ISO and excludes ineligible identifier
     $this->get(oaiDcatQuery('ListMetadataFormats'))->assertDontSee('<metadataPrefix>dcat_ap</metadataPrefix>', false);
 });
 
-it('embeds the same RDF as the public download', function () {
+it('uses transport-specific schema hints for the same RDF graph', function (DcatApFormat $format) {
+    config([$format->configKey().'.enabled' => true]);
     $resource = oaiDcatResource();
-    $arguments = ['identifier' => config('oaipmh.identifier_prefix').':'.$resource->doi, 'metadataPrefix' => 'dcat_ap'];
+    $arguments = ['identifier' => config('oaipmh.identifier_prefix').':'.$resource->doi, 'metadataPrefix' => $format->value];
     $oai = oaiDcatXPath($this->get(oaiDcatQuery('GetRecord', $arguments))->assertOk()->getContent());
-    $public = oaiDcatXPath($this->get($resource->landingPage->getPublicPath().'/metadata/dcat-ap.rdf')->assertOk()->getContent());
+    $public = oaiDcatXPath($this->get($resource->landingPage->getPublicPath().'/metadata/'.$format->slug().'.rdf')->assertOk()->getContent());
     // Namespace-aware DOM comparison; semantic graph isomorphism is also checked by test:dcat-ap.
     $embedded = $oai->query('//oai:metadata/rdf:RDF')->item(0);
-    expect($embedded)->not->toBeNull();
+    expect($embedded)->toBeInstanceOf(DOMElement::class);
     $document = new DOMDocument;
     $document->appendChild($document->importNode($embedded, true));
-    expect($oai->evaluate('string(//dct:title)'))->toBe($public->evaluate('string(//dct:title)'))
+    $xsi = 'http://www.w3.org/2001/XMLSchema-instance';
+    expect($embedded->getAttributeNS($xsi, 'schemaLocation'))->toBe(RdfDocument::NS['rdf'].' '.$format->schemaUrl())
+        ->and($public->document->documentElement->hasAttributeNS($xsi, 'schemaLocation'))->toBeFalse()
+        ->and($public->evaluate('string(/processing-instruction("xml-model"))'))->toBe('href="'.$format->schemaUrl().'" schematypens="http://www.w3.org/2001/XMLSchema"')
+        ->and($oai->evaluate('string(//dct:title)'))->toBe($public->evaluate('string(//dct:title)'))
         ->and($oai->evaluate('count(//rdf:Description)'))->toBe($public->evaluate('count(//rdf:Description)'))
-        ->and($document->schemaValidate(public_path('schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd')))->toBeTrue();
+        ->and($document->schemaValidate(public_path('schemas/oai-pmh/'.$format->slug().'/'.config($format->configKey().'.version').'/rdf-envelope.xsd')))->toBeTrue();
     $this->post('/oai-pmh', ['verb' => 'GetRecord', ...$arguments])->assertOk()->assertSee('http://www.w3.org/ns/dcat#Dataset', false);
-});
+})->with(DcatApFormat::cases());
 
 it('persists format-only deletion and restores eligibility with an incremental datestamp', function (DcatApFormat $profile) {
     config(['dcatap.enabled' => $profile === DcatApFormat::Eu, 'dcatap.epos.enabled' => $profile === DcatApFormat::Epos]);
