@@ -106,7 +106,9 @@ test.describe('a long list from the resources page', () => {
         await page.goto(`/resources?search=${encodeURIComponent(draft.title)}`);
         await page.getByTestId(`resources-row-checkbox-${draft.id}`).check();
         await page.getByTestId('resources-actions-menu-trigger').click();
-        await page.getByTestId('resources-action-manage-related-items').click();
+        const manageItems = page.getByTestId('resources-action-manage-related-items');
+        await expect(manageItems).not.toHaveAttribute('data-unavailable', 'true');
+        await manageItems.click();
         const dialog = page.getByRole('dialog', { name: 'Related Item Manager' });
         const list = dialog.locator('[data-slot="citation-manager-list"]');
         await expect(list.locator('[data-slot="citation-card"]')).toHaveCount(12);
@@ -140,6 +142,7 @@ test.describe('a long list from the resources page', () => {
         const save = dialog.getByRole('button', { name: 'Save', exact: true });
         await expect(save).toBeFocused();
         await expect(save).toBeInViewport({ ratio: 1 });
+        await expect(dialog.getByRole('heading', { name: 'Related Item Manager' })).toBeInViewport({ ratio: 1 });
         await expect(dialog.getByRole('button', { name: 'Close', exact: true })).toBeInViewport({ ratio: 1 });
         await page.keyboard.press('Shift+Tab');
         await expect(cancel).toBeFocused();

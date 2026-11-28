@@ -149,7 +149,7 @@
             },
             {
                 "title": "Scrolling in the Related Item Manager",
-                "description": "Long lists and forms now scroll inside the dialog, so all fields and the Save button are reachable on smaller screens.",
+                "description": "Long lists and forms scroll inside the dialog, so all fields and the Save button are reachable on smaller screens. The title and Close button stay in view when you tab through the form.",
                 "references": [{ "type": "issue", "number": 1580, "url": "https://github.com/McNamara84/ernie/issues/1580" }]
             },
             {
