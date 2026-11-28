@@ -89,7 +89,7 @@ pattern expansion and Swagger's actual file allowlist. The advisories are
 | Playwright dev stack       | Host shell                 | `npm run test:e2e:devstack`                 | Requires the Docker dev stack                                  |
 | Playwright stage           | Host shell                 | `npm run test:e2e:stage`                    | Use only for stage-specific bug reproduction                   |
 | Backend umbrella check     | Host shell                 | `npm run check:backend`                     | Pint, Pest, and PHPStan                                        |
-| Frontend umbrella check    | Host shell                 | `npm run check:frontend`                    | Oxlint plus OpenAPI lint plus TypeScript plus one-shot Vitest  |
+| Frontend umbrella check    | Host shell                 | `npm run check:frontend`                    | Oxlint, Oxfmt, OpenAPI, TypeScript, tooling tests, and Vitest  |
 | Parity umbrella check      | Host shell                 | `npm run check:parity`                      | Parity profile plus MySQL slice plus Playwright                |
 
 ## PHP Test Database Strategy

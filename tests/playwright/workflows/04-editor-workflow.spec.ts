@@ -271,6 +271,8 @@ test.describe('Editor Form', () => {
 
         const datacenterSelect = page.getByTestId('datacenter-select');
         await datacenterSelect.click();
+        const datacenterMenu = page.locator('[data-slot="popover-content"]').filter({ has: page.getByRole('listbox') });
+        await expect(datacenterMenu).toHaveCSS('width', await datacenterSelect.evaluate((element) => getComputedStyle(element).width));
         await page.getByRole('option', { name: 'DEKORP - German Continental Seismic Reflection Program', exact: true }).click();
         await expect(datacenterSelect).toContainText('DEKORP - German Continental Seismic Reflection Program');
 

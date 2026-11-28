@@ -591,6 +591,7 @@ export default function Docs({ userRole, editorSettings, dataCite, capabilities 
                             all cards. Open sections remain open after saving and partial updates. Each section heading shows the summaries relevant
                             to its controls, such as item totals and ERNIE or ELMO activation counts where available.
                         </p>
+                        <p>With reduced motion enabled on your device, settings sections open and close immediately.</p>
                         <p>
                             Changes to the editor tables and activation controls use the sticky <strong>Save changes</strong> action. Adding or
                             deleting <strong>Landing Page Domains</strong> and <strong>Datacenters</strong> is saved immediately instead. Checks for
@@ -1768,6 +1769,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Review Metadata">
                                 <p>Check all pre-populated fields from the file upload for accuracy.</p>
+                                <p>
+                                    Use <kbd>Tab</kbd> to focus a text field or dropdown. Your screen reader can read the field label, any help text,
+                                    and any visible validation messages. Check for feedback after you leave a text field or change a selection.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Validate Authors">
                                 <p>Verify author information, add ORCID iDs, and confirm ROR affiliations.</p>
@@ -2710,14 +2715,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Where to find it</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Resources list:</strong> click the quote icon <code>&quot;</code> in the Actions column of any row to open the
-                                Related Item Manager modal for that resource.
+                                In the <strong>Resources</strong> list, select one resource, open <strong>Actions</strong>, and choose{' '}
+                                <strong>Manage Related Items</strong>.
                             </li>
                             <li>
-                                <strong>Curation form:</strong> expand the <em>Related Items</em> accordion to add, edit, or delete related items
-                                while editing a resource.
+                                For a saved resource in the Data Editor, expand <strong>Related Items</strong> and choose{' '}
+                                <strong>Manage Related Items</strong>.
                             </li>
                         </ul>
+                        <p>
+                            Press <kbd>Enter</kbd> or <kbd>Space</kbd> on a section heading such as <strong>Numbering</strong> to open or close it.
+                            Use <kbd>Tab</kbd> to move forward and <kbd>Shift+Tab</kbd> to move back through the fields and buttons, including{' '}
+                            <strong>Cancel</strong> and <strong>Save</strong>. The form scrolls to the focused control while the dialog title and{' '}
+                            <strong>Close</strong> button stay in view.
+                        </p>
 
                         <h4>Adding a Related Item</h4>
                         <WorkflowSteps>
