@@ -10,6 +10,27 @@ const options = [
 ];
 
 describe('DatacenterField', () => {
+    it('selects a data centre by ID and clears its required-field feedback on update', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        const props = { id: 'datacenter', label: 'Data centre', required: true, options, onChange };
+        const { rerender } = render(<DatacenterField {...props} selected={null} hasError errorMessage="Choose a data centre." />);
+        const trigger = screen.getByRole('combobox', { name: /Data centre/ });
+        expect(trigger).toBeRequired();
+        expect(trigger).toBeInvalid();
+        expect(screen.getByText('Choose a data centre.')).toBeVisible();
+
+        await user.click(trigger);
+        await user.click(screen.getByRole('option', { name: 'Datacenter Two' }));
+        expect(onChange).toHaveBeenCalledExactlyOnceWith(2);
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+        rerender(<DatacenterField {...props} selected={2} />);
+        expect(trigger).toHaveTextContent('Datacenter Two');
+        expect(trigger).not.toBeInvalid();
+        expect(screen.queryByText('Choose a data centre.')).not.toBeInTheDocument();
+    });
+
     it('clears the selected datacenter and closes the popover', async () => {
         const user = userEvent.setup();
         const onChange = vi.fn();

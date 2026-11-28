@@ -49,6 +49,10 @@ const severityConfig: Record<
     },
 };
 
+export function visibleValidationMessages(messages: ValidationMessage[], showSuccess: boolean) {
+    return showSuccess ? messages : messages.filter((message) => message.severity !== 'success');
+}
+
 /**
  * Component for displaying validation feedback
  * 
@@ -73,10 +77,7 @@ export function FieldValidationFeedback({
     compact = false,
     id,
 }: FieldValidationFeedbackProps) {
-    // Filter messages based on showSuccess
-    const filteredMessages = showSuccess
-        ? messages
-        : messages.filter((m) => m.severity !== 'success');
+    const filteredMessages = visibleValidationMessages(messages, showSuccess);
 
     if (filteredMessages.length === 0) {
         return null;
