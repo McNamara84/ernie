@@ -420,6 +420,23 @@ bind-mount reads. PHPStan also inherits the 2 GB PHP configuration when its
 analyzer restarts or launches workers. Run these wrappers sequentially because
 they share that workspace.
 
+### Database ER diagrams
+
+Download the full Mermaid and PlantUML SVGs from **Artifacts** in the
+[ER diagrams workflow](https://github.com/McNamara84/ernie/actions/workflows/er-diagrams.yml).
+Choose the run for the branch and commit you want to inspect. A push that changes
+either diagram or its rendering tools builds both SVGs. Each renderer checks
+the table names and relationships against its Markdown source before uploading.
+Stable GitHub releases also include both SVGs as assets built from the tagged commit.
+
+To reproduce a build locally, run either command from the repository root with
+Python 3 and Docker.
+
+```sh
+python scripts/ci/render-er-diagram.py mermaid .tmp/er-diagrams
+python scripts/ci/render-er-diagram.py plantuml .tmp/er-diagrams
+```
+
 ## Homepage news
 
 Admins and Group Leaders open **Administration → Configuration → Manage News**
