@@ -874,6 +874,8 @@ describe('Docs page', () => {
         expect(screen.getByRole('heading', { name: 'Bulk Actions for up to 1000 IGSNs', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/starts a persistent background run/i)).toBeInTheDocument();
         expect(screen.getByText(/close the dialog, navigate away, or close the browser without stopping the run/i)).toBeInTheDocument();
+        expect(screen.getByText(/Closing the finished preview marks successful samples/i)).toBeInTheDocument();
+        expect(screen.getByText(/Draft landing pages stay private/i)).toBeInTheDocument();
     });
 
     it('shows landing pages documentation for beginner training', async () => {

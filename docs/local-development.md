@@ -749,7 +749,7 @@ observation.
 
 ### DataCite mode and repository credentials
 
-Keep `DATACITE_TEST_MODE=true` for local development and Stage. Use only the configured test repository for registration and metadata-update checks.
+Keep `DATACITE_TEST_MODE=true` for local development and Stage. Ordinary DOI registration and metadata-update checks use the configured test repository. On `/igsns`, single and batch registrations generate local JSON previews.
 
 Production uses separate Repository accounts for ordinary GFZ DOIs and IGSNs. Configure `DATACITE_USERNAME`, `DATACITE_PASSWORD`, and `DATACITE_CLIENT_ID` for the ordinary repository, and `DATACITE_IGSN_USERNAME`, `DATACITE_IGSN_PASSWORD`, and `DATACITE_IGSN_CLIENT_ID` for the IGSN repository. ERNIE selects the IGSN credentials for the configured IGSN prefix. Test API audits additionally require `DATACITE_TEST_CLIENT_ID`.
 
@@ -929,21 +929,13 @@ After a new test DOI is registered, the success dialog displays the number of lo
 
 ### Testing queued IGSN batch registration safely
 
-The IGSN list can queue up to 1000 selected samples for DataCite registration or metadata updates. Keep `DATACITE_TEST_MODE=true`, configure valid DataCite Test credentials, and use only disposable identifiers when testing this workflow locally. The start request returns `202 Accepted`; it never performs the DataCite writes in the web request.
+On `/igsns`, `DATACITE_TEST_MODE=true` prepares the DataCite request locally. Beginners also use this mode when the global setting is off. Set up a landing page, select the row's registration action or check up to 1000 samples and choose **Register Selected**. Local previews work without DataCite credentials and can use a draft landing page.
 
-Each run and its ordered items are stored in `igsn_registration_runs` and `igsn_registration_items`. One short-lived job processes one item and dispatches the next job on the queue configured by `DATACITE_QUEUE`, which defaults to `datacite`. Both the app and queue services must use a persistent queue connection such as `database`; `sync` and `null` are deliberately rejected. Every Docker environment forwards `DATACITE_QUEUE` to both services, and its worker consumes the configured queue.
+The preview shows the color-coded JSON that ERNIE prepares for each sample. Choose an IGSN and use **Copy JSON** to copy it. Closing a finished preview marks its successful entries **Registered** for everyone using test mode. A second login or reload shows the same result. A draft landing page stays private. In production, a sample with only a simulated registration offers **Register at DataCite**.
 
-The effective DataCite test/production mode and endpoint are snapshotted when a run starts. Credentials are never stored with the run and are read from the current server configuration by each job. A changed mode or endpoint pauses the run before another write. Beginner runs remain on DataCite Test even when a worker executes without a signed-in browser user.
+A single preview is prepared immediately. A batch uses the persistent `DATACITE_QUEUE` worker (default `datacite`). Closing a running batch lets preparation continue. Select **View registration progress** to return to the results. Errors identify individual samples. If a sample changes before confirmation, start a fresh preview for that sample.
 
-Closing the progress dialog, navigating away, restarting a worker, or reloading the browser does not cancel a run. Return to `/igsns` and use **View registration progress** to inspect it. Cancellation takes effect between external requests. Failed items can be retried without resending successful items; a resumed item also checks whether DataCite already accepted an earlier create request before it attempts another create.
-
-For a safe local check:
-
-1. Start the Docker stack and confirm the queue service consumes `datacite`.
-2. Create a small set of synthetic IGSNs with published landing pages.
-3. Confirm the progress dialog says **DataCite Test**, then use **Register Selected**.
-4. Close and reopen the dialog while the run is active, and verify the same run and counters return.
-5. Exercise cancellation or retry only with disposable test identifiers. Never use production credentials for automated or local development tests.
+Production registration uses the configured IGSN repository and confirms DataCite's Findable state. The production queue supports cancellation, retries and reconciliation. An **Unverified** status identifies an older registration whose production origin needs checking. ERNIE verifies it with the repository on the next production action.
 
 ### Migrated IGSN metadata and images
 

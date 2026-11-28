@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $uuid
  * @property int|null $active_resource_id
  * @property int $resource_id
+ * @property string $operation
  * @property int|null $user_id
  * @property bool $test_mode
  * @property string $endpoint

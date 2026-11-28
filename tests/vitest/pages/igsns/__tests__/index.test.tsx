@@ -445,6 +445,17 @@ describe('IgsnsPage', () => {
             expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
         });
 
+        it('refreshes the count after a registration reloads the same filtered page', async () => {
+            const pagination = createPagination({ count_status: 'pending', filter_fingerprint: 'registered' });
+            const filters = { ...defaultProps.filters, status: 'registered' };
+            const result = { filter_fingerprint: 'registered', filtered_total: 1, inventory_total: 5, last_page: 1 };
+            mockAxiosGet.mockResolvedValueOnce({ data: result }).mockResolvedValueOnce({ data: { ...result, filtered_total: 2 } });
+            const { rerender } = render(<IgsnsPage {...defaultProps} filters={filters} pagination={pagination} />);
+            await waitFor(() => expect(screen.getByTestId('search-counts')).toHaveTextContent('1 / 5'));
+            rerender(<IgsnsPage {...defaultProps} filters={filters} pagination={{ ...pagination }} />);
+            await waitFor(() => expect(screen.getByTestId('search-counts')).toHaveTextContent('2 / 5'));
+        });
+
         it('reloads the cached count when navigating between pages with the same filters', async () => {
             mockAxiosGet.mockResolvedValue({
                 data: {
@@ -896,6 +907,21 @@ describe('IgsnsPage', () => {
                 />,
             );
             expect(screen.getByRole('button', { name: /update metadata at datacite/i })).toBeInTheDocument();
+        });
+
+        it('opens the simulation result for a repeated test registration', async () => {
+            mockAxiosPost.mockResolvedValueOnce({
+                data: { mode: 'simulation', run: createRegistrationRun({ is_simulation: true, status: 'completed' }) },
+            });
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[{ ...createIgsn({ has_landing_page: true, upload_status: 'registered' }), registration_operation: 'register' }]}
+                />,
+            );
+            await userEvent.click(screen.getByRole('button', { name: /register at datacite/i }));
+            expect(await screen.findByTestId('igsn-registration-run-modal-mock')).toHaveTextContent('registration-run-1');
+            expect(mockAxiosPost).toHaveBeenCalledWith('/igsns/1/register');
         });
 
         it('calls axios.post and shows success toast on successful registration', async () => {

@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { IgsnRegistrationPreview } from '@/components/igsns/igsn-registration-preview';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,8 @@ export interface IgsnRegistrationRun {
     id: string;
     status: 'preparing' | 'queued' | 'running' | 'paused' | 'cancel_requested' | 'cancelled' | 'completed' | 'failed';
     test_mode: boolean;
+    is_simulation?: boolean;
+    preview_confirmed_at?: string | null;
     datacite_endpoint: string;
     total: number;
     processed: number;
@@ -132,7 +135,7 @@ export function IgsnRegistrationRunModal({ open, onOpenChange, initialRun, onRun
 
             if (!terminalStatuses.has(nextRun.status)) {
                 terminalNotificationRef.current = null;
-            } else if (terminalNotificationRef.current !== nextRun.id) {
+            } else if (!nextRun.is_simulation && terminalNotificationRef.current !== nextRun.id) {
                 terminalNotificationRef.current = nextRun.id;
                 onTerminal?.();
             }
@@ -141,11 +144,12 @@ export function IgsnRegistrationRunModal({ open, onOpenChange, initialRun, onRun
     );
 
     const loadRun = useCallback(
-        async (runId: string) => {
+        async (runId: string, current: () => boolean) => {
             const response = await axios.get<{ run: IgsnRegistrationRun }>(`/igsns/batch-register/${runId}`);
+            if (!current()) return;
             acceptRun(response.data.run);
 
-            if (terminalStatuses.has(response.data.run.status) || response.data.run.status === 'paused') {
+            if (!response.data.run.is_simulation && (terminalStatuses.has(response.data.run.status) || response.data.run.status === 'paused')) {
                 await loadIssues(runId, 1);
             }
 
@@ -153,28 +157,38 @@ export function IgsnRegistrationRunModal({ open, onOpenChange, initialRun, onRun
         },
         [acceptRun, loadIssues],
     );
-    const runId = run?.id;
-
     useEffect(() => {
-        if (!open || !runId) return;
+        if (!open || !initialRunId) return;
 
+        let active = true;
         setIsLoading(true);
-        void loadRun(runId)
-            .catch((requestError) => setError(responseError(requestError, 'The registration status could not be loaded.')))
-            .finally(() => setIsLoading(false));
-    }, [loadRun, open, runId]);
+        void loadRun(initialRunId, () => active)
+            .catch((requestError) => {
+                if (active) setError(responseError(requestError, 'The registration status could not be loaded.'));
+            })
+            .finally(() => {
+                if (active) setIsLoading(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [loadRun, open, initialRunId]);
 
     useEffect(() => {
-        if (!open || !run || terminalStatuses.has(run.status) || run.status === 'paused') return;
+        if (!open || !run || run.id !== initialRunId || terminalStatuses.has(run.status) || run.status === 'paused') return;
 
+        let active = true;
         const interval = window.setInterval(() => {
-            void loadRun(run.id).catch((requestError) => {
-                setError(responseError(requestError, 'The registration status could not be refreshed.'));
+            void loadRun(run.id, () => active).catch((requestError) => {
+                if (active) setError(responseError(requestError, 'The registration status could not be refreshed.'));
             });
         }, 3000);
 
-        return () => window.clearInterval(interval);
-    }, [loadRun, open, run]);
+        return () => {
+            active = false;
+            window.clearInterval(interval);
+        };
+    }, [loadRun, open, run, initialRunId]);
 
     const control = async (action: 'cancel' | 'resume' | 'retry-failed') => {
         if (!run) return;
@@ -212,21 +226,61 @@ export function IgsnRegistrationRunModal({ open, onOpenChange, initialRun, onRun
         }
     };
 
+    const close = async () => {
+        if (isActing) return;
+        if (run?.is_simulation && terminalStatuses.has(run.status) && !run.preview_confirmed_at && run.processed > run.failed + run.cancelled) {
+            setIsActing(true);
+            setError(null);
+            try {
+                const { data } = await axios.post<{ run: IgsnRegistrationRun }>(
+                    `/igsns/batch-register/${run.id}/confirm-preview`,
+                    {},
+                    { headers: buildCsrfHeaders() },
+                );
+                acceptRun(data.run);
+                onTerminal?.();
+                if (data.run.failed > run.failed) {
+                    setError('Some samples changed after the preview. Review the results and start a new preview for those samples.');
+                    return;
+                }
+            } catch (requestError) {
+                const message = responseError(requestError, 'The simulation could not be saved. Close the dialog to try again.');
+                if (isAxiosError(requestError) && requestError.response?.status === 409) {
+                    toast.warning(message);
+                    onTerminal?.();
+                    onOpenChange(false);
+                } else {
+                    setError(message);
+                }
+                return;
+            } finally {
+                setIsActing(false);
+            }
+        }
+        onOpenChange(false);
+    };
+
     const progress = useMemo(() => (run && run.total > 0 ? Math.round((run.processed / run.total) * 100) : 0), [run]);
 
+    const showProgress = run && !(run.is_simulation && run.total === 1 && terminalStatuses.has(run.status));
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : void close())}>
             <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden" data-testid="igsn-registration-run-modal">
                 <DialogHeader>
                     <div className="flex flex-wrap items-center gap-2">
-                        <DialogTitle>IGSN batch registration</DialogTitle>
+                        <DialogTitle>{run?.is_simulation ? 'IGSN registration preview' : 'IGSN batch registration'}</DialogTitle>
                         {run && (
                             <Badge variant={run.test_mode ? 'secondary' : 'destructive'}>
-                                {run.test_mode ? 'DataCite Test' : 'DataCite Production'}
+                                {run.is_simulation ? 'Local simulation' : run.test_mode ? 'DataCite Test' : 'DataCite Production'}
                             </Badge>
                         )}
                     </div>
-                    <DialogDescription>The registration continues on the DataCite queue when this dialog or browser is closed.</DialogDescription>
+                    <DialogDescription>
+                        {run?.is_simulation
+                            ? 'Close the finished preview to mark successful samples as Registered in test mode.'
+                            : 'The registration continues on the DataCite queue when this dialog or browser is closed.'}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="min-h-0 space-y-4 overflow-y-auto py-1">
@@ -240,40 +294,52 @@ export function IgsnRegistrationRunModal({ open, onOpenChange, initialRun, onRun
 
                     {run && (
                         <>
-                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-4">
-                                <div>
-                                    <p className="font-medium">{statusLabels[run.status]}</p>
-                                    <p className="text-xs text-muted-foreground">{run.datacite_endpoint}</p>
-                                </div>
-                                <Badge variant={run.status === 'paused' || run.status === 'failed' ? 'destructive' : 'outline'}>{run.status}</Badge>
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                    <span>Progress</span>
-                                    <span>
-                                        {run.processed} / {run.total}
-                                    </span>
-                                </div>
-                                <Progress value={progress} />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                                {(
-                                    [
-                                        ['Registered', run.registered],
-                                        ['Updated', run.updated],
-                                        ['Failed', run.failed],
-                                        ['Cancelled', run.cancelled],
-                                        ['Remaining', Math.max(0, run.total - run.processed)],
-                                    ] as Array<[string, number]>
-                                ).map(([label, value]) => (
-                                    <div key={label} className="rounded-md border p-3 text-center">
-                                        <p className="text-2xl font-semibold">{value}</p>
-                                        <p className="text-xs text-muted-foreground">{label}</p>
+                            {showProgress && (
+                                <>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-4">
+                                        <div>
+                                            <p className="font-medium">
+                                                {run.is_simulation && run.status === 'running' ? 'Preparing JSON previews' : statusLabels[run.status]}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">{run.datacite_endpoint}</p>
+                                        </div>
+                                        <Badge variant={run.status === 'paused' || run.status === 'failed' ? 'destructive' : 'outline'}>
+                                            {run.status}
+                                        </Badge>
                                     </div>
-                                ))}
-                            </div>
+
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span>Progress</span>
+                                            <span>
+                                                {run.processed} / {run.total}
+                                            </span>
+                                        </div>
+                                        <Progress value={progress} />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                                        {(
+                                            [
+                                                ...(run.is_simulation
+                                                    ? [['Previews', run.processed - run.failed - run.cancelled]]
+                                                    : [
+                                                          ['Registered', run.registered],
+                                                          ['Updated', run.updated],
+                                                      ]),
+                                                ['Failed', run.failed],
+                                                ['Cancelled', run.cancelled],
+                                                ['Remaining', Math.max(0, run.total - run.processed)],
+                                            ] as Array<[string, number]>
+                                        ).map(([label, value]) => (
+                                            <div key={label} className="rounded-md border p-3 text-center">
+                                                <p className="text-2xl font-semibold">{value}</p>
+                                                <p className="text-xs text-muted-foreground">{label}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
 
                             {(run.pause_reason || run.last_error || error) && (
                                 <Alert variant="destructive">
@@ -283,7 +349,10 @@ export function IgsnRegistrationRunModal({ open, onOpenChange, initialRun, onRun
                                 </Alert>
                             )}
 
-                            {run.status === 'completed' && run.failed === 0 && (
+                            {run.is_simulation && terminalStatuses.has(run.status) && (
+                                <IgsnRegistrationPreview key={`${run.id}-${run.failed}`} runId={run.id} />
+                            )}
+                            {!run.is_simulation && run.status === 'completed' && run.failed === 0 && (
                                 <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
                                     <CheckCircle2 className="text-green-600" />
                                     <AlertTitle>IGSN registration completed</AlertTitle>
@@ -360,8 +429,8 @@ export function IgsnRegistrationRunModal({ open, onOpenChange, initialRun, onRun
                             <RefreshCw /> Retry failed
                         </Button>
                     )}
-                    <Button variant="outline" disabled={isActing} onClick={() => onOpenChange(false)}>
-                        Close
+                    <Button variant="outline" disabled={isActing} onClick={() => void close()}>
+                        {run?.is_simulation ? 'Close preview' : 'Close'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

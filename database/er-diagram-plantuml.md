@@ -1458,6 +1458,7 @@ entity "igsn_metadata" as igsn_metadata {
     sample_image_mime_type : VARCHAR(100)
     sample_image_size : BIGINT <<unsigned>>
     * upload_status : VARCHAR(50) = 'pending'
+    simulated_registered_at : TIMESTAMP <<nullable>>
     upload_error_message : TEXT
     csv_filename : VARCHAR(255)
     csv_row_number : INT
@@ -1725,6 +1726,7 @@ entity "igsn_registration_runs" as igsn_registration_runs {
     activity_actor : JSON <<nullable>> //initiator identity snapshot//
     * status : VARCHAR(30)
     * test_mode : BOOLEAN
+    * is_simulation : BOOLEAN = false
     * datacite_endpoint : VARCHAR(500)
     datacite_context_fingerprint : VARCHAR(64) <<nullable>>
     * total : INT UNSIGNED
@@ -1739,6 +1741,7 @@ entity "igsn_registration_runs" as igsn_registration_runs {
     paused_at : TIMESTAMP <<nullable>>
     cancelled_at : TIMESTAMP <<nullable>>
     completed_at : TIMESTAMP <<nullable>>
+    preview_confirmed_at : TIMESTAMP <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -1752,6 +1755,8 @@ entity "igsn_registration_items" as igsn_registration_items {
     * status : VARCHAR(30)
     operation : VARCHAR(20) <<nullable>>
     approval_fingerprint : VARCHAR(64) <<nullable>>
+    preview_payload : JSON <<nullable>>
+    preview_confirmed_at : TIMESTAMP <<nullable>>
     * attempts : SMALLINT UNSIGNED
     last_http_status : SMALLINT UNSIGNED <<nullable>>
     error_message : TEXT <<nullable>>

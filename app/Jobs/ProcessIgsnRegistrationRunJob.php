@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\IgsnRegistrationItemStatus;
 use App\Enums\IgsnRegistrationRunStatus;
+use App\Exceptions\DataCiteVerificationException;
 use App\Models\IgsnMetadata;
 use App\Models\IgsnRegistrationItem;
 use App\Models\IgsnRegistrationRun;
@@ -13,6 +14,7 @@ use App\Models\Resource;
 use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationFactoryService;
 use App\Services\IgsnRegistrationExclusionService;
+use App\Services\IgsnRegistrationPreviewService;
 use App\Services\IgsnRegistrationRunService;
 use App\Services\ResourceDoiPublicationService;
 use App\Services\UserActivityService;
@@ -67,6 +69,12 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
 
             if ($run->status === IgsnRegistrationRunStatus::CANCEL_REQUESTED) {
                 $this->cancel($run, $runs);
+
+                return;
+            }
+
+            if ($run->test_mode && ! $run->is_simulation) {
+                $this->pause($run, 'This run used the former DataCite Test API. Cancel it and start a local preview.');
 
                 return;
             }
@@ -142,6 +150,27 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
             return;
         }
 
+        if ($run->is_simulation) {
+            $previews = app(IgsnRegistrationPreviewService::class);
+            try {
+                $fingerprint = $previews->fingerprint($resource);
+                if ($item->approval_fingerprint !== null && $fingerprint !== $item->approval_fingerprint) {
+                    throw new DataCiteVerificationException('stale_preview', 'The sample or its landing page changed. Start a new preview.');
+                }
+                $payload = $previews->payload($resource);
+                if ($item->approval_fingerprint === null) {
+                    // A requested retry previews the corrected sample before it can be confirmed.
+                    $item->update(['approval_fingerprint' => $fingerprint, 'identifier' => $resource->doi,
+                        'operation' => $resource->igsnMetadata->isRegistered() ? 'update' : 'register']);
+                }
+                $this->finishItem($run, $item, IgsnRegistrationItemStatus::PREVIEW_READY, payload: $payload);
+            } catch (\InvalidArgumentException|DataCiteVerificationException $exception) {
+                $this->finishItem($run, $item, IgsnRegistrationItemStatus::FAILED, $exception->getMessage());
+            }
+
+            return;
+        }
+
         if (trim((string) $resource->doi) !== $item->identifier) {
             $message = 'The IGSN identifier changed after this registration run was queued.';
             $this->markMetadataError($resource->igsnMetadata, $message);
@@ -159,8 +188,8 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
             return;
         }
 
-        $operation = $item->operation ?? ($metadata->isRegistered() ? 'update' : 'register');
-        if ($operation === 'register' && $item->approval_fingerprint !== ResourceDoiPublicationService::approvalFingerprint($resource)
+        $operation = $item->operation ?? $metadata->registrationOperation();
+        if ($operation !== 'update' && $item->approval_fingerprint !== ResourceDoiPublicationService::approvalFingerprint($resource)
             && ! $resource->latestDoiPublication()->whereIn('status', ['remote_write_started', 'pending_reconciliation'])->exists()) {
             $message = 'The approved metadata or landing page changed after this registration was queued. Start a new confirmed registration.';
             $this->markMetadataError($metadata, $message);
@@ -168,11 +197,12 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
 
             return;
         }
-        $item->update(['operation' => $operation]);
         $service = $registrations->forMode($run->test_mode);
         $originalPublicationYear = $resource->publication_year;
 
         try {
+            $operation = $service->shouldUpdateIgsn($resource, $operation) ? 'update' : 'register';
+            $item->update(['operation' => $operation]);
             $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERING);
             $response = $operation === 'update'
                 ? $service->updateMetadata($resource)
@@ -229,14 +259,16 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
         }
     }
 
+    /** @param array<string, mixed>|null $payload */
     private function finishItem(
         IgsnRegistrationRun $run,
         IgsnRegistrationItem $item,
         IgsnRegistrationItemStatus $status,
         ?string $message = null,
         ?int $httpStatus = null,
+        ?array $payload = null,
     ): void {
-        DB::transaction(function () use ($run, $item, $status, $message, $httpStatus): void {
+        DB::transaction(function () use ($run, $item, $status, $message, $httpStatus, $payload): void {
             $lockedItem = IgsnRegistrationItem::query()->lockForUpdate()->findOrFail($item->id);
             if ($lockedItem->status !== IgsnRegistrationItemStatus::PROCESSING) {
                 return;
@@ -245,6 +277,7 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
             $lockedItem->update([
                 'status' => $status,
                 'last_http_status' => $httpStatus,
+                'preview_payload' => $payload,
                 'error_message' => $message === null ? null : $this->sanitize($message),
                 'processed_at' => now(),
             ]);
@@ -345,8 +378,12 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
         DataCiteModeResolverService $modeResolver,
     ): bool {
         $initiator = $run->initiatedBy()->first();
-        if ($initiator !== null && $modeResolver->shouldUseTestMode($initiator) !== $run->test_mode) {
+        if ($modeResolver->shouldUseTestMode($initiator) !== $run->test_mode) {
             return false;
+        }
+
+        if ($run->is_simulation) {
+            return $run->test_mode;
         }
 
         $client = $registrations->clientForMode($run->test_mode);

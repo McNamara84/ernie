@@ -205,7 +205,7 @@ class DataCiteMemberApiClient
      * @param  array{transition_id: int, state: mixed}|null  $lifecycleRead
      * @return array<string, mixed>|null Null requests a lifecycle read outside the DOI lock.
      */
-    private function protectTombstonePayload(string $identifier, array $payload, ?array $lifecycleRead): ?array
+    public static function protectTombstonePayload(string $identifier, array $payload, bool $testMode, ?array $lifecycleRead = null): ?array
     {
         $transition = ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->first();
         if ($transition === null) {
@@ -215,8 +215,8 @@ class DataCiteMemberApiClient
         if (! $page?->is_tombstone && in_array($transition->status, ['succeeded', 'superseded'], true)) {
             return $payload;
         }
-        if ($transition->test_mode !== $this->testMode) {
-            throw new \RuntimeException('The DOI lifecycle belongs to a different DataCite environment.');
+        if ($transition->test_mode !== $testMode) {
+            throw new DataCiteVerificationException('doi_lifecycle_context_changed', 'The DOI lifecycle belongs to a different DataCite environment.');
         }
         $payload['data']['attributes']['url'] = $transition->target_url;
         if ($transition->target_state === 'registered' && ($payload['data']['attributes']['event'] ?? null) === 'publish') {
@@ -332,7 +332,7 @@ class DataCiteMemberApiClient
                     $this->assertTombstoneTransition($identifier, $tombstoneTransitionId);
                     $this->assertWritePurpose($identifier, $payload, $tombstoneTransitionId, $publicationId);
                     $transitionId = (int) ResourceTombstoneTransition::where('doi', $identifier)->latest('id')->value('id');
-                    $prepared = $this->protectTombstonePayload($identifier, $payload, ['transition_id' => $transitionId, 'state' => $evidence->state]);
+                    $prepared = self::protectTombstonePayload($identifier, $payload, $this->testMode, ['transition_id' => $transitionId, 'state' => $evidence->state]);
                     if ($prepared === null) {
                         throw new DataCiteWriteSupersededException;
                     }
@@ -398,7 +398,7 @@ class DataCiteMemberApiClient
         } elseif (array_key_exists('event', $attributes)) {
             throw new DataCiteVerificationException('explicit_publication_required', 'Metadata updates cannot change DOI visibility. Use an explicitly confirmed publication or tombstone action.');
         }
-        $resources = Resource::query()->with('landingPage')->whereRaw('LOWER(doi) = ?', [strtolower(trim($doi))])->get();
+        $resources = Resource::query()->with('landingPage')->forDataCiteDoi($doi, $this->isProductionIgsn($doi) ? $this->igsnPrefix() : null)->get();
         if ($resources->count() !== 1 || $resources->first()?->landingPage?->is_published !== true) {
             throw new DataCiteVerificationException('landing_page_not_published', 'The resource must have a published landing page before metadata can be sent to DataCite. Local changes remain saved.');
         }

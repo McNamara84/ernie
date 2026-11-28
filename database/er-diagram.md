@@ -1348,6 +1348,7 @@ erDiagram
         varchar sample_image_mime_type "100"
         bigint sample_image_size "unsigned"
         varchar upload_status
+        timestamp simulated_registered_at "nullable"
         text upload_error_message
         varchar csv_filename
         int csv_row_number
@@ -1595,6 +1596,7 @@ erDiagram
         json activity_actor "nullable, initiator identity snapshot"
         varchar status "30, indexed"
         boolean test_mode
+        boolean is_simulation "default false"
         varchar datacite_endpoint "500"
         varchar datacite_context_fingerprint "64, nullable"
         int_unsigned total
@@ -1609,6 +1611,7 @@ erDiagram
         timestamp paused_at "nullable"
         timestamp cancelled_at "nullable"
         timestamp completed_at "nullable"
+        timestamp preview_confirmed_at "nullable"
         timestamp created_at
         timestamp updated_at
     }
@@ -1621,6 +1624,8 @@ erDiagram
         varchar status "30, indexed"
         varchar operation "20, nullable"
         varchar approval_fingerprint "64, nullable"
+        json preview_payload "nullable"
+        timestamp preview_confirmed_at "nullable"
         smallint_unsigned attempts
         smallint_unsigned last_http_status "nullable"
         text error_message "nullable"

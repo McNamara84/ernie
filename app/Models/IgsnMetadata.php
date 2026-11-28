@@ -55,6 +55,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $sample_image_storage_path
  * @property string|null $sample_image_mime_type
  * @property int|null $sample_image_size
+ * @property Carbon|null $simulated_registered_at
  * @property string $upload_status
  * @property string|null $upload_error_message
  * @property string|null $csv_filename
@@ -74,7 +75,7 @@ use Illuminate\Support\Facades\Storage;
     'coordinate_system', 'user_code', 'description_json',
     'sample_image_source_url', 'sample_image_external_url', 'sample_image_storage_path',
     'sample_image_mime_type', 'sample_image_size',
-    'upload_status', 'upload_error_message', 'csv_filename', 'csv_row_number',
+    'simulated_registered_at', 'upload_status', 'upload_error_message', 'csv_filename', 'csv_row_number',
 ])]
 #[Table('igsn_metadata')]
 class IgsnMetadata extends Model
@@ -85,6 +86,7 @@ class IgsnMetadata extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'simulated_registered_at' => 'datetime',
         'is_private' => 'boolean',
         'depth_min' => 'decimal:2',
         'depth_max' => 'decimal:2',
@@ -107,6 +109,8 @@ class IgsnMetadata extends Model
     public const STATUS_REGISTERING = 'registering';
 
     public const STATUS_REGISTERED = 'registered';
+
+    public const STATUS_UNVERIFIED = 'unverified';
 
     public const STATUS_ERROR = 'error';
 
@@ -189,6 +193,15 @@ class IgsnMetadata extends Model
         return $this->upload_status === self::STATUS_REGISTERED;
     }
 
+    public function registrationOperation(): string
+    {
+        return match ($this->upload_status) {
+            self::STATUS_REGISTERED => 'update',
+            self::STATUS_UNVERIFIED => 'verify',
+            default => 'register',
+        };
+    }
+
     /**
      * Mark the upload as having an error.
      */
@@ -214,6 +227,7 @@ class IgsnMetadata extends Model
             self::STATUS_VALIDATED,
             self::STATUS_REGISTERING,
             self::STATUS_REGISTERED,
+            self::STATUS_UNVERIFIED,
             self::STATUS_ERROR,
         ];
     }
