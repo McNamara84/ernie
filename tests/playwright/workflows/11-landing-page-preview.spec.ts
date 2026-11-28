@@ -34,6 +34,8 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         // In CI we often serve built assets (no Vite dev server) where `/@vite/client` is expected to be 404.
         // We treat 200 (Vite dev) OR 404 (built assets) as "ready" and keep retrying on 502/503.
         const assetMode = await (async () => {
+            // The dev stack keeps Vite online while Nginx serves the selected build.
+            if (process.env.ERNIE_PLAYWRIGHT_ASSETS?.trim() === 'build') return 'built';
             const start = Date.now();
             const intervals = [500, 1000, 2000, 5000];
             let attempt = 0;
@@ -84,6 +86,9 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         }
 
         await gotoWithLocalTlsRetry(page, '/login');
+        if (assetMode === 'built') {
+            await expect(page.locator('script[type="module"][src*="/build/assets/"]').first()).toBeAttached();
+        }
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
         await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
         await page.getByRole('button', { name: 'Log in' }).click();

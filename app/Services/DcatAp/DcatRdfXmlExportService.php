@@ -36,7 +36,7 @@ abstract class DcatRdfXmlExportService
         private readonly ResourceCreatorNameResolverService $names,
     ) {}
 
-    public function export(Resource $resource): string
+    public function export(Resource $resource, bool $forOaiPmh = false): string
     {
         $this->readiness->validateConfiguration();
         $resource->loadMissing($this->profile->requiredRelations(static::FORMAT));
@@ -47,7 +47,7 @@ abstract class DcatRdfXmlExportService
         assert($landing !== null);
         // Embargo and source checks must reuse this eager-loaded metadata snapshot.
         $landing->setRelation('resource', $resource);
-        $rdf = new RdfDocument(static::FORMAT->schemaUrl());
+        $rdf = new RdfDocument(static::FORMAT->schemaUrl(), $forOaiPmh);
         $datasetUri = IdentifierUrl::resolve($resource->doi, 'DOI');
         $catalogUri = (string) config('dcatap.catalog.uri');
         $catalog = $rdf->node($rdf->root, 'dcat:Catalog', $catalogUri);

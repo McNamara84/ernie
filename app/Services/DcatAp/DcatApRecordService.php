@@ -121,7 +121,7 @@ final class DcatApRecordService
         if ($resource === null || ! $available || $doi === null || $identifier === null) {
             return;
         }
-        $fingerprint = hash('sha256', $format->exporter()->export($resource).json_encode($sets, JSON_THROW_ON_ERROR));
+        $fingerprint = hash('sha256', $format->exporter()->export($resource, forOaiPmh: true).json_encode($sets, JSON_THROW_ON_ERROR));
         $record = OaiPmhFormatRecord::query()->where('metadata_prefix', $format->value)->where('oai_identifier', $identifier)->lockForUpdate()->first();
         if ($record !== null && $record->resource_id === $resourceId && $record->status === 'active' && $record->fingerprint === $fingerprint
             && $record->export_revision === (int) config($format->configKey().'.revision')) {

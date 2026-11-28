@@ -54,6 +54,8 @@ Harvest inventories freeze identities with the existing database snapshot mechan
 
 The issue-specified format namespace is `http://data.europa.eu/r5r/`. The RDF/XML root uses the RDF namespace. The public `/schemas/oai-pmh/dcat-ap/3.0.1/rdf-envelope.xsd` validates that transport envelope; it does **not** claim to validate DCAT semantics.
 
+For both DCAT profiles, the standalone download links its envelope schema with an `xml-model` processing instruction in the XML prolog. Strict RDF/XML readers can parse the download directly. OAI-PMH records carry the schema URL in `xsi:schemaLocation` on the embedded `rdf:RDF` element. Harvest fingerprints use that OAI serialization. [RDF/XML root grammar](https://www.w3.org/TR/rdf-syntax-grammar/#RDF) · [XML schema processing instruction](https://www.w3.org/TR/xml-model/) · [OAI-PMH record format](https://www.openarchives.org/OAI/openarchivesprotocol.html#Record)
+
 ## Validation and local assets
 
 `npm run test:dcat-ap` generates actual PHP exports and OAI responses from three pinned public DataCite snapshots (`10.5880/intermagnet.1991.2016`, `10.5880/gfz.b103-15021.1`, `10.5880/gfz_orbit/rso`) and synthetic metadata covering content links, ambiguous rights, non-IANA media types and tombstones. An isolated container then runs without network access:
@@ -62,7 +64,9 @@ The issue-specified format namespace is `http://data.europa.eu/r5r/`. The RDF/XM
 - official pinned DCAT-AP SHACL, explicit EU/IANA vocabulary membership checks and a negative control with a missing required description;
 - a full-graph SHACL report plus an exchange-scoped report. The latter limits DatasetShape targets to the dataset actually catalogued in the exchange. External typed Dataset references are not falsely supplied with titles or descriptions. Other constraints remain unchanged. A successful exchange-scoped check is not reported as full-graph conformance.
 
-Reports are written to `storage/logs/dcat-ap/`. The first validator-image build needs network access; subsequent semantic validation is offline. Runtime PHP has no RDF/Python/Java dependency. The complete backend wrapper and the serial CI job include semantic validation. `npm run test:php:mysql-sensitive:oai-pmh` exercises format history and pagination on the pinned MySQL 9.7 server. Frontend tests cover download visibility, accessible labels, preview interaction and harvester documentation.
+The sample exports and the latest `validation.json` are written to `storage/logs/dcat-ap/`. A blocking SHACL finding stops the run. The last entry in the report gives the fixture, profile and scope (`exchange` for DCAT-AP or `fullGraph` for EPOS). Its `violations` list gives the severity and, when present, the focus node and property path such as `dct:description`. The serial Pest job publishes this file as the `dcat-ap-shacl-report` artifact for seven days.
+
+The first validator-image build needs network access. The RDF tooling, Python and Java run inside the test container, where semantic validation runs offline. The complete backend wrapper and the serial CI job include semantic validation. `npm run test:php:mysql-sensitive:oai-pmh` exercises format history and pagination on the pinned MySQL 9.7 server. Frontend tests cover download visibility, accessible labels, preview interaction and harvester documentation.
 
 Browser checks run with `npm run test:e2e:devstack -- critical/landing-page-dcat-ap.spec.ts`. On Docker Desktop, use the documented `ERNIE_PLAYWRIGHT_ASSETS=build` and `ERNIE_PLAYWRIGHT_BACKEND=native` settings. They exercise the real template with controlled metadata props in Chromium, Firefox and WebKit, including narrow layouts, light/dark contrast and keyboard focus restoration. Actual export responses and eligibility are covered by the PHP and independent RDF checks.
 

@@ -149,14 +149,12 @@ npm run test:php:mysql-sensitive:relation-correction
 PHP suite. The wrapper always applies a 2 GB PHP memory limit, including to
 ParaTest workers, and reports the duration of every phase plus the total.
 
-The lockfile uses Pest 5.3.2 with PHPUnit 13.4.2 and ParaTest 7.26.1. Pest
-5.3.2 requires `^13.4.2` but also conflicts with PHPUnit versions `>13.4.2`,
-effectively pinning PHPUnit to exactly 13.4.2. ParaTest must be 7.26.1 or newer
-within the 7.x series. Update compatible test runner packages together through
-`npm run composer:app` rather than forcing an independent PHPUnit update.
-Laravel 13.35.0 is required for this combination:
-it fixes the PHPUnit 13.4 event-emitter API used by Laravel's parallel runner.
-The type-coverage plugin also needs version 5.0.3 for that PHPUnit API.
+The lockfile uses Pest 5.3.7 with PHPUnit 13.4.7 and ParaTest 7.29.0. Pest
+requires PHPUnit `^13.4.7` and declares a conflict with `>13.4.7`. ParaTest
+7.30.0 requires PHPUnit `^13.4.8`, so that upgrade depends on a compatible
+Pest release. Update the three packages together through `npm run composer:app`.
+The locked Laravel 13.43.0 includes the PHPUnit 13.4 event-emitter fix for
+parallel tests. The locked Pest type-coverage plugin is 5.1.1.
 
 On Docker Desktop, the checked-out source is a Windows/macOS bind mount. Pest
 and Laravel load hundreds of PHP files in every worker, so running directly

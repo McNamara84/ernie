@@ -77,6 +77,8 @@ jobs:
         # The same build serves Playwright on port 8000 and Pest Browser on its dynamic port.
         ASSET_URL: ''
         VITE_APP_URL: http://127.0.0.1:8000
+    - name: Verify the portal map worker in the build
+      run: node scripts/check-portal-map-worker.mjs
     - name: Prepare application
       run: |
         cp .env.example .env

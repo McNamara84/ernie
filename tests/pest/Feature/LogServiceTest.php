@@ -4,31 +4,13 @@ declare(strict_types=1);
 
 use App\Services\LogService;
 use Illuminate\Support\Facades\File;
+use Tests\Support\WithTemporaryLogStorage;
 
-// Mark this test file as serial to prevent race conditions when writing to laravel.log
-// These tests modify the shared log file and cannot run in parallel
-uses()->group('serial');
+uses(WithTemporaryLogStorage::class)->group('serial');
 
 beforeEach(function () {
     $this->logService = new LogService;
     $this->logPath = storage_path('logs/laravel.log');
-
-    // Backup existing log file
-    if (File::exists($this->logPath)) {
-        File::move($this->logPath, $this->logPath.'.backup');
-    }
-});
-
-afterEach(function () {
-    // Clean up test log file
-    if (File::exists($this->logPath)) {
-        File::delete($this->logPath);
-    }
-
-    // Restore backup
-    if (File::exists($this->logPath.'.backup')) {
-        File::move($this->logPath.'.backup', $this->logPath);
-    }
 });
 
 describe('getLogs', function () {
