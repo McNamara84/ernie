@@ -96,6 +96,10 @@
         ],
         "improvements": [
             {
+                "title": "IGSN Registration Previews",
+                "description": "Test a single sample or a checkbox selection with a color-coded, copyable preview of each DataCite request. Closing the preview marks successful samples as Registered for the testing team and keeps them eligible for production registration."
+            },
+            {
                 "title": "Worldwide Map Search by Default",
                 "description": "The DOI and IGSN portals start with the whole world selected, including records without coordinates. Zoom or pan to narrow the results, or turn off the map filter and share that choice in the search link.",
                 "references": [{ "type": "issue", "number": 1581, "url": "https://github.com/McNamara84/ernie/issues/1581" }]

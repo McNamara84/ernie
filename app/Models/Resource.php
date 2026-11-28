@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\AccessLevel;
 use App\Enums\ResourceWorkflowStatus;
 use App\Services\EmbargoService;
+use App\Support\IgsnIdentifier;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -606,6 +607,32 @@ class Resource extends Model
         $this->loadMissing('resourceType');
 
         return $this->resourceType?->slug === 'physical-object';
+    }
+
+    /** Internal landing-page routes require a complete DOI, even before a CSV sample is registered. */
+    public function doiForLandingPage(): ?string
+    {
+        if ($this->doi !== null && IgsnIdentifier::isValidHandle($this->doi) && $this->igsnMetadata !== null) {
+            return IgsnIdentifier::forRegistration($this->doi);
+        }
+
+        return $this->doi;
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeForDataCiteDoi(Builder $query, string $doi, ?string $igsnPrefix = null): Builder
+    {
+        $handle = $igsnPrefix ? IgsnIdentifier::handleFromDoi($doi, $igsnPrefix) : null;
+
+        return $query->where(function (Builder $matches) use ($doi, $handle): void {
+            $matches->whereRaw('LOWER(doi) = ?', [strtolower(trim($doi))]);
+            if ($handle !== null) {
+                $matches->orWhere(fn (Builder $sample) => $sample->whereRaw('LOWER(doi) = ?', [strtolower($handle)])->whereHas('igsnMetadata'));
+            }
+        });
     }
 
     /**

@@ -47,6 +47,17 @@ class IgsnIdentifier
             : null;
     }
 
+    /** CSV uploads can store a bare sample handle. Preserve the spelling of assigned DOIs. */
+    public static function forRegistration(string $identifier, ?string $prefix = null): string
+    {
+        $identifier = trim($identifier);
+        if (str_contains($identifier, '/') || str_starts_with($identifier, '10.')) {
+            return $identifier;
+        }
+
+        return self::normalizeInputToDoi($identifier, $prefix) ?? $identifier;
+    }
+
     public static function normalizeDoi(string $doi, ?string $prefix = null): ?string
     {
         return self::normalizeInputToDoi($doi, $prefix);

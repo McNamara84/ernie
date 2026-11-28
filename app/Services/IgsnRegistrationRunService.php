@@ -51,8 +51,8 @@ final class IgsnRegistrationRunService
 
             $testMode = $this->modeResolver->shouldUseTestMode($user);
             $configuration = $this->modeResolver->dataCiteConfig($user);
-            $endpoint = rtrim(trim((string) ($configuration['endpoint'] ?? '')), '/');
-            if ($endpoint === '') {
+            $endpoint = $testMode ? '' : rtrim(trim((string) ($configuration['endpoint'] ?? '')), '/');
+            if (! $testMode && $endpoint === '') {
                 throw ValidationException::withMessages([
                     'datacite' => ['The DataCite endpoint is not configured.'],
                 ]);
@@ -64,8 +64,9 @@ final class IgsnRegistrationRunService
                     'activity_actor' => app(UserActivityService::class)->actor($user),
                     'status' => IgsnRegistrationRunStatus::PREPARING,
                     'test_mode' => $testMode,
+                    'is_simulation' => $testMode,
                     'datacite_endpoint' => $endpoint,
-                    'datacite_context_fingerprint' => app(DataCiteRegistrationFactoryService::class)->clientForMode($testMode)->contextFingerprint(),
+                    'datacite_context_fingerprint' => $testMode ? null : app(DataCiteRegistrationFactoryService::class)->clientForMode($testMode)->contextFingerprint(),
                     'total' => count($ids),
                 ]);
 
@@ -84,8 +85,8 @@ final class IgsnRegistrationRunService
                         'resource_id' => $resource->id,
                         'identifier' => trim((string) $resource->doi),
                         'status' => IgsnRegistrationItemStatus::PENDING->value,
-                        'operation' => $metadata->isRegistered() ? 'update' : 'register',
-                        'approval_fingerprint' => ResourceDoiPublicationService::approvalFingerprint($resource),
+                        'operation' => $metadata->registrationOperation(),
+                        'approval_fingerprint' => $testMode ? app(IgsnRegistrationPreviewService::class)->fingerprint($resource) : ResourceDoiPublicationService::approvalFingerprint($resource),
                         'attempts' => 0,
                         'created_at' => $now,
                         'updated_at' => $now,
@@ -197,6 +198,7 @@ final class IgsnRegistrationRunService
                 ->where('run_id', $run->id)
                 ->where('status', IgsnRegistrationItemStatus::FAILED)
                 ->update([
+                    ...($run->is_simulation ? ['approval_fingerprint' => null, 'preview_payload' => null] : []),
                     'status' => IgsnRegistrationItemStatus::PENDING,
                     'last_http_status' => null,
                     'error_message' => null,
@@ -218,6 +220,7 @@ final class IgsnRegistrationRunService
                 'paused_at' => null,
                 'cancelled_at' => null,
                 'completed_at' => null,
+                'preview_confirmed_at' => null,
             ]);
 
             $this->dispatch($run);

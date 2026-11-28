@@ -122,12 +122,12 @@ class LandingPagePublicController extends Controller
         // This catches cases where database data is inconsistent (e.g., landing page has
         // doi_prefix='10.5880/A' but resource.doi='10.5880/B'). Such inconsistency would
         // mean the landing page is accessible via an incorrect DOI path.
-        // We load only the doi column to minimize query overhead.
+        // CSV samples can still store the handle used to derive their canonical DOI.
         //
         // Note: We only log this as an error for monitoring, but still serve the page.
         // The landing_page.doi_prefix is the source of truth for URL routing.
         // In production, this helps detect sync issues between resources and landing pages.
-        $resourceDoi = $landingPage->resource()->value('doi');
+        $resourceDoi = $landingPage->resource()->first(['id', 'doi'])?->doiForLandingPage();
         if ($resourceDoi !== null && $resourceDoi !== $doiPrefix) {
             Log::error(
                 'LandingPagePublicController: DOI mismatch between landing page and resource',

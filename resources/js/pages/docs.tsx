@@ -4345,7 +4345,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>Export individual IGSNs as DataCite JSON</li>
                             <li>Setup landing pages for IGSNs</li>
-                            <li>Register or update IGSNs at DataCite; Beginner users are forced to the test API</li>
+                            <li>Register or update IGSNs at DataCite. Test mode and Beginner accounts open a local JSON preview.</li>
                         </ul>
 
                         <h4>Pagination</h4>
@@ -4392,11 +4392,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </p>
                         )}
                         <p>
-                            <strong>Register Selected</strong> starts a persistent background run for new registrations and metadata updates. The
-                            progress dialog distinguishes registered, updated, failed, cancelled, and remaining items and identifies whether the run
-                            uses DataCite Test or Production. You can close the dialog, navigate away, or close the browser without stopping the run;
-                            use <strong>View registration progress</strong> when you return. Individual errors do not stop later IGSNs, and failed
-                            items can be retried after their cause is resolved. Total duration depends on the shared DataCite rate limit.
+                            <strong>Register Selected</strong> starts a persistent background run for the selected samples. You can close the dialog,
+                            navigate away, or close the browser without stopping the run. In test mode, choose a sample to inspect or copy its
+                            DataCite JSON. Closing the finished preview marks successful samples as <strong>Registered</strong> for the testing team.
+                            Draft landing pages stay private. In production, a sample with only a simulated registration can be registered at
+                            DataCite. Use <strong>View registration progress</strong> to reopen a batch or review individual errors.
                         </p>
                     </>
                 ),

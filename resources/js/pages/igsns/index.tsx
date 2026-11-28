@@ -57,12 +57,17 @@ interface Igsn {
     latitude: number | null;
     longitude: number | null;
     upload_status: string;
+    registration_operation?: 'register' | 'update' | 'verify';
     upload_error_message: string | null;
     parent_resource_id: number | null;
     collector: string | null;
     has_landing_page: boolean;
     created_at: string | null;
     updated_at: string | null;
+}
+
+function isMetadataUpdate(igsn: Igsn): boolean {
+    return igsn.registration_operation ? igsn.registration_operation === 'update' : igsn.upload_status === 'registered';
 }
 
 interface PaginationInfo {
@@ -218,8 +223,6 @@ function IgsnsPage({
     // Update state when props change (after navigation)
     useEffect(() => {
         setIgsns(initialIgsns);
-        setPagination(initialPagination);
-        setTotalCount(initialTotalCount);
         setSortState(initialSort || DEFAULT_SORT);
         setSearchQuery(initialSearch || '');
         setActiveFilters({
@@ -233,7 +236,12 @@ function IgsnsPage({
         setFilterOptions(initialFilterOptions);
         // Clear selection when data changes (e.g., after pagination or sorting)
         setSelectedIds(new Set());
-    }, [initialIgsns, initialPagination, initialSort, initialSearch, initialFilters, initialFilterOptions, initialTotalCount]);
+    }, [initialIgsns, initialSort, initialSearch, initialFilters, initialFilterOptions]);
+
+    useEffect(() => {
+        setPagination(initialPagination);
+        setTotalCount(initialTotalCount);
+    }, [initialPagination, initialTotalCount]);
 
     useEffect(() => {
         setIgsnRegistrationRun(initialIgsnRegistrationRun ?? null);
@@ -440,10 +448,7 @@ function IgsnsPage({
         initialFilters.prefix,
         initialFilters.status,
         initialFilters.without_datacenter,
-        initialPagination.count_status,
-        initialPagination.current_page,
-        initialPagination.filter_fingerprint,
-        initialPagination.per_page,
+        initialPagination,
         initialSearch,
     ]);
 
@@ -602,9 +607,19 @@ function IgsnsPage({
     const handleRegister = useCallback(async (igsn: Igsn) => {
         setRegisteringIgsns((prev) => new Set(prev).add(igsn.id));
         try {
-            const response = await axios.post<{ success: boolean; doi?: string; mode?: string; updated?: boolean; message?: string }>(
-                `/igsns/${igsn.id}/register`,
-            );
+            const response = await axios.post<{
+                success?: boolean;
+                doi?: string;
+                mode?: string;
+                updated?: boolean;
+                message?: string;
+                run?: IgsnRegistrationRun;
+            }>(`/igsns/${igsn.id}/register`);
+            if (response.data.mode === 'simulation' && response.data.run) {
+                setIgsnRegistrationRun(response.data.run);
+                setIsIgsnRegistrationRunModalOpen(true);
+                return;
+            }
             if (response.status === 202 || response.data.success !== true) {
                 toast.warning(response.data.message || 'DOI publication needs reconciliation. Resume registration to check the saved attempt.');
                 router.reload();
@@ -648,7 +663,9 @@ function IgsnsPage({
             setIgsnRegistrationRun(response.data.run);
             setIsIgsnRegistrationRunModalOpen(true);
             setSelectedIds(new Set());
-            toast.success(`${response.data.run.total} IGSN(s) queued for DataCite registration.`);
+            toast.success(
+                response.data.run.is_simulation ? 'Preparing IGSN previews.' : `${response.data.run.total} IGSN(s) queued for DataCite registration.`,
+            );
         } catch (error) {
             const message =
                 isAxiosError(error) && error.response?.data?.message ? (error.response.data.message as string) : 'Batch registration failed.';
@@ -659,7 +676,7 @@ function IgsnsPage({
     }, [selectedIds, igsns]);
 
     const handleRegistrationTerminal = useCallback(() => {
-        router.reload({ only: ['igsns', 'pagination', 'igsnRegistrationRun'] });
+        router.reload({ only: ['igsns', 'pagination', 'igsnRegistrationRun', 'filterOptions'] });
     }, []);
 
     const handleBulkDeleteConfirm = useCallback(() => {
@@ -895,14 +912,14 @@ function IgsnsPage({
                                                                             onClick={() => handleRegister(igsn)}
                                                                             disabled={!igsn.has_landing_page || registeringIgsns.has(igsn.id)}
                                                                             aria-label={
-                                                                                igsn.upload_status === 'registered'
+                                                                                isMetadataUpdate(igsn)
                                                                                     ? 'Update Metadata at DataCite'
                                                                                     : 'Register at DataCite'
                                                                             }
                                                                         >
                                                                             {registeringIgsns.has(igsn.id) ? (
                                                                                 <Spinner size="sm" />
-                                                                            ) : igsn.upload_status === 'registered' ? (
+                                                                            ) : isMetadataUpdate(igsn) ? (
                                                                                 <RefreshCw className="size-4" />
                                                                             ) : (
                                                                                 <CloudUpload className="size-4" />
@@ -913,7 +930,7 @@ function IgsnsPage({
                                                                 <TooltipContent>
                                                                     {!igsn.has_landing_page
                                                                         ? 'Set up a landing page first'
-                                                                        : igsn.upload_status === 'registered'
+                                                                        : isMetadataUpdate(igsn)
                                                                           ? 'Update Metadata at DataCite'
                                                                           : 'Register at DataCite'}
                                                                 </TooltipContent>
@@ -1084,6 +1101,7 @@ function IgsnsPage({
                     }}
                     isOpen={isLandingPageModalOpen}
                     onClose={handleCloseLandingPageModal}
+                    onSuccess={() => router.reload({ only: ['igsns'] })}
                 />
             )}
 
@@ -1097,6 +1115,7 @@ function IgsnsPage({
             )}
             {canRegister && (
                 <IgsnRegistrationRunModal
+                    key={igsnRegistrationRun?.id}
                     open={isIgsnRegistrationRunModalOpen}
                     onOpenChange={setIsIgsnRegistrationRunModalOpen}
                     initialRun={igsnRegistrationRun}

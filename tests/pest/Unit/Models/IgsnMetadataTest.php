@@ -90,11 +90,11 @@ describe('status constants', function () {
 });
 
 describe('getValidStatuses', function () {
-    it('returns all 7 valid statuses', function () {
+    it('returns the registration and upload statuses', function () {
         $statuses = IgsnMetadata::getValidStatuses();
 
-        expect($statuses)->toHaveCount(7)
-            ->and($statuses)->toContain('pending', 'uploaded', 'validating', 'validated', 'registering', 'registered', 'error');
+        expect($statuses)->toHaveCount(8)
+            ->and($statuses)->toContain('pending', 'uploaded', 'validating', 'validated', 'registering', 'registered', 'unverified', 'error');
     });
 });
 

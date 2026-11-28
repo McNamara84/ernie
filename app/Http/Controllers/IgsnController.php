@@ -21,14 +21,17 @@ use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\TitleType;
+use App\Models\User;
 use App\Services\ContactPersons\ContactPersonFilterService;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
-use App\Services\DataCiteRegistrationService;
+use App\Services\DataCiteModeResolverService;
+use App\Services\DataCiteRegistrationFactoryService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
 use App\Services\EmbargoService;
 use App\Services\IgsnRegistrationExclusionService;
+use App\Services\IgsnRegistrationPreviewService;
 use App\Services\IgsnRegistrationRunPresenterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\ListingCountService;
@@ -280,10 +283,10 @@ class IgsnController extends Controller
             /** @var list<string> $statuses */
             $statuses = IgsnMetadata::query()
                 ->whereIn('resource_id', (clone $base)->select('id'))
-                ->select('upload_status')
+                ->selectRaw($this->listingStatusSql().' AS listing_status')
                 ->distinct()
-                ->orderBy('upload_status')
-                ->pluck('upload_status')
+                ->orderBy('listing_status')
+                ->pluck('listing_status')
                 ->all();
         } catch (\Throwable $e) {
             Log::warning('Failed to load IGSN status filter options', [
@@ -430,7 +433,8 @@ class IgsnController extends Controller
     public function registerAtDataCite(Request $request, Resource $resource): JsonResponse
     {
         // Authorization: users with DOI registration access may register IGSNs; Beginner users are forced to DataCite test mode.
-        if (! $request->user()?->can('register-doi')) {
+        $user = $request->user();
+        if (! $user?->can('register-doi')) {
             abort(403, 'You are not authorized to register IGSNs.');
         }
 
@@ -458,13 +462,13 @@ class IgsnController extends Controller
 
             $resource->refresh();
 
-            return $this->performDataCiteRegistration($resource);
+            return $this->performDataCiteRegistration($resource, $user);
         } finally {
             $registrationLock->release();
         }
     }
 
-    private function performDataCiteRegistration(Resource $resource): JsonResponse
+    private function performDataCiteRegistration(Resource $resource, User $user): JsonResponse
     {
         $metadata = $resource->igsnMetadata;
         if ($metadata === null) {
@@ -479,22 +483,21 @@ class IgsnController extends Controller
                 'message' => 'A landing page must be set up before registering at DataCite.',
             ], 422);
         }
-        $wasAlreadyRegistered = $metadata->isRegistered();
-        $previousUploadState = $metadata->only(['upload_status', 'upload_error_message']);
+        if (app(DataCiteModeResolverService::class)->shouldUseTestMode($user)) {
+            try {
+                $run = app(IgsnRegistrationPreviewService::class)->single($resource, $user);
+            } catch (\InvalidArgumentException|DataCiteVerificationException $exception) {
+                return response()->json(['message' => $exception->getMessage()], 422);
+            }
 
-        // Set publicationYear to current year only for new registrations (Issue #438).
-        // Already-registered IGSNs keep their original publicationYear.
-        // Only persisted after a successful DataCite response to avoid inconsistent local state.
-        if (! $wasAlreadyRegistered) {
-            $resource->publication_year = now(config('app.timezone'))->year;
+            return response()->json(['mode' => 'simulation', 'run' => $this->igsnRegistrationRunPresenter->run($run)]);
         }
 
+        $previousUploadState = $metadata->only(['upload_status', 'upload_error_message']);
         try {
-            // Set status to "registering"
+            $service = app(DataCiteRegistrationFactoryService::class)->forMode(false);
+            $wasAlreadyRegistered = $service->shouldUpdateIgsn($resource, $metadata->registrationOperation());
             $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERING);
-
-            /** @var DataCiteRegistrationService $service */
-            $service = app(DataCiteRegistrationService::class);
 
             if ($wasAlreadyRegistered) {
                 // Already registered → update metadata
@@ -665,7 +668,7 @@ class IgsnController extends Controller
         return (clone $base)
             ->with([
                 'titles',
-                'igsnMetadata',
+                'igsnMetadata' => fn ($metadata) => $metadata->select('igsn_metadata.*')->selectRaw($this->listingStatusSql().' AS listing_status'),
                 'geoLocations',
                 'creators.creatorable',
                 'dates.dateType',
@@ -710,7 +713,8 @@ class IgsnController extends Controller
             'location' => $geoLocation->place ?? $this->formatCoordinates($geoLocation),
             'latitude' => $geoLocation?->point_latitude,
             'longitude' => $geoLocation?->point_longitude,
-            'upload_status' => $metadata->upload_status ?? 'pending',
+            'upload_status' => $metadata?->getAttribute('listing_status') ?? IgsnMetadata::STATUS_PENDING,
+            'registration_operation' => $metadata?->registrationOperation(),
             'upload_error_message' => $metadata?->upload_error_message,
             'parent_resource_id' => $metadata?->parent_resource_id,
             'collector' => $this->formatCreator($firstCreator),
@@ -856,6 +860,7 @@ class IgsnController extends Controller
             'contact' => $criteria['contact'],
             'prefix' => $criteria['prefix'],
             'status' => $criteria['status'],
+            'simulation' => $criteria['status'] !== '' && app(DataCiteModeResolverService::class)->shouldUseTestMode(request()->user()),
             'datacenter_id' => $criteria['datacenter_id'],
             'without_datacenter' => $criteria['without_datacenter'],
         ];
@@ -881,7 +886,7 @@ class IgsnController extends Controller
 
         if ($status !== '') {
             $query->whereHas('igsnMetadata', function (Builder $q) use ($status): void {
-                $q->where('upload_status', $status);
+                $q->whereRaw($this->listingStatusSql().' = ?', [$status]);
             });
         }
 
@@ -918,6 +923,14 @@ class IgsnController extends Controller
         });
     }
 
+    /** @return literal-string */
+    private function listingStatusSql(): string
+    {
+        return app(DataCiteModeResolverService::class)->shouldUseTestMode(request()->user())
+            ? "CASE WHEN simulated_registered_at IS NOT NULL THEN 'registered' ELSE upload_status END"
+            : 'upload_status';
+    }
+
     /**
      * Apply sorting to the query.
      *
@@ -948,7 +961,7 @@ class IgsnController extends Controller
             case 'material':
             case 'upload_status':
                 $query->orderBy(function ($q) use ($sortKey) {
-                    return $q->select($sortKey)
+                    return $q->selectRaw($sortKey === 'upload_status' ? $this->listingStatusSql() : $sortKey)
                         ->from('igsn_metadata')
                         ->whereColumn('igsn_metadata.resource_id', 'resources.id')
                         ->limit(1);

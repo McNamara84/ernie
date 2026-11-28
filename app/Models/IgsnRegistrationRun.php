@@ -21,6 +21,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $last_controlled_by_user_id
  * @property IgsnRegistrationRunStatus $status
  * @property array{id: int, name: string}|null $activity_actor
+ * @property bool $is_simulation
+ * @property Carbon|null $preview_confirmed_at
  * @property bool $test_mode
  * @property string|null $datacite_context_fingerprint
  * @property string $datacite_endpoint
@@ -52,6 +54,8 @@ class IgsnRegistrationRun extends Model
         'last_controlled_by_user_id',
         'status',
         'test_mode',
+        'is_simulation',
+        'preview_confirmed_at',
         'datacite_endpoint',
         'datacite_context_fingerprint',
         'total',
@@ -74,6 +78,8 @@ class IgsnRegistrationRun extends Model
         return [
             'status' => IgsnRegistrationRunStatus::class,
             'test_mode' => 'boolean',
+            'is_simulation' => 'boolean',
+            'preview_confirmed_at' => 'datetime',
             'activity_actor' => 'array',
             'total' => 'integer',
             'processed' => 'integer',

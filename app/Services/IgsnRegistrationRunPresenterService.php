@@ -17,6 +17,8 @@ final class IgsnRegistrationRunPresenterService
             'id' => $run->id,
             'status' => $run->status->value,
             'test_mode' => $run->test_mode,
+            'is_simulation' => $run->is_simulation,
+            'preview_confirmed_at' => $run->preview_confirmed_at?->toIso8601String(),
             'datacite_endpoint' => $run->datacite_endpoint,
             'total' => $run->total,
             'processed' => $run->processed,
