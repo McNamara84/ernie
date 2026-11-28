@@ -38,4 +38,8 @@ test('the portal build requires the emitted file for the MapLibre worker entry',
     assert.match(missing.stderr, /missing from the build: map-hash\.js/);
     writeFileSync(join(build, 'map-hash.js'), 'self.onmessage = () => {};');
     assert.equal(check().status, 0);
+
+    manifest.map.src = '../html/node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs';
+    writeFileSync(join(build, 'manifest.json'), JSON.stringify(manifest));
+    assert.equal(check().status, 0);
 });
